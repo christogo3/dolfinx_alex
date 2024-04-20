@@ -1,0 +1,4 @@
+# Apptainer environment configuration
+name: dolfinx_alex
+volumes:
+  - ./shared:/home
