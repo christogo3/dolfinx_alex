@@ -1,0 +1,19 @@
+Bootstrap: docker
+From: dolfinx/dolfinx:stable
+
+%post
+    # Install necessary system packages
+    apt-get update && apt-get install -y \
+        libgl1-mesa-glx \
+        xvfb \
+        && rm -rf /var/lib/apt/lists/*
+
+    # Install required Python packages
+    pip install numpy pyfiglet uvw tqdm vtk pyvista
+
+    # Set PYTHONPATH to include /home/utils
+    echo 'export PYTHONPATH="/home/utils:$PYTHONPATH"' >> $SINGULARITY_ENVIRONMENT
+
+%runscript
+    python3 /home/scripts/01-phasefield-fracture-porous/3D-foam-stationary/pfmfrac.py
+
