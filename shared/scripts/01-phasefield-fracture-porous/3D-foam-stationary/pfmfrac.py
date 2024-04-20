@@ -110,7 +110,7 @@ def crack(x):
     return np.logical_and(y_log,x_log)
 
 eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-                    [0.0, 0.3, 0.0],
+                    [0.0, 0.1, 0.0],
                     [0.0, 0.0, 0.0]]))
 
 # # define boundary condition on top and bottom
