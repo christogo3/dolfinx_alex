@@ -18,6 +18,12 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
+
+def mpi_print(output):
+    if rank == 0:
+        print(output)
+        sys.stdout.flush
+    return
 # set FEniCSX log level
 # dlfx.log.set_log_level(log.LogLevel.INFO)
 # dlfx.log.set_output_file('xxx.log')
@@ -33,42 +39,78 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
-# mesh 
-N = 16 
+with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'foam_mesh.xdmf'), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh()
 
-# generate domain
-#domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
-domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
+Tend = 0.01
+dt = 0.0001
 
-Tend = 0.4
-dt = 0.05
+# # elastic constants
+# lam = dlfx.fem.Constant(domain, 10.0)
+# mu = dlfx.fem.Constant(domain, 10.0)
+
+# # residual stiffness
+# eta = dlfx.fem.Constant(domain, 0.001)
+
+# # phase field parameters
+# Gc = dlfx.fem.Constant(domain, 1.0)
+# epsilon = dlfx.fem.Constant(domain, 0.05)
+# Mob = dlfx.fem.Constant(domain, 1.0)
+# iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
+
+
+# function space using mesh and degree
+Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
+# V = dlfx.fem.FunctionSpace(domain,Ve)
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),2) # fracture fields
+W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
+
+# get dimension and bounds for each mpi process
+dim = domain.topology.dim
+x_min = np.min(domain.geometry.x[:,0]) 
+x_max = np.max(domain.geometry.x[:,0])   
+y_min = np.min(domain.geometry.x[:,1]) 
+y_max = np.max(domain.geometry.x[:,1])   
+z_min = np.min(domain.geometry.x[:,2]) 
+z_max = np.max(domain.geometry.x[:,2])
+
+# find global min/max over all mpi processes
+comm.Barrier()
+x_min_all = comm.allreduce(x_min, op=MPI.MIN)
+x_max_all = comm.allreduce(x_max, op=MPI.MAX)
+y_min_all = comm.allreduce(y_min, op=MPI.MIN)
+y_max_all = comm.allreduce(y_max, op=MPI.MAX)
+z_min_all = comm.allreduce(z_min, op=MPI.MIN)
+z_max_all = comm.allreduce(z_max, op=MPI.MAX)
+comm.Barrier()
+
+mpi_print('spatial dimensions: '+str(dim))
+mpi_print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all))
+mpi_print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all))
+mpi_print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all))
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
 mu = dlfx.fem.Constant(domain, 10.0)
 
 # residual stiffness
-eta = dlfx.fem.Constant(domain, 0.001)
+eta = dlfx.fem.Constant(domain, 0.01)
 
 # phase field parameters
 Gc = dlfx.fem.Constant(domain, 1.0)
-epsilon = dlfx.fem.Constant(domain, 0.05)
-Mob = dlfx.fem.Constant(domain, 1.0)
+# epsilon = dlfx.fem.Constant(domain, 0.3*(x_max_all - x_min_all))
+epsilon = dlfx.fem.Constant(domain, 100.0)
+Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
-
-
-# function space using mesh and degree
-Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
-V = dlfx.fem.FunctionSpace(domain,Ve)
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 2) # fracture fields
-W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.25) 
+    x_log = x[0]< (0.05*(x_max_all-x_min_all) + x_min_all)
+    y_log = np.isclose(x[1],(y_max_all / 2.0),atol=(0.02*((y_max_all-y_min_all))))
+    return np.logical_and(y_log,x_log)
 
 eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-                    [0.0, 0.6, 0.0],
+                    [0.0, 0.3, 0.0],
                     [0.0, 0.0, 0.0]]))
 
 # # define boundary condition on top and bottom

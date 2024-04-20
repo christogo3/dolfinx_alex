@@ -139,7 +139,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         if converged and iters < min_iters and t > np.finfo(float).eps:
             dt = dt_scale_up*dt
             if rank == 0:
-                print_decreasing_dt(dt)
+                print_increasing_dt(dt)
         if iters > max_iters:
             dt = dt_scale_down*dt
             restart_solution = True

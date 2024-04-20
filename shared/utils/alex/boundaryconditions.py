@@ -46,7 +46,7 @@ def get_dimensions(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm):
         comm.Barrier()
         return [x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all]
 
-def get_total_linear_displacement_boundary_condition_at_quader(domain: dlfx.mesh.Mesh, 
+def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
                                                                comm: MPI.Intercomm,
                                                                mixedFunctionSpace: dlfx.fem.FunctionSpace,
                                                                subspace_idx: int, 
