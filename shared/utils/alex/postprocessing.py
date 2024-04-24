@@ -17,14 +17,11 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
                                     comm: MPI.Intercomm) :
     
     
-    
-    
-    
-    
     # split solution to displacement and crack field
     u, s = w.split()
     # u_out = u.collapse()
     
+       
     Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
     Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
     # W_linear = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ue, Se]))
@@ -52,5 +49,58 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     xdmfout.write_function(s_interp, t)
     xdmfout.close()
     return xdmfout
+
+def getJString(Jx, Jy, Jz):
+    out_string = 'Jx: {0:.4e} Jy: {1:.4e} Jz: {2:.4e}'.format(Jx, Jy, Jz)
+    return out_string
+    
+    
+def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str):
+    TENe = ufl.TensorElement('DG', domain.ufl_cell(), 0)
+    TEN = dlfx.fem.FunctionSpace(domain, TENe) 
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
+        for n  in range(0,len(tensor_fields_as_functions)):
+            tensor_field_function = tensor_fields_as_functions[n]
+            tensor_field_name = tensor_field_names[n]
+            tensor_field_expression = dlfx.fem.Expression(tensor_field_function, 
+                                                        TEN.element.interpolation_points())
+            out_tensor_field = dlfx.fem.Function(TEN)
+            out_tensor_field.interpolate(tensor_field_expression)
+            out_tensor_field.name = tensor_field_name
+            
+            xdmf_out.write_function(out_tensor_field)
+
+def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str):
+    Ve = ufl.VectorElement('DG', domain.ufl_cell(), 0)
+    V = dlfx.fem.FunctionSpace(domain, Ve) 
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
+        for n  in range(0,len(vector_fields_as_functions)):
+            vector_field_function = vector_fields_as_functions[n]
+            vector_field_name = vector_field_names[n]
+            vector_field_expression = dlfx.fem.Expression(vector_field_function, 
+                                                        V.element.interpolation_points())
+            out_vector_field = dlfx.fem.Function(V)
+            out_vector_field.interpolate(vector_field_expression)
+            out_vector_field.name = vector_field_name
+            
+            xdmf_out.write_function(out_vector_field)
+            
+def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str):
+    Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
+    S = dlfx.fem.FunctionSpace(domain, Se) 
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
+        for n  in range(0,len(scalar_fields_as_functions)):
+            scalar_field_function = scalar_fields_as_functions[n]
+            scalar_field_name = scalar_field_names[n]
+            scalar_field_expression = dlfx.fem.Expression(scalar_field_function, 
+                                                        S.element.interpolation_points())
+            out_scalar_field = dlfx.fem.Function(S)
+            out_scalar_field.interpolate(scalar_field_expression)
+            out_scalar_field.name = scalar_field_name
+            
+            xdmf_out.write_function(out_scalar_field)
+        
+            
+        
         
     
