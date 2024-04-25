@@ -433,6 +433,7 @@ Temporary Items
 *.msh
 *.xdmf
 *.h5
+*.png
 
 #Obsidian
 workspace.json
