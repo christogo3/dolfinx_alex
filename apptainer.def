@@ -15,5 +15,6 @@ From: dolfinx/dolfinx:stable
     echo 'export PYTHONPATH="/home/utils:$PYTHONPATH"' >> $SINGULARITY_ENVIRONMENT
 
 %runscript
+    # Delete the contents of ~/.cache/fenics
+    # rm -rf ~/.cache/fenics/*
     python3 /home/scripts/01-phasefield-fracture-porous/3D-foam-stationary/pfmfrac.py
-
