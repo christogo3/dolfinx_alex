@@ -41,11 +41,11 @@ class StaticPhaseFieldProblem3D:
         return residuum(u,s,du,ds,sm1)
     
     def sigma_as_tensor(self, u,s,lam,mu, eta):
-        return self.degradation_function(s,eta) * le.sigma_as_tensor3D(u,lam,mu)
+        return self.degradation_function(s=s,eta=eta) * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
-        Wen = self.degradation_function(s,eta) * self.psiel_voigt(u,self.eps_voigt,self.cmat_funct(lam,mu)) 
+        Wen = self.degradation_function(s,eta) * self.psiel_voigt(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
         eshelby = Wen * ufl.Identity(3) - ufl.grad(u).T*self.sigma_as_tensor(u,s,lam,mu, eta)
         return eshelby
 

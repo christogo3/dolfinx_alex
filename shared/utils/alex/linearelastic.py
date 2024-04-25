@@ -37,6 +37,15 @@ def get_J_3D(eshelby_as_function, outer_normal: ufl.FacetNormal):
     Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
     return Jxa, Jya, Jza
 
+def get_J_3D_volume_integral(eshelby_as_function, dx: ufl.Measure):
+    Jx = ufl.div(eshelby_as_function)[0] * dx
+    Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
+    Jy = ufl.div(eshelby_as_function)[1] * dx
+    Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
+    Jz = ufl.div(eshelby_as_function)[2] * dx
+    Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
+    return Jxa, Jya, Jza
+
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))
         val = lam * ufl.tr(eps) * ufl.Identity(3) * 2*mu*eps

@@ -4,11 +4,14 @@ import ufl
 
 def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
                                        outputfile_xdmf_path: str,
-                                       comm: MPI.Intercomm):
+                                       comm: MPI.Intercomm,
+                                       meshtags: any = None):
     xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w')
     xdmfout.write_mesh(domain)
+    if( not meshtags is None):
+        xdmfout.write_meshtags(meshtags, domain.geometry)
     xdmfout.close()
-    return xdmfout
+    return True
 
 def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
                                     outputfile_xdmf_path: str,
@@ -20,6 +23,10 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     # split solution to displacement and crack field
     u, s = w.split()
     # u_out = u.collapse()
+    
+    # vectorfields = [u]
+    # vectorfields_names = ["u_test"]
+    # write_vector_fields(domain,comm,vectorfields, vectorfields_names, outputfile_xdmf_path)
     
        
     Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
@@ -43,6 +50,7 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     u_interp.name = 'u'
     # s.name='s'
     
+    
     # append xdmf-file
     xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
@@ -58,7 +66,7 @@ def getJString(Jx, Jy, Jz):
 def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str):
     TENe = ufl.TensorElement('DG', domain.ufl_cell(), 0)
     TEN = dlfx.fem.FunctionSpace(domain, TENe) 
-    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
         for n  in range(0,len(tensor_fields_as_functions)):
             tensor_field_function = tensor_fields_as_functions[n]
             tensor_field_name = tensor_field_names[n]
@@ -73,8 +81,8 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
 def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str):
     Ve = ufl.VectorElement('DG', domain.ufl_cell(), 0)
     V = dlfx.fem.FunctionSpace(domain, Ve) 
-    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
-        for n  in range(0,len(vector_fields_as_functions)):
+    xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    for n  in range(0,len(vector_fields_as_functions)):
             vector_field_function = vector_fields_as_functions[n]
             vector_field_name = vector_field_names[n]
             vector_field_expression = dlfx.fem.Expression(vector_field_function, 
@@ -84,12 +92,13 @@ def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fiel
             out_vector_field.name = vector_field_name
             
             xdmf_out.write_function(out_vector_field)
+    xdmf_out.close()
             
 def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str):
     Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
     S = dlfx.fem.FunctionSpace(domain, Se) 
-    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w') as xdmf_out:
-        for n  in range(0,len(scalar_fields_as_functions)):
+    xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    for n  in range(0,len(scalar_fields_as_functions)):
             scalar_field_function = scalar_fields_as_functions[n]
             scalar_field_name = scalar_field_names[n]
             scalar_field_expression = dlfx.fem.Expression(scalar_field_function, 
@@ -99,6 +108,7 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
             out_scalar_field.name = scalar_field_name
             
             xdmf_out.write_function(out_scalar_field)
+    xdmf_out.close()
         
             
         
