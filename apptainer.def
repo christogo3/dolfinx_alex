@@ -17,4 +17,4 @@ From: dolfinx/dolfinx:stable
 %runscript
     # Delete the contents of ~/.cache/fenics
     # rm -rf ~/.cache/fenics/*
-    python3 /home/scripts/01-phasefield-fracture-porous/3D-foam-stationary/pfmfrac.py
+    python3 /home/scripts/01-phasefield-fracture-porous/3D-surfing/pfmfrac.py

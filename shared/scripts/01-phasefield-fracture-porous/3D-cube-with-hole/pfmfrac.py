@@ -17,6 +17,7 @@ import alex.boundaryconditions as bc
 import alex.postprocessing as pp
 import alex.solution as sol
 
+
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
@@ -63,12 +64,12 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 2) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.5) 
+    return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.25) 
 
 
 # # define boundary condition on top and bottom
@@ -153,7 +154,7 @@ n = ufl.FacetNormal(domain)
 # facet_tag = dlfx.mesh.meshtags(domain, domain.topology.dim, facet_indices[sorted_facets], facet_markers[sorted_facets])
 
 def in_cylinder_around_crack_tip(x):
-        return np.array((x.T[0] - 0.5) ** 2 + (x.T[1] - 0.5) ** 2 < (epsilon.value*6)**2, dtype=np.int32)
+        return np.array((x.T[0] - 0.25) ** 2 + (x.T[1] - 0.5) ** 2 < (epsilon.value*6)**2, dtype=np.int32)
 
 # Create cell tags - if midpoint is inside circle, it gets value 1,
 # otherwise 0
@@ -218,11 +219,7 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         
     dxx = ufl.Measure("dx", domain=domain, subdomain_data=cell_tags)
-    Tee = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1)
-    V = dlfx.fem.FunctionSpace(domain,Tee)
-    eta_f = ufl.TestFunction(V)
-    J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, eta_f ,dxx(1))
-    # J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral(eshelby, dxx(1))
+    J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral(eshelby, dxx(1))
     
     comm.Barrier()
     J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)

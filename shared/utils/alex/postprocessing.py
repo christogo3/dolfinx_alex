@@ -50,7 +50,6 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     u_interp.name = 'u'
     # s.name='s'
     
-    
     # append xdmf-file
     xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
