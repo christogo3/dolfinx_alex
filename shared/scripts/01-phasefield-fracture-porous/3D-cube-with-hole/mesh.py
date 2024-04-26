@@ -5,9 +5,15 @@ import os
 script_path = os.path.dirname(__file__)
 
 gmsh.initialize()
-top_marker = 2
-bottom_marker = 1
-left_marker = 1
+
+# Recombine tetrahedra to hexahedra
+# https://docs.fenicsproject.org/dolfinx/main/python/demos/demo_gmsh.html
+# gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 2)
+# gmsh.option.setNumber("Mesh.RecombineAll", 2)
+# gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", 1)
+# top_marker = 2
+# bottom_marker = 1
+# left_marker = 1
 
 # We create one rectangle for each subdomain
     # gmsh.model.occ.addRectangle(0, 0, 0, 1, 0.5, tag=1)
@@ -33,11 +39,7 @@ volume_marker = 11
 gmsh.model.addPhysicalGroup(volumes[0][0], [volumes[0][1]], volume_marker)
 gmsh.model.setPhysicalName(volumes[0][0], volume_marker, "Solid volume")
 
-# Recombine tetrahedra to hexahedra
-# https://docs.fenicsproject.org/dolfinx/main/python/demos/demo_gmsh.html
-# gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 2)
-# gmsh.option.setNumber("Mesh.RecombineAll", 2)
-# gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", 1)
+
 
 # gmsh.model.add_physical_group
 

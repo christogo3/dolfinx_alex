@@ -49,7 +49,7 @@ with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'cube_with_
 
 
 Tend = 0.4
-dt = 0.05
+dt = 0.001
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
@@ -74,7 +74,7 @@ crack_tip_start_location_x = 0.1
 crack_tip_start_location_y = 0.5
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], crack_tip_start_location_y,atol=1*epsilon.value), x[0]<crack_tip_start_location_x) 
+    return np.logical_and(np.isclose(x[1], crack_tip_start_location_y,atol=0.02), x[0]<crack_tip_start_location_x) 
 
 
 # # define boundary condition on top and bottom
@@ -115,6 +115,7 @@ def before_first_time_step():
     # prepare xdmf output 
     
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_J_path,w,dlfx.fem.Constant(domain,0),comm)
     
 
 def before_each_time_step(t,dt):
