@@ -39,14 +39,13 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
-# mesh 
-N = 16 
-
+ 
 # generate domain
-#domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
-# domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'cube_with_hole.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="Grid")
+    
+    
+
 
 
 Tend = 0.4
@@ -61,21 +60,21 @@ eta = dlfx.fem.Constant(domain, 0.001)
 
 # phase field parameters
 Gc = dlfx.fem.Constant(domain, 1.0)
-epsilon = dlfx.fem.Constant(domain, 0.05)
+epsilon = dlfx.fem.Constant(domain, 0.1)
 Mob = dlfx.fem.Constant(domain, 1.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 
 # function space using mesh and degree
-Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
+Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 2) # displacements
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 2) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 crack_tip_start_location_x = 0.1
-crack_tip_start_location_y = (1.0 / 2.0)
+crack_tip_start_location_y = 0.5
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], crack_tip_start_location_y), x[0]<crack_tip_start_location_x) 
+    return np.logical_and(np.isclose(x[1], crack_tip_start_location_y,atol=1*epsilon.value), x[0]<crack_tip_start_location_x) 
 
 
 # # define boundary condition on top and bottom
@@ -104,6 +103,8 @@ dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
 def before_first_time_step():
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
+    bc.print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all, comm)
     # initialize s=1 
     wm1.sub(1).x.array[:] = np.ones_like(wm1.sub(1).x.array[:])
     wrestart.x.array[:] = wm1.x.array[:]

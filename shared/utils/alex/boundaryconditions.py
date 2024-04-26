@@ -52,11 +52,16 @@ def get_dimensions(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm):
         z_min_all = comm.allreduce(z_min, op=MPI.MIN)
         z_max_all = comm.allreduce(z_max, op=MPI.MAX)
         comm.Barrier()
-        return [x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all]
+        return x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all
     
-    
+def print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all, comm: MPI.Intercomm):
+    if comm.rank == 0:
+        print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all))
+        print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all))
+        print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all))  
+
 def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -> Callable:
-    [x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all] = get_dimensions(domain, comm)
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):
         xmin = np.isclose(x[0],x_min_all)
         xmax = np.isclose(x[0],x_max_all)
@@ -124,7 +129,7 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     '''
         only if crack extends in x direction and starts at xmin at y = (y_max-y_min)/2
     '''
-    [x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all] = get_dimensions(domain, comm)
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def crack_boundary_where(x):
         xtip = xK1.value[0] 
         x_range = x[0] < xtip + 3.0 * epsilon
@@ -144,7 +149,7 @@ def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Me
                                                                subspace_idx: int, 
                                                                eps_mac: dlfx.fem.Constant):
     
-    [x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all] = get_dimensions(domain, comm)
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     
     # define top boundary
     def top(x):

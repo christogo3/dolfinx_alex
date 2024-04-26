@@ -18,7 +18,7 @@ left_marker = 1
     
 gmsh.model.add("DFG 3D")
 cube = gmsh.model.occ.addBox(0,0,0,1.0,1.0,1.0)
-hole = gmsh.model.occ.addSphere(0.5,0.5,0.5,0.3)
+hole = gmsh.model.occ.addSphere(0.5,0.5,0.5,0.2)
 
 # gmsh.model.occ.addRectangle(0, 0, 0, 1, 1, tag=1)
 # gmsh.model.occ.addDisk(0.5,0.5,0,0.1,0.1, tag=2)
@@ -33,11 +33,17 @@ volume_marker = 11
 gmsh.model.addPhysicalGroup(volumes[0][0], [volumes[0][1]], volume_marker)
 gmsh.model.setPhysicalName(volumes[0][0], volume_marker, "Solid volume")
 
+# Recombine tetrahedra to hexahedra
+# https://docs.fenicsproject.org/dolfinx/main/python/demos/demo_gmsh.html
+# gmsh.option.setNumber("Mesh.RecombinationAlgorithm", 2)
+# gmsh.option.setNumber("Mesh.RecombineAll", 2)
+# gmsh.option.setNumber("Mesh.CharacteristicLengthFactor", 1)
+
 # gmsh.model.add_physical_group
 
 gmsh.model.occ.synchronize()
-gmsh.option.setNumber('Mesh.MeshSizeMin', 0)  # Set the minimum mesh size
-gmsh.option.setNumber('Mesh.MeshSizeMax', 0.025) 
+gmsh.option.setNumber('Mesh.MeshSizeMin', 0.01)  # Set the minimum mesh size
+gmsh.option.setNumber('Mesh.MeshSizeMax', 0.04) 
     #gmsh.model.occ.cut()
     
 

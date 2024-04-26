@@ -113,10 +113,6 @@ def crack(x):
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=(0.02*((y_max_all-y_min_all))))
     return np.logical_and(y_log,x_log)
 
-# eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-#                     [0.0, 0.1, 0.0],
-#                     [0.0, 0.0, 0.0]]))
-
 # # define boundary condition on top and bottom
 fdim = domain.topology.dim -1
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
