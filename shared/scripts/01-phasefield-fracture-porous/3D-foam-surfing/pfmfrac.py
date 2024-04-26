@@ -101,7 +101,7 @@ eta = dlfx.fem.Constant(domain, 0.01)
 # phase field parameters
 Gc = dlfx.fem.Constant(domain, 1.0)
 # epsilon = dlfx.fem.Constant(domain, 0.3*(x_max_all - x_min_all))
-epsilon = dlfx.fem.Constant(domain, 100.0)
+epsilon = dlfx.fem.Constant(domain, 10.0)
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
