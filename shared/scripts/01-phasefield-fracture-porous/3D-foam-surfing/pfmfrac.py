@@ -126,7 +126,7 @@ bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
-xtip = np.array([0.25, 0.5])
+xtip = np.array([crack_tip_start_location_x, crack_tip_start_location_y])
 xK1 = dlfx.fem.Constant(domain, xtip)
 bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
 bcs.append(bccrack)
@@ -146,6 +146,7 @@ def before_first_time_step():
     # prepare newton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
+        pp.prepare_J_output_file(outputfile_J_path)
     # prepare xdmf output 
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
 

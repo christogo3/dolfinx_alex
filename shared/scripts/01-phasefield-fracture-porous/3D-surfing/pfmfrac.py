@@ -79,7 +79,6 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
-# def surfing_boundary(x):
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
