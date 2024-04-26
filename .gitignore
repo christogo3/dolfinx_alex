@@ -434,6 +434,7 @@ Temporary Items
 *.xdmf
 *.h5
 *.png
+*.txt
 
 *.err.*
 *.out.*
