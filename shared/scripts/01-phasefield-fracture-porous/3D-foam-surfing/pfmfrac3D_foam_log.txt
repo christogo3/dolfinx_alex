@@ -1,0 +1,4 @@
+# time, dt, no. iterations (for convergence) 
+0  0.05  1
+0.05  0.1  1
+0.15000000000000002  0.2  1

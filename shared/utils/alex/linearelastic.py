@@ -50,29 +50,18 @@ def get_J_3D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure):
     Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
     return Jxa, Jya, Jza
 
-def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, test_function: ufl.TestFunction, dx: ufl.Measure):
-    # u, s = ufl.split(w)
-    # cmat = cmat_voigt_3D(10,10)
-    
-    # Wen = alex.phasefield.degrad_quadratic(s,0.001) * psiel_voigt(u,eps_voigt_3D,cmat)
-    # #def eshelby():
-         
-    # eshelby = Wen * ufl.Identity(3) - ufl.grad(u).T*alex.phasefield.degrad_quadratic(s,0.001)*sigma_as_tensor3D(u,10,10)
-    
-    
-    Jx = ufl.dot(eshelby_as_function, ufl.grad(test_function))[0] * dx
+def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFunction, dx: ufl.Measure):
+    grad_v = ufl.grad(v)
+    Jx = (eshelby_as_function[0,0]*grad_v[0]+eshelby_as_function[0,1]*grad_v[1]+eshelby_as_function[0,2]*grad_v[2])*dx
     Jxa = assemble_vector(dlfx.fem.form(Jx))
-    Jx_out = -np.sum(Jxa.array)
     
-    Jy = ufl.dot(eshelby_as_function, ufl.grad(test_function))[1] * dx
+    Jy = (eshelby_as_function[1,0]*grad_v[0]+eshelby_as_function[1,1]*grad_v[1]+eshelby_as_function[1,2]*grad_v[2])*dx
     Jya = assemble_vector(dlfx.fem.form(Jy))
-    Jy_out = -np.sum(Jya.array)
     
-    Jz = ufl.dot(eshelby_as_function, ufl.grad(test_function))[2] * dx
+    Jz = (eshelby_as_function[2,0]*grad_v[0]+eshelby_as_function[2,1]*grad_v[1]+eshelby_as_function[2,2]*grad_v[2])*dx
     Jza = assemble_vector(dlfx.fem.form(Jz))
-    Jz_out = -np.sum(Jza.array)
     
-    return Jx_out, Jy_out, Jz_out
+    return -Jxa.sum(), -Jya.sum(), -Jza.sum()
 
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))

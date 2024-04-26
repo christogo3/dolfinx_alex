@@ -1,6 +1,13 @@
+from typing import Callable, Union
 import dolfinx as dlfx
 from mpi4py import MPI
 import ufl
+import numpy as np
+import pyvista
+import dolfinx.plot as plot
+import matplotlib.pyplot as plt
+import glob 
+import os
 
 def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
                                        outputfile_xdmf_path: str,
@@ -9,7 +16,7 @@ def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
     xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w')
     xdmfout.write_mesh(domain)
     if( not meshtags is None):
-        xdmfout.write_meshtags(meshtags, domain.geometry)
+         xdmfout.write_meshtags(meshtags, domain.geometry)
     xdmfout.close()
     return True
 
@@ -21,34 +28,19 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     
     
     # split solution to displacement and crack field
-    u, s = w.split()
-    # u_out = u.collapse()
-    
-    # vectorfields = [u]
-    # vectorfields_names = ["u_test"]
-    # write_vector_fields(domain,comm,vectorfields, vectorfields_names, outputfile_xdmf_path)
-    
-       
+    u, s = w.split()   
     Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
     Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
-    # W_linear = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ue, Se]))
-    # w_interp =dlfx.fem.Function(W_linear)
-
-    # w_interp.sub(0).interpolate(w)
-    # u_interp, s_interp = w.split()
     
     U = dlfx.fem.FunctionSpace(domain, Ue)
     S = dlfx.fem.FunctionSpace(domain, Se)
     s_interp = dlfx.fem.Function(S)
     u_interp = dlfx.fem.Function(U)
-    # # s_interp.interpolate()
-
     
     s_interp.interpolate(s)
     u_interp.interpolate(u)
     s_interp.name = 's'
     u_interp.name = 'u'
-    # s.name='s'
     
     # append xdmf-file
     xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
@@ -57,9 +49,7 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     xdmfout.close()
     return xdmfout
 
-def getJString(Jx, Jy, Jz):
-    out_string = 'Jx: {0:.4e} Jy: {1:.4e} Jz: {2:.4e}'.format(Jx, Jy, Jz)
-    return out_string
+
     
     
 def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str):
@@ -109,6 +99,112 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
             xdmf_out.write_function(out_scalar_field)
     xdmf_out.close()
         
+     
+# configurational forces
+   
+def ufl_integration_subdomain(domain: dlfx.mesh.Mesh , where: Callable) -> Union[ufl.Measure, any]:
+    """
+        tags all cells ( 0 not in subdomain, 1 in subdomain)
+        returns an integration measure for subdomain
+    """
+    num_cells = domain.topology.index_map(domain.topology.dim).size_local
+    midpoints = dlfx.mesh.compute_midpoints(domain, domain.topology.dim, np.arange(num_cells, dtype=np.int32))
+    cell_tags = dlfx.mesh.meshtags(domain, domain.topology.dim, np.arange(num_cells), where(midpoints))
+    dx = ufl.Measure("dx", domain=domain, subdomain_data=cell_tags)
+    return dx, cell_tags
+
+def screenshot_of_subdomain(path: str, domain: dlfx.mesh.Mesh, cell_tags: any, t: float):
+    """
+        plots the ufl integration subdomain (marked with cell_tags = 1)
+    """
+    
+    pyvista.start_xvfb()
+    
+    # Create VTK mesh
+    cells, types, x = plot.vtk_mesh(domain)
+    grid = pyvista.UnstructuredGrid(cells, types, x)
+
+    # Attach the cells tag data to the pyvista grid
+    grid.cell_data["Marker"] = cell_tags.values
+    grid.set_active_scalars("Marker")
+
+    # Create a plotter with two subplots, and add mesh tag plot to the
+    # first sub-window
+    subplotter = pyvista.Plotter(off_screen=True, shape=(1, 2))
+    subplotter.subplot(0, 0)
+    subplotter.add_text("Mesh with markers", font_size=14, color="black", position="upper_edge")
+    subplotter.add_mesh(grid, show_edges=True, show_scalar_bar=False)
+    subplotter.show_axes()
+    
+    # We can visualize subsets of data, by creating a smaller topology
+    # (set of cells). Here we create VTK mesh data for only cells with
+    # that tag '1'.
+    cells, types, x = plot.vtk_mesh(domain, entities=cell_tags.find(1))
+
+    # Add this grid to the second plotter window
+    sub_grid = pyvista.UnstructuredGrid(cells, types, x)
+    subplotter.subplot(0, 1)
+    subplotter.add_text("Subset of mesh", font_size=14, color="black", position="upper_edge")
+    subplotter.add_mesh(sub_grid, show_edges=True, edge_color="black")
+    subplotter.show_axes()
+    subplotter.screenshot(
+            path + "/2D_markers"+str(t)+".png", transparent_background=False, window_size=[2 * 800, 800]
+    )
+
+def getJString(Jx, Jy, Jz):
+    out_string = 'Jx: {0:.4e} Jy: {1:.4e} Jz: {2:.4e}'.format(Jx, Jy, Jz)
+    return out_string
+
+
+def prepare_J_output_file(output_file_path: str):
+    for file in glob.glob(output_file_path):
+        os.remove(output_file_path)
+    logfile = open(output_file_path, 'w')  
+    logfile.write('# Jx Jy Jz \n')
+    logfile.close()
+    return True
+
+def write_to_J_output_file(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float):
+    logfile = open(output_file_path, 'a')
+    logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e}\n'.format(t, Jx, Jy, Jz))
+    logfile.close()
+    return True
+
+import matplotlib.pyplot as plt
+
+
+
+def print_J_plot(output_file_path, print_path):
+    def read_from_J_output_file(output_file_path):
+        with open(output_file_path, 'r') as file:
+            data = [line for line in file.readlines() if not line.startswith('#')]
+        return data
+    
+    data = read_from_J_output_file(output_file_path)
+    
+    t_values = []
+    Jx_values = []
+    Jy_values = []
+    Jz_values = []
+
+    for line in data:
+        t, Jx, Jy, Jz = map(float, line.strip().split())
+        t_values.append(t)
+        Jx_values.append(Jx)
+        Jy_values.append(Jy)
+        Jz_values.append(Jz)
+
+    plt.plot(t_values, Jx_values, label='Jx')
+    plt.plot(t_values, Jy_values, label='Jy')
+    plt.plot(t_values, Jz_values, label='Jz')
+    plt.xlabel('Time')
+    plt.ylabel('Values')
+    plt.title('Jx, Jy, Jz vs Time')
+    plt.legend()
+    plt.savefig(print_path + '/J.png') 
+    plt.close()
+
+
             
         
         
