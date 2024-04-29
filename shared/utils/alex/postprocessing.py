@@ -48,11 +48,8 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     xdmfout.write_function(s_interp, t)
     xdmfout.close()
     return xdmfout
-
-
     
-    
-def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str):
+def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str, t: float):
     TENe = ufl.TensorElement('DG', domain.ufl_cell(), 0)
     TEN = dlfx.fem.FunctionSpace(domain, TENe) 
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
@@ -65,9 +62,9 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
             out_tensor_field.interpolate(tensor_field_expression)
             out_tensor_field.name = tensor_field_name
             
-            xdmf_out.write_function(out_tensor_field)
+            xdmf_out.write_function(out_tensor_field,t)
 
-def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str):
+def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str, t: float):
     Ve = ufl.VectorElement('DG', domain.ufl_cell(), 0)
     V = dlfx.fem.FunctionSpace(domain, Ve) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
@@ -80,10 +77,10 @@ def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fiel
             out_vector_field.interpolate(vector_field_expression)
             out_vector_field.name = vector_field_name
             
-            xdmf_out.write_function(out_vector_field)
+            xdmf_out.write_function(out_vector_field,t)
     xdmf_out.close()
             
-def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str):
+def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str, t: float):
     Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
     S = dlfx.fem.FunctionSpace(domain, Se) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
@@ -96,7 +93,7 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
             out_scalar_field.interpolate(scalar_field_expression)
             out_scalar_field.name = scalar_field_name
             
-            xdmf_out.write_function(out_scalar_field)
+            xdmf_out.write_function(out_scalar_field,t)
     xdmf_out.close()
 
 

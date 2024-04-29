@@ -46,8 +46,6 @@ with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'cube_with_
     
     
 
-
-
 Tend = 0.4
 dt = 0.001
 

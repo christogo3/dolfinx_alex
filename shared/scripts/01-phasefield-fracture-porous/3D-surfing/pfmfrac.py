@@ -150,12 +150,21 @@ dxx, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_t
 def after_timestep_success(t,dt,iters):
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     
+    
+    
     # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
          
     # compute J-Integral
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
+    
+    divEshelby = ufl.div(eshelby)
+    
+    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+                            vector_field_names=["Ge"], 
+                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    
     J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), outer_normal=n)
     
     comm.Barrier()

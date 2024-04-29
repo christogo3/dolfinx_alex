@@ -178,6 +178,9 @@ def get_bcs(t):
     return bcs
 
 n = ufl.FacetNormal(domain)
+external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm),5)
+ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
+
 def after_timestep_success(t,dt,iters):
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
@@ -187,7 +190,12 @@ def after_timestep_success(t,dt,iters):
         
     # compute J-Integral
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, n)
+    divEshelby = ufl.div(eshelby)
+    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+                            vector_field_names=["Ge"], 
+                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    
+    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), outer_normal=n)
     
     comm.Barrier()
     J3D_glob_x = comm.allreduce(J3D_loc_x, op=MPI.SUM)
