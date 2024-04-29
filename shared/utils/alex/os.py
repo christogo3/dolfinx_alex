@@ -1,5 +1,7 @@
 import os
 import sys
+import shutil
+from datetime import datetime
 
 scripts_directory = os.path.join('/home','scripts')
 resources_directory = os.path.join('/home','resources')
@@ -18,3 +20,23 @@ def mpi_print(output, rank=0):
         print(output)
         sys.stdout.flush
     return
+
+
+def create_timestamp_string():
+    now = datetime.now()
+    timestamp_string = now.strftime("%Y-%m-%d_%H-%M-%S")
+    return timestamp_string
+
+def create_results_folder(source_folder):
+    timestamp = create_timestamp_string()
+    results_folder = os.path.join(source_folder, timestamp + "_results")
+    os.makedirs(results_folder)
+    return results_folder
+
+def copy_contents_to_results_folder(source_folder, results_folder):
+    for item in os.listdir(source_folder):
+        source_item = os.path.join(source_folder, item)
+        if os.path.isfile(source_item):
+            shutil.copy(source_item, results_folder)
+        elif os.path.isdir(source_item) and source_item != results_folder:
+            shutil.copytree(source_item, os.path.join(results_folder, item))

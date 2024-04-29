@@ -44,7 +44,7 @@ sys.stdout.flush()
 with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'foam_mesh.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh()
 
-Tend = 0.01
+Tend = 5.0
 dt = 0.0001
 
 # # elastic constants
@@ -101,7 +101,7 @@ eta = dlfx.fem.Constant(domain, 0.01)
 # phase field parameters
 Gc = dlfx.fem.Constant(domain, 1.0)
 # epsilon = dlfx.fem.Constant(domain, 0.3*(x_max_all - x_min_all))
-epsilon = dlfx.fem.Constant(domain, 10.0)
+epsilon = dlfx.fem.Constant(domain, 100.0)
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
@@ -109,8 +109,10 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 crack_tip_start_location_x = 0.05*(x_max_all-x_min_all) + x_min_all
 crack_tip_start_location_y = (y_max_all / 2.0)
 def crack(x):
-    x_log = x[0]< (crack_tip_start_location_x)
-    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=(0.02*((y_max_all-y_min_all))))
+    # x_log = x[0]< (crack_tip_start_location_x)
+    # y_log = np.isclose(x[1],crack_tip_start_location_y,atol=(0.02*((y_max_all-y_min_all))))
+    x_log = x[0]< 50
+    y_log = np.isclose(x[1],200,atol=(0.02*(200)))
     return np.logical_and(y_log,x_log)
 
 # # define boundary condition on top and bottom
@@ -121,10 +123,10 @@ bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
-K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
-xtip = np.array([crack_tip_start_location_x, crack_tip_start_location_y])
+K1 = dlfx.fem.Constant(domain, 0.001 * math.sqrt(Gc.value*E_mod))
+xtip = np.array([0.0, 200],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
-bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
+bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,mixedFunctionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0* epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
 bcs.append(bccrack)
 
 
@@ -165,11 +167,12 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
     
 def get_bcs(t):
-    v_crack = (x_max_all-crack_tip_start_location_x)/Tend
-    xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    v_crack = 350/Tend
+    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    xtip = np.array([50 + v_crack * t, 200],dtype=dlfx.default_scalar_type)
     xK1 = dlfx.fem.Constant(domain, xtip)
 
-    bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
+    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,mixedFunctionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
     bcs.append(bccrack)
     return bcs

@@ -98,6 +98,25 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
             
             xdmf_out.write_function(out_scalar_field)
     xdmf_out.close()
+
+
+def tag_part_of_boundary(domain: dlfx.mesh.Mesh, where: Callable, tag: int) -> any:
+    '''
+        https://jsdokken.com/dolfinx-tutorial/chapter2/hyperelasticity.html
+        assigns tags to part of the boundary, which can then be used for surface integral
+        
+        returns the facet_tags
+    '''
+    fdim = domain.topology.dim - 1
+    facets = dlfx.mesh.locate_entities_boundary(domain, fdim, where)
+    marked_facets = np.hstack([facets])
+    marked_values = np.hstack([np.full_like(facets,tag)])
+    sorted_facets = np.argsort(marked_facets)
+    facet_tags = dlfx.mesh.meshtags(domain, fdim, marked_facets[sorted_facets], marked_values[sorted_facets])
+    
+    
+    return facet_tags
+    
         
      
 # configurational forces

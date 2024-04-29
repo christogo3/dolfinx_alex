@@ -32,12 +32,12 @@ def get_nu(lam: float, mu: float):
 def get_emod(lam: float, mu: float):
     return  mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
 
-def get_J_3D(eshelby_as_function: Callable, outer_normal: ufl.FacetNormal):
-    Jx = (eshelby_as_function[0,0]*outer_normal[0]+eshelby_as_function[0,1]*outer_normal[1]+eshelby_as_function[0,2]*outer_normal[2])*ufl.ds
+def get_J_3D(eshelby_as_function: Callable, outer_normal: ufl.FacetNormal, ds : ufl.Measure = ufl.ds):
+    Jx = (eshelby_as_function[0,0]*outer_normal[0]+eshelby_as_function[0,1]*outer_normal[1]+eshelby_as_function[0,2]*outer_normal[2])*ds
     Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
-    Jy = (eshelby_as_function[1,0]*outer_normal[0]+eshelby_as_function[1,1]*outer_normal[1]+eshelby_as_function[1,2]*outer_normal[2])*ufl.ds
+    Jy = (eshelby_as_function[1,0]*outer_normal[0]+eshelby_as_function[1,1]*outer_normal[1]+eshelby_as_function[1,2]*outer_normal[2])*ds
     Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
-    Jz = (eshelby_as_function[2,0]*outer_normal[0]+eshelby_as_function[2,1]*outer_normal[1]+eshelby_as_function[2,2]*outer_normal[2])*ufl.ds
+    Jz = (eshelby_as_function[2,0]*outer_normal[0]+eshelby_as_function[2,1]*outer_normal[1]+eshelby_as_function[2,2]*outer_normal[2])*ds
     Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
     return Jxa, Jya, Jza
 

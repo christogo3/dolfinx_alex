@@ -137,7 +137,7 @@ def before_first_time_step():
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
     # prepare xdmf output 
-    xdmfout = pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
+    pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
 
 
 def before_each_time_step(t,dt):

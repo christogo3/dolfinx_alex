@@ -83,7 +83,6 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
-# def surfing_boundary(x):
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
@@ -108,14 +107,15 @@ def before_first_time_step():
     # initialize s=1 
     wm1.sub(1).x.array[:] = np.ones_like(wm1.sub(1).x.array[:])
     wrestart.x.array[:] = wm1.x.array[:]
-    # prepare newton-log-file
+    # prepare n
+    # ewton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
         pp.prepare_J_output_file(outputfile_J_path)
     # prepare xdmf output 
     
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
-    pp.write_phasefield_mixed_solution(domain,outputfile_J_path,w,dlfx.fem.Constant(domain,0),comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_J_path,w,0,comm)
     
 
 def before_each_time_step(t,dt):
@@ -135,7 +135,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
     
 def get_bcs(t):
-    v_crack = (1.0-crack_tip_start_location_x)/Tend
+    v_crack = (1.0+crack_tip_start_location_x-crack_tip_start_location_x)/Tend
     xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
     xK1 = dlfx.fem.Constant(domain, xtip)
 
@@ -145,6 +145,8 @@ def get_bcs(t):
     return bcs
 
 n = ufl.FacetNormal(domain)
+external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm),5)
+ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
 def after_timestep_success(t,dt,iters):
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
@@ -154,7 +156,7 @@ def after_timestep_success(t,dt,iters):
         
     # compute J-Integral
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, n)
+    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, outer_normal=n,ds=ds(5))
     
     comm.Barrier()
     J3D_glob_x = comm.allreduce(J3D_loc_x, op=MPI.SUM)
@@ -184,6 +186,10 @@ def after_last_timestep():
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
         pp.print_J_plot(outputfile_J_path,script_path)
+        
+        # cleanup
+        results_folder_path = alex.os.create_results_folder(script_path)
+        alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
     
 
 sol.solve_with_newton_adaptive_time_stepping(

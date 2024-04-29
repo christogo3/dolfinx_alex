@@ -72,13 +72,11 @@ W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 def crack(x):
     return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.5) 
 
-
-# # define boundary condition on top and bottom
+# define boundary condition on top and bottom
 fdim = domain.topology.dim -1
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
-
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
@@ -87,7 +85,7 @@ xK1 = dlfx.fem.Constant(domain, xtip)
 
 bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
 # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
-bcs.append(bccrack)
+bcs.append(bccrack)                   
 
 
 # define solution, restart, trial and test space
@@ -141,10 +139,13 @@ def get_bcs(t):
     return bcs
 
 n = ufl.FacetNormal(domain)
+external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm),5)
+ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
 
 def in_cylinder_around_crack_tip(x):
         return np.array((x.T[0] - 0.5) ** 2 + (x.T[1] - 0.5) ** 2 < (epsilon.value*6)**2, dtype=np.int32)
 dxx, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_tip)
+
 
 def after_timestep_success(t,dt,iters):
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
@@ -155,7 +156,7 @@ def after_timestep_success(t,dt,iters):
          
     # compute J-Integral
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, n)
+    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), outer_normal=n)
     
     comm.Barrier()
     J3D_glob_x = comm.allreduce(J3D_loc_x, op=MPI.SUM)
@@ -165,19 +166,20 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
+        pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
         
-    du, ds = ufl.split(dw)
-    J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, ds ,dxx(1))
+    # du, ds = ufl.split(dw)
+    # J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, ds ,dxx(1))
     
-    comm.Barrier()
-    J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
-    J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
-    J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
-    comm.Barrier()
+    # comm.Barrier()
+    # J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
+    # J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
+    # J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
+    # comm.Barrier()
     
-    if rank == 0:
-        print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
-        pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+    # if rank == 0:
+    #     print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
+    #     pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
         
     # J3D_loc_x_ii, J3D_loc_y_ii, J3D_loc_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, dxx)
     
@@ -208,7 +210,10 @@ def after_last_timestep():
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
         pp.print_J_plot(outputfile_J_path,script_path)
-    
+        
+        # cleanup
+        results_folder_path = alex.os.create_results_folder(script_path)
+        alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
