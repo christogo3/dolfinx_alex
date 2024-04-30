@@ -51,14 +51,38 @@ def get_J_3D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure):
     return Jxa, Jya, Jza
 
 def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFunction, dx: ufl.Measure):
+    # grad_v = ufl.grad(v)
+    
+    # Jx = ufl.inner(eshelby_as_function,grad_v)*dx
+    # # Jx = (eshelby_as_function[0,0]*grad_v[0]+eshelby_as_function[0,1]*grad_v[1]+eshelby_as_function[0,2]*grad_v[2])*dx
+    # Jxa = assemble_vector(dlfx.fem.form(Jx))
+    
+    # Jy = ufl.inner(eshelby_as_function,grad_v)*dx
+    # # Jy = (eshelby_as_function[1,0]*grad_v[0]+eshelby_as_function[1,1]*grad_v[1]+eshelby_as_function[1,2]*grad_v[2])*dx
+    # Jya = assemble_vector(dlfx.fem.form(Jy))
+    
+    # Jz = ufl.inner(eshelby_as_function,grad_v)*dx
+    # # Jz = (eshelby_as_function[2,0]*grad_v[0]+eshelby_as_function[2,1]*grad_v[1]+eshelby_as_function[2,2]*grad_v[2])*dx
+    # Jza = assemble_vector(dlfx.fem.form(Jz))
+    
+    # grad_v = ufl.grad(v)
+    # Jx = (eshelby_as_function[0,0]*grad_v[0,0]+eshelby_as_function[0,1]*grad_v[0,1]+eshelby_as_function[0,2]*grad_v[0,2])*dx
+    # Jxa = assemble_vector(dlfx.fem.form(Jx))
+    
+    # Jy = (eshelby_as_function[1,0]*grad_v[1,0]+eshelby_as_function[1,1]*grad_v[1,1]+eshelby_as_function[1,2]*grad_v[1,2])*dx
+    # Jya = assemble_vector(dlfx.fem.form(Jy))
+    
+    # Jz = (eshelby_as_function[2,0]*grad_v[2,0]+eshelby_as_function[2,1]*grad_v[2,1]+eshelby_as_function[2,2]*grad_v[2,2])*dx
+    # Jza = assemble_vector(dlfx.fem.form(Jz))
+    
     grad_v = ufl.grad(v)
-    Jx = (eshelby_as_function[0,0]*grad_v[0]+eshelby_as_function[0,1]*grad_v[1]+eshelby_as_function[0,2]*grad_v[2])*dx
+    Jx = (eshelby_as_function[0,0]*ufl.Dx(v,0)+eshelby_as_function[0,1]*ufl.Dx(v,1)+eshelby_as_function[0,2]*ufl.Dx(v,2))*dx
     Jxa = assemble_vector(dlfx.fem.form(Jx))
     
-    Jy = (eshelby_as_function[1,0]*grad_v[0]+eshelby_as_function[1,1]*grad_v[1]+eshelby_as_function[1,2]*grad_v[2])*dx
+    Jy = (eshelby_as_function[1,0]*ufl.Dx(v,0)+eshelby_as_function[1,1]*ufl.Dx(v,1)+eshelby_as_function[1,2]*ufl.Dx(v,2))*dx
     Jya = assemble_vector(dlfx.fem.form(Jy))
     
-    Jz = (eshelby_as_function[2,0]*grad_v[0]+eshelby_as_function[2,1]*grad_v[1]+eshelby_as_function[2,2]*grad_v[2])*dx
+    Jz = (eshelby_as_function[2,0]*ufl.Dx(v,0)+eshelby_as_function[2,1]*ufl.Dx(v,1)+eshelby_as_function[2,2]*ufl.Dx(v,2))*dx
     Jza = assemble_vector(dlfx.fem.form(Jz))
     
     return -Jxa.sum(), -Jya.sum(), -Jza.sum()

@@ -148,8 +148,21 @@ dxx, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_t
 
 
 def after_timestep_success(t,dt,iters):
+    w.x.scatter_forward() # synchronization between processes? 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     
+    
+    def getEshelby( w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+        
+        def deg(s):
+            return pf.degrad_quadratic(s,eta)
+        def sigma_wo_deg(u):
+            return lam.value * ufl.tr(ufl.sym(ufl.grad(u))) * ufl.Identity(3) + 2.0 * mu.value * ufl.sym(ufl.grad(u)) 
+        
+        def psiel(u):
+            return 0.5*ufl.inner(sigma_wo_deg(u), ufl.sym(ufl.grad(u)))
+        u,s = ufl.split(w)
+        return deg(s) * psiel(u) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T,deg(s) * sigma_wo_deg(u))
     
     
     # write to newton-log-file
@@ -157,10 +170,11 @@ def after_timestep_success(t,dt,iters):
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
          
     # compute J-Integral
-    eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
+    # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
+    eshelby = getEshelby(w,eta,lam,mu)
+    # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
     
     divEshelby = ufl.div(eshelby)
-    
     pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
                             vector_field_names=["Ge"], 
                             outputfile_xdmf_path=outputfile_xdmf_path,t=t)
@@ -177,29 +191,29 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
         
-    # du, ds = ufl.split(dw)
-    # J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, ds ,dxx(1))
+    du, dv = ufl.split(dw)
+    J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, dv ,ufl.dx) # dxx(1)
     
-    # comm.Barrier()
-    # J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
-    # J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
-    # J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
-    # comm.Barrier()
+    comm.Barrier()
+    J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
+    J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
+    J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
+    comm.Barrier()
     
-    # if rank == 0:
-    #     print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
-    #     pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+    if rank == 0:
+        print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
+        pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
         
-    # J3D_loc_x_ii, J3D_loc_y_ii, J3D_loc_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, dxx)
+    J3D_loc_x_ii, J3D_loc_y_ii, J3D_loc_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, ufl.dx)
     
-    # comm.Barrier()
-    # J3D_glob_x_ii = comm.allreduce(J3D_loc_x_ii, op=MPI.SUM)
-    # J3D_glob_y_ii = comm.allreduce(J3D_loc_y_ii, op=MPI.SUM)
-    # J3D_glob_z_ii = comm.allreduce(J3D_loc_z_ii, op=MPI.SUM)
-    # comm.Barrier()
+    comm.Barrier()
+    J3D_glob_x_ii = comm.allreduce(J3D_loc_x_ii, op=MPI.SUM)
+    J3D_glob_y_ii = comm.allreduce(J3D_loc_y_ii, op=MPI.SUM)
+    J3D_glob_z_ii = comm.allreduce(J3D_loc_z_ii, op=MPI.SUM)
+    comm.Barrier()
     
-    # if rank == 0:
-    #     print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
+    if rank == 0:
+        print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -238,4 +252,5 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm
 )
+
 

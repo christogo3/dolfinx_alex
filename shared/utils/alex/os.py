@@ -38,5 +38,5 @@ def copy_contents_to_results_folder(source_folder, results_folder):
         source_item = os.path.join(source_folder, item)
         if os.path.isfile(source_item):
             shutil.copy(source_item, results_folder)
-        elif os.path.isdir(source_item) and source_item != results_folder:
+        elif os.path.isdir(source_item) and not item.endswith("_results"):
             shutil.copytree(source_item, os.path.join(results_folder, item))
