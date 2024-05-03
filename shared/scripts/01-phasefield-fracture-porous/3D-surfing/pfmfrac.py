@@ -18,6 +18,9 @@ import alex.boundaryconditions as bc
 import alex.postprocessing as pp
 import alex.solution as sol
 
+from  dolfinx.cpp.la import InsertMode
+
+
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
@@ -70,7 +73,7 @@ W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.5) 
+    return np.logical_and(np.isclose(x[1], 0.25), x[0]<0.5) 
 
 # define boundary condition on top and bottom
 fdim = domain.topology.dim -1
@@ -147,12 +150,14 @@ def in_cylinder_around_crack_tip(x):
 dxx, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_tip)
 
 
+
+
 def after_timestep_success(t,dt,iters):
     w.x.scatter_forward() # synchronization between processes? 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     
     
-    def getEshelby( w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+    def getEshelby( u: any, s: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         
         def deg(s):
             return pf.degrad_quadratic(s,eta)
@@ -161,8 +166,8 @@ def after_timestep_success(t,dt,iters):
         
         def psiel(u):
             return 0.5*ufl.inner(sigma_wo_deg(u), ufl.sym(ufl.grad(u)))
-        u,s = ufl.split(w)
-        return deg(s) * psiel(u) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T,deg(s) * sigma_wo_deg(u))
+        # u,s = ufl.split(w)
+        return deg(s) * psiel(u) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T, deg(s) * sigma_wo_deg(u))
     
     
     # write to newton-log-file
@@ -171,7 +176,34 @@ def after_timestep_success(t,dt,iters):
          
     # compute J-Integral
     # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    eshelby = getEshelby(w,eta,lam,mu)
+    u,s = ufl.split(w)
+    du, dv = ufl.split(dw)
+    
+    F = dlfx.fem.FunctionSpace(domain, Te)
+    # sg = dlfx.fem.Function(F)
+    # sg.interpolate(s)
+    dv = ufl.TestFunction(F)
+    
+    V = dlfx.fem.FunctionSpace(domain, Ve)
+    # ug = dlfx.fem.Function(V)
+    # ug.interpolate(u)
+    
+    # u, s = w.split()   
+    # Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
+    # Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
+    
+    # U = dlfx.fem.FunctionSpace(domain, Ue)
+    # S = dlfx.fem.FunctionSpace(domain, Se)
+    # sg = dlfx.fem.Function(S)
+    # ug = dlfx.fem.Function(U)
+    
+    # sg.interpolate(s)
+    # ug.interpolate(u)
+    
+    eshelby = getEshelby(u,s,eta,lam,mu)
+    
+    
+    
     # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
     
     divEshelby = ufl.div(eshelby)
@@ -191,18 +223,64 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
         
-    du, dv = ufl.split(dw)
-    J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, dv ,ufl.dx) # dxx(1)
+    
+    
+    # DGTe = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
+    # DGT = dlfx.fem.FunctionSpace(domain, DGTe) 
+    # esh_exp = dlfx.fem.Expression(eshelby, DGT.element.interpolation_points())
+    # esh_fun = dlfx.fem.Function(DGT,name="Esh")
+    # esh_fun.interpolate(esh_exp)
+    
+    grad_v = ufl.grad(dv)
+    Gvec = dlfx.fem.assemble_vector(dlfx.fem.form( (eshelby[0,0]*grad_v[0] + eshelby[0,1]*grad_v[1] + eshelby[0,2]*grad_v[2]) * ufl.dx))
+    Gvec.scatter_reverse(InsertMode.add)
+    
+    Gw = dlfx.fem.Function(F)
+    Gw.x.array[:] = Gvec.array
+    Gw.name = 'Gel'
+    
+    # Gvec1 = dlfx.fem.assemble_scalar(dlfx.fem.form( (eshelby[0,0]*grad_v[0] + eshelby[0,1]*grad_v[1] + eshelby[0,2]*grad_v[2])*ufl.dx))
+    
+    Gvec2 = dlfx.fem.assemble_vector(dlfx.fem.form( ufl.inner(eshelby, ufl.grad(du))*ufl.dx ))
+    Gvec2.scatter_reverse(InsertMode.add)
+    Gw2 = dlfx.fem.Function(W)
+    Gw2.sub(0).x.array[:] = Gvec2.array
+    Gel = Gw2.sub(0).collapse()
+    Gel.name = 'Gel2'
+        
+    G1_loc = np.sum(Gw.x.array)
+    G2_loc = np.sum(Gel.sub(0).x.array)
     
     comm.Barrier()
-    J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
-    J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
-    J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
+    G1_glob = comm.allreduce(G1_loc, op=MPI.SUM)
+    G2_glob = comm.allreduce(G2_loc, op=MPI.SUM)
     comm.Barrier()
     
     if rank == 0:
-        print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
-        pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+        print(G1_glob)
+        print(G2_glob)
+    
+    # pp.write_scalar_fields(domain,comm,[Gw], ["Gel"], outputfile_xdmf_path, t)
+    pp.write_field(domain,outputfile_xdmf_path,Gw,t,comm=comm)
+    
+    pp.write_vector_field(domain,outputfile_xdmf_path,Gel,t,comm=comm)
+    # with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
+    
+    # # xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    #     xdmf_out.write_function(Gw)
+    # xdmf_out.close()
+    
+    # J3D_loc_x_i, J3D_loc_y_i, J3D_loc_z_i = alex.linearelastic.get_J_3D_volume_integral_tf(eshelby, dv ,ufl.dx) # dxx(1)
+    
+    # comm.Barrier()
+    # J3D_glob_x_i = comm.allreduce(J3D_loc_x_i, op=MPI.SUM)
+    # J3D_glob_y_i = comm.allreduce(J3D_loc_y_i, op=MPI.SUM)
+    # J3D_glob_z_i = comm.allreduce(J3D_loc_z_i, op=MPI.SUM)
+    # comm.Barrier()
+    
+    # if rank == 0:
+    #     print(pp.getJString(J3D_glob_x_i, J3D_glob_y_i, J3D_glob_z_i))
+    #     pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
         
     J3D_loc_x_ii, J3D_loc_y_ii, J3D_loc_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, ufl.dx)
     
@@ -234,9 +312,9 @@ def after_last_timestep():
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
         pp.print_J_plot(outputfile_J_path,script_path)
         
-        # cleanup
-        results_folder_path = alex.os.create_results_folder(script_path)
-        alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
+        # cleanup only necessary on cluster
+        # results_folder_path = alex.os.create_results_folder(script_path)
+        # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,

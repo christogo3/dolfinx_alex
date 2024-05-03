@@ -176,14 +176,24 @@ Gy_out = assemble_vector(dlfx.fem.form(Gy,dtype=default_scalar_type))
 
 print(Gy_out.sum())
 
+
 n = ufl.FacetNormal(domain)
 Jx = (eshelby(uh)[0,0]*n[0] + eshelby(uh)[0,1]*n[1]) * ds
 Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
 print(Jxa)
 
 JxVol = ufl.div(eshelby(uh))[0] * ufl.dx
-JxVola = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
+JxVola = dlfx.fem.assemble_scalar(dlfx.fem.form(JxVol))
 print(JxVola)
+
+
+# Felem = ufl.FiniteElement('Lagrange', domain.ufl_cell(), degree=1)
+# F = fem.FunctionSpace(domain, Felem)
+dv = ufl.TestFunction(V.sub(0))
+grad_dv = ufl.grad(dv)
+Gvec1 = fem.assemble_scalar(fem.form( (eshelby(uh)[0,0]*grad_dv[0] + eshelby(uh)[0,1]*grad_dv[1])*ufl.dx))
+Gvec2 = fem.assemble_scalar(fem.form( (eshelby(uh)[1,0]*grad_dv[0] + eshelby(uh)[1,1]*grad_dv[1])*ufl.dx))
+
 
 
 # write results

@@ -15,10 +15,10 @@ RUN apt-get update && apt-get install -y \
 
 
 # Install X server and other necessary packages
-RUN apt-get update && apt-get install -y xserver-xorg-core xserver-xorg-video-dummy openmpi-bin
+# RUN apt-get update && apt-get install -y xserver-xorg-core xserver-xorg-video-dummy openmpi-bin
 
 # Set DISPLAY environment variable
-ENV DISPLAY=127.0.0.1:0.0
+# ENV DISPLAY=127.0.0.1:0.0
 
 # Install required Python packages
 RUN pip install numpy pyfiglet uvw tqdm vtk pyvista

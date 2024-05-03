@@ -48,6 +48,54 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     xdmfout.write_function(s_interp, t)
     xdmfout.close()
     return xdmfout
+
+def write_field(domain: dlfx.mesh.Mesh,
+                                    outputfile_xdmf_path: str,
+                                    field: dlfx.fem.Function,
+                                    t: dlfx.fem.Constant,
+                                    comm: MPI.Intercomm) :
+    
+    
+    # split solution to displacement and crack field
+    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
+    
+    S = dlfx.fem.FunctionSpace(domain, Se)
+    field_interp = dlfx.fem.Function(S)
+    
+    field_interp.interpolate(field)
+
+    field_interp.name = field.name
+    
+    # append xdmf-file
+    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    xdmfout.write_function(field_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
+    xdmfout.close()
+    return xdmfout
+
+def write_vector_field(domain: dlfx.mesh.Mesh,
+                                    outputfile_xdmf_path: str,
+                                    field: dlfx.fem.Function,
+                                    t: dlfx.fem.Constant,
+                                    comm: MPI.Intercomm) :
+    
+    
+    # split solution to displacement and crack field
+    Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
+    
+    S = dlfx.fem.FunctionSpace(domain, Se)
+    field_interp = dlfx.fem.Function(S)
+    
+    field_interp.interpolate(field)
+
+    field_interp.name = field.name
+    
+    # append xdmf-file
+    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    xdmfout.write_function(field_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
+    xdmfout.close()
+    return xdmfout
+
+
     
 def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str, t: float):
     TENe = ufl.TensorElement('DG', domain.ufl_cell(), 0)
@@ -65,7 +113,7 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
             xdmf_out.write_function(out_tensor_field,t)
 
 def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str, t: float):
-    Ve = ufl.VectorElement('DG', domain.ufl_cell(), 0)
+    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)
     V = dlfx.fem.FunctionSpace(domain, Ve) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(vector_fields_as_functions)):
@@ -220,6 +268,8 @@ def print_J_plot(output_file_path, print_path):
     plt.savefig(print_path + '/J.png') 
     plt.close()
 
+def number_of_nodes(domain: dlfx.mesh.Mesh):
+    return domain.topology.index_map(0).size_global
 
             
         

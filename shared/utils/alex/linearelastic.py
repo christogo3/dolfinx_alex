@@ -3,6 +3,7 @@ import ufl
 from typing import Callable
 import numpy as np
 import alex.phasefield
+import dolfinx.fem as fem
 
 from dolfinx.fem.petsc import assemble_vector
 
@@ -42,12 +43,9 @@ def get_J_3D(eshelby_as_function: Callable, outer_normal: ufl.FacetNormal, ds : 
     return Jxa, Jya, Jza
 
 def get_J_3D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure):
-    Jx = ufl.div(eshelby_as_function)[0] * dx
-    Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
-    Jy = ufl.div(eshelby_as_function)[1] * dx
-    Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
-    Jz = ufl.div(eshelby_as_function)[2] * dx
-    Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
+    Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[0] ) * dx ) ))
+    Jya = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[1] ) * dx ) ))
+    Jza = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[2] ) * dx )))
     return Jxa, Jya, Jza
 
 def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFunction, dx: ufl.Measure):
@@ -76,16 +74,21 @@ def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFuncti
     # Jza = assemble_vector(dlfx.fem.form(Jz))
     
     grad_v = ufl.grad(v)
-    Jx = (eshelby_as_function[0,0]*ufl.Dx(v,0)+eshelby_as_function[0,1]*ufl.Dx(v,1)+eshelby_as_function[0,2]*ufl.Dx(v,2))*dx
-    Jxa = assemble_vector(dlfx.fem.form(Jx))
     
-    Jy = (eshelby_as_function[1,0]*ufl.Dx(v,0)+eshelby_as_function[1,1]*ufl.Dx(v,1)+eshelby_as_function[1,2]*ufl.Dx(v,2))*dx
-    Jya = assemble_vector(dlfx.fem.form(Jy))
+    Jxa = fem.assemble_vector(fem.form( (eshelby_as_function[0,0]*grad_v[0] + eshelby_as_function[0,1]*grad_v[1] +  eshelby_as_function[0,2]*grad_v[2])*ufl.dx))
+    Jya = fem.assemble_vector(fem.form( (eshelby_as_function[1,0]*grad_v[0] + eshelby_as_function[1,1]*grad_v[1] +  eshelby_as_function[1,2]*grad_v[2])*ufl.dx))
+    Jza = fem.assemble_vector(fem.form( (eshelby_as_function[2,0]*grad_v[0] + eshelby_as_function[2,1]*grad_v[1] +  eshelby_as_function[2,2]*grad_v[2])*ufl.dx))
     
-    Jz = (eshelby_as_function[2,0]*ufl.Dx(v,0)+eshelby_as_function[2,1]*ufl.Dx(v,1)+eshelby_as_function[2,2]*ufl.Dx(v,2))*dx
-    Jza = assemble_vector(dlfx.fem.form(Jz))
+    # Jx = (eshelby_as_function[0,0]*ufl.Dx(v,0)+eshelby_as_function[0,1]*ufl.Dx(v,1)+eshelby_as_function[0,2]*ufl.Dx(v,2))*dx
+    # Jxa = assemble_vector(dlfx.fem.form(Jx))
     
-    return -Jxa.sum(), -Jya.sum(), -Jza.sum()
+    # Jy = (eshelby_as_function[1,0]*ufl.Dx(v,0)+eshelby_as_function[1,1]*ufl.Dx(v,1)+eshelby_as_function[1,2]*ufl.Dx(v,2))*dx
+    # Jya = assemble_vector(dlfx.fem.form(Jy))
+    
+    # Jz = (eshelby_as_function[2,0]*ufl.Dx(v,0)+eshelby_as_function[2,1]*ufl.Dx(v,1)+eshelby_as_function[2,2]*ufl.Dx(v,2))*dx
+    # Jza = assemble_vector(dlfx.fem.form(Jz))
+    
+    return Jxa, Jya, Jza
 
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))
