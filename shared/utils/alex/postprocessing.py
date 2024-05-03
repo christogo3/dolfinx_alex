@@ -234,14 +234,50 @@ def write_to_J_output_file(output_file_path: str, t:float, Jx:float, Jy:float, J
     logfile.close()
     return True
 
+def write_to_J_output_file_extended(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float, Jx_alt:float, Jy_alt:float, Jz_alt:float):
+    logfile = open(output_file_path, 'a')
+    logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e} {4:.4e} {5:.4e} {6:.4e}\n'.format(t, Jx, Jy, Jz, Jx_alt, Jy_alt, Jz_alt))
+    logfile.close()
+    return True
+
 import matplotlib.pyplot as plt
 
 
 
+# def print_J_plot(output_file_path, print_path):
+#     def read_from_J_output_file(output_file_path):
+#         with open(output_file_path, 'r') as file:
+#             data = [line for line in file.readlines() if not line.startswith('#')]
+#         return data
+    
+#     data = read_from_J_output_file(output_file_path)
+    
+#     t_values = []
+#     Jx_values = []
+#     Jy_values = []
+#     Jz_values = []
+
+#     for line in data:
+#         t, Jx, Jy, Jz = map(float, line.strip().split())
+#         t_values.append(t)
+#         Jx_values.append(Jx)
+#         Jy_values.append(Jy)
+#         Jz_values.append(Jz)
+
+#     plt.plot(t_values, Jx_values, label='Jx')
+#     plt.plot(t_values, Jy_values, label='Jy')
+#     plt.plot(t_values, Jz_values, label='Jz')
+#     plt.xlabel('Time')
+#     plt.ylabel('Values')
+#     plt.title('Jx, Jy, Jz vs Time')
+#     plt.legend()
+#     plt.savefig(print_path + '/J.png') 
+#     plt.close()
+    
 def print_J_plot(output_file_path, print_path):
     def read_from_J_output_file(output_file_path):
         with open(output_file_path, 'r') as file:
-            data = [line for line in file.readlines() if not line.startswith('#')]
+            data = [line.strip().split() for line in file.readlines() if not line.startswith('#')]
         return data
     
     data = read_from_J_output_file(output_file_path)
@@ -250,23 +286,37 @@ def print_J_plot(output_file_path, print_path):
     Jx_values = []
     Jy_values = []
     Jz_values = []
+    Jx_alt_values = []
+    Jy_alt_values = []
+    Jz_alt_values = []
 
     for line in data:
-        t, Jx, Jy, Jz = map(float, line.strip().split())
-        t_values.append(t)
-        Jx_values.append(Jx)
-        Jy_values.append(Jy)
-        Jz_values.append(Jz)
+        t_values.append(float(line[0]))
+        Jx_values.append(float(line[1]))
+        Jy_values.append(float(line[2]))
+        Jz_values.append(float(line[3]))
+        if len(line) > 4:  # Check if there are alternative columns
+            Jx_alt_values.append(float(line[4]))
+            Jy_alt_values.append(float(line[5]))
+            Jz_alt_values.append(float(line[6]))
 
     plt.plot(t_values, Jx_values, label='Jx')
     plt.plot(t_values, Jy_values, label='Jy')
     plt.plot(t_values, Jz_values, label='Jz')
+    
+    if len(data[0]) > 4:  # Check if there are alternative columns
+        plt.plot(t_values, Jx_alt_values, label='Jx_alt')
+        plt.plot(t_values, Jy_alt_values, label='Jy_alt')
+        plt.plot(t_values, Jz_alt_values, label='Jz_alt')
+        
     plt.xlabel('Time')
     plt.ylabel('Values')
     plt.title('Jx, Jy, Jz vs Time')
     plt.legend()
     plt.savefig(print_path + '/J.png') 
     plt.close()
+    
+
 
 def number_of_nodes(domain: dlfx.mesh.Mesh):
     return domain.topology.index_map(0).size_global

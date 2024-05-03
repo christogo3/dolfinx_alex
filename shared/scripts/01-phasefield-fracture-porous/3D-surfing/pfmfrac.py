@@ -221,7 +221,7 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
-        pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
+        
         
     
     
@@ -292,6 +292,9 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
+        # pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
+        # pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii)
+        pp.write_to_J_output_file_extended(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z,J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii)
 
     # update
     wm1.x.array[:] = w.x.array[:]
