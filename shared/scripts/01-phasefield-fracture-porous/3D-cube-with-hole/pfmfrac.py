@@ -21,7 +21,7 @@ import alex.solution as sol
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_J_path = alex.os.outputfile_J_full_path(script_path,script_name_without_extension)
+outputfile_J_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
 # set FEniCSX log level
@@ -109,7 +109,7 @@ def before_first_time_step():
     # ewton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_J_output_file(outputfile_J_path)
+        pp.prepare_graphs_output_file(outputfile_J_path)
     # prepare xdmf output 
     
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
@@ -164,7 +164,7 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
-        pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+        pp.write_to_graphs_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -183,7 +183,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_J_plot(outputfile_J_path,script_path)
+        pp.print_graphs_plot(outputfile_J_path,script_path)
         
         # cleanup
         results_folder_path = alex.os.create_results_folder(script_path)

@@ -1,5 +1,6 @@
 from typing import Callable, Union
 import alex.linearelastic
+import alex.phasefield
 import dolfinx as dlfx
 import dolfinx.plot as plot
 import pyvista
@@ -20,11 +21,14 @@ import alex.solution as sol
 
 from  dolfinx.cpp.la import InsertMode
 
+from dolfinx.fem.petsc import assemble_vector
+import petsc4py
+
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_J_path = alex.os.outputfile_J_full_path(script_path,script_name_without_extension)
+outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
 # set FEniCSX log level
@@ -49,7 +53,7 @@ N = 16
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-Tend = 0.2
+Tend = 1.0
 dt = 0.05
 
 # elastic constants
@@ -73,12 +77,39 @@ W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 # define crack by boundary
 def crack(x):
-    return np.logical_and(np.isclose(x[1], 0.25), x[0]<0.5) 
+    return np.logical_and(np.isclose(x[1], 0.5), x[0]<0.25) 
 
 # define boundary condition on top and bottom
 fdim = domain.topology.dim -1
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
+
+# def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable):
+#     '''
+#     operates on nodes not on DOF locations
+    
+#     returns the bounding box in which all cracks are contained
+#     '''
+#     xx  = np.array(domain.geometry.x).T
+#     crack_indices = crack_locator_function(xx)
+
+#     crack_x = xx.T[crack_indices]
+
+#     max_x = np.max(crack_x.T[0])
+#     max_y = np.max(crack_x.T[1])
+#     max_z = np.max(crack_x.T[2])
+
+#     min_x = np.min(crack_x.T[0])
+#     min_y = np.min(crack_x.T[1])
+#     min_z = np.min(crack_x.T[2])
+    
+#     return max_x, max_y, max_z, min_x, min_y, min_z
+
+# max_x, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, crack)
+
+# coords = W.sub(1).tabulate_dof_coordinates()[crackdofs]
+# print(np.max(coords))
+
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
@@ -95,6 +126,7 @@ bcs.append(bccrack)
 w =  dlfx.fem.Function(W)
 wrestart =  dlfx.fem.Function(W)
 wm1 =  dlfx.fem.Function(W) # trial space
+um1, sm1 = ufl.split(wm1)
 dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
@@ -105,7 +137,7 @@ def before_first_time_step():
     # prepare newton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_J_output_file(outputfile_J_path)
+        pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm,meshtags=cell_tags)
     # xdmfout.write_meshtags(cell_tags, domain.geometry)
@@ -135,8 +167,31 @@ def get_bcs(t):
     xtip = np.array([0.25 + v_crack * t, 0.5])
     xK1 = dlfx.fem.Constant(domain, xtip)
 
-    bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
+    if(t <= 0.5):
+        bcs = bc.get_total_surfing_boundary_condition_at_box(domain,comm,W,0,K1,xK1,lam,mu,epsilon.value)
+    else:
+        bcs = []
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
+    
+    # irreversibility
+    if(abs(t)> sys.float_info.epsilon*5): # dont do in first time step
+        # w.x.scatter_forward()
+        # def newcrack(x):
+        #     lock_tol = 0.0
+        #     u, s = wm1.split()
+        #     array = s.x.array 
+        #     val = np.isclose(s.collapse().x.array[0:], lock_tol, atol=0.005)
+        #     return val
+        # crackfacets_update = dlfx.mesh.locate_entities(domain,domain.topology.dim-1, newcrack)
+        # crackdofs_update = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,crackfacets_update)
+        # bccrack_update = dlfx.fem.dirichletbc(dlfx.default_scalar_type(0.0), crackdofs_update, W.sub(1))
+        bcs.append(pf.irreversibility_bc(domain,W,wm1))
+        
+        max_x, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1))
+        
+        print("max_x_crack: " + str(max_x))
+        
+    # initial conditions    
     bcs.append(bccrack)
     # can be updated here
     return bcs
@@ -150,10 +205,10 @@ def in_cylinder_around_crack_tip(x):
 dxx, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_tip)
 
 
-
+labels = ["Jx_surf", "Ge_x_div", "Ge_x_shapefunct", "Gad_x", "Gdis_x"]
 
 def after_timestep_success(t,dt,iters):
-    w.x.scatter_forward() # synchronization between processes? 
+    # w.x.scatter_forward() # synchronization between processes? 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     
     
@@ -176,7 +231,7 @@ def after_timestep_success(t,dt,iters):
          
     # compute J-Integral
     # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    u,s = ufl.split(w)
+    u,s = w.split() #ufl.split(w)
     du, dv = ufl.split(dw)
     
     F = dlfx.fem.FunctionSpace(domain, Te)
@@ -232,29 +287,49 @@ def after_timestep_success(t,dt,iters):
     # esh_fun.interpolate(esh_exp)
     
     grad_v = ufl.grad(dv)
-    Gvec = dlfx.fem.assemble_vector(dlfx.fem.form( (eshelby[0,0]*grad_v[0] + eshelby[0,1]*grad_v[1] + eshelby[0,2]*grad_v[2]) * ufl.dx))
-    Gvec.scatter_reverse(InsertMode.add)
+    Gvec : dlfx.la.Vector = dlfx.fem.assemble_vector(dlfx.fem.form( (eshelby[0,0]*grad_v[0] + eshelby[0,1]*grad_v[1] + eshelby[0,2]*grad_v[2]) * ufl.dx))
+    # Gvec.scatter_forward()
+    # Gvec.assemble()
+    # Gvec.scatter_reverse(InsertMode.add)
     
     Gw = dlfx.fem.Function(F)
     Gw.x.array[:] = Gvec.array
+    print(Gw.x.array.shape)
+    print(Gvec.array.shape)
     Gw.name = 'Gel'
+    
+    
+    TENe = ufl.TensorElement('DG', domain.ufl_cell(), 0)
+    TEN = dlfx.fem.FunctionSpace(domain, TENe)
+    Esh_exp = dlfx.fem.Expression(eshelby,TEN.element.interpolation_points()) 
+    Esh_fun = dlfx.fem.Function(TEN,name="Esh")
+    Esh_fun.interpolate(Esh_exp)
     
     # Gvec1 = dlfx.fem.assemble_scalar(dlfx.fem.form( (eshelby[0,0]*grad_v[0] + eshelby[0,1]*grad_v[1] + eshelby[0,2]*grad_v[2])*ufl.dx))
     
-    Gvec2 = dlfx.fem.assemble_vector(dlfx.fem.form( ufl.inner(eshelby, ufl.grad(du))*ufl.dx ))
-    Gvec2.scatter_reverse(InsertMode.add)
+    Gvec2 : dlfx.la.Vector = dlfx.fem.assemble_vector(dlfx.fem.form( ufl.inner(Esh_fun, ufl.grad(du))*ufl.dx ))
+    # Gvec2.assemble()
+    # Gvec2.scatter_forward()
+    # Gvec2.scatter_reverse(InsertMode.add)
+    
     Gw2 = dlfx.fem.Function(W)
+    if(rank == 0):
+        print(Gw2.sub(0).x.array[:].shape)
+        print(Gvec2.array.shape)
+        
+    
+    
     Gw2.sub(0).x.array[:] = Gvec2.array
     Gel = Gw2.sub(0).collapse()
     Gel.name = 'Gel2'
-        
-    G1_loc = np.sum(Gw.x.array)
-    G2_loc = np.sum(Gel.sub(0).x.array)
     
-    comm.Barrier()
-    G1_glob = comm.allreduce(G1_loc, op=MPI.SUM)
-    G2_glob = comm.allreduce(G2_loc, op=MPI.SUM)
-    comm.Barrier()
+    G1_loc = np.sum(Gw.x.array)
+    G2_loc = np.sum(Gel.sub(0).x.array[::3])
+    
+    # comm.Barrier()
+    G1_glob = G1_loc # comm.allreduce(G1_loc, op=MPI.SUM)
+    G2_glob = G2_loc # = comm.allreduce(G2_loc, op=MPI.SUM)
+    # comm.Barrier()
     
     if rank == 0:
         print(G1_glob)
@@ -294,7 +369,35 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
         # pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z)
         # pp.write_to_J_output_file(outputfile_J_path,t,J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii)
-        pp.write_to_J_output_file_extended(outputfile_J_path,t,J3D_glob_x,J3D_glob_y,J3D_glob_z,J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii)
+        
+
+
+    cohesiveConfStress = alex.phasefield.getCohesiveConfStress(s,Gc,epsilon)
+    G_ad_x, G_ad_y, G_ad_z = alex.phasefield.get_G_ad_3D_volume_integral(cohesiveConfStress, ufl.dx)
+    
+    comm.Barrier()
+    G_ad_x_glob = comm.allreduce(G_ad_x, op=MPI.SUM)
+    G_ad_y_glob = comm.allreduce(G_ad_y, op=MPI.SUM)
+    G_ad_z_glob = comm.allreduce(G_ad_z, op=MPI.SUM)
+    comm.Barrier()
+    
+    if rank == 0:
+        print(pp.getJString(G_ad_x_glob, G_ad_y_glob, G_ad_z_glob))
+        
+        
+    dissipativeConfForce = alex.phasefield.getDissipativeConfForce(s,sm1,Mob,dt)
+    G_dis_x, G_dis_y, G_dis_z = alex.phasefield.getDissipativeConfForce_volume_integral(dissipativeConfForce,ufl.dx)
+    
+    comm.Barrier()
+    G_dis_x_glob = comm.allreduce(G_dis_x, op=MPI.SUM)
+    G_dis_y_glob = comm.allreduce(G_dis_y, op=MPI.SUM)
+    G_dis_z_glob = comm.allreduce(G_dis_z, op=MPI.SUM)
+    comm.Barrier()
+    
+    if rank == 0:
+        print(pp.getJString(G_dis_x_glob, G_dis_y_glob, G_dis_z_glob))
+        pp.write_to_graphs_output_file(outputfile_graph_path,t,J3D_glob_x, J3D_glob_x_ii, G2_glob, G_dis_x_glob, G_ad_x_glob)
+
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -313,7 +416,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_J_plot(outputfile_J_path,script_path)
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=labels)
         
         # cleanup only necessary on cluster
         # results_folder_path = alex.os.create_results_folder(script_path)

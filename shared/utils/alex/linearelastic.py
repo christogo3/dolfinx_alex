@@ -27,6 +27,9 @@ def psiel_voigt(u: any, eps_funct: Callable, cmat: any) -> any:
     psiel = 0.5*ufl.dot(eps_funct(u), cmat*eps_funct(u))
     return psiel
 
+def psiel(u: any, sigma: any):
+    return 0.5*ufl.inner(sigma, ufl.sym(ufl.grad(u)))
+
 def get_nu(lam: float, mu: float):
     return lam/(2*(lam+mu))
 
@@ -92,5 +95,5 @@ def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFuncti
 
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))
-        val = lam * ufl.tr(eps) * ufl.Identity(3) * 2*mu*eps
+        val = lam * ufl.tr(eps) * ufl.Identity(3) + 2*mu*eps
         return val

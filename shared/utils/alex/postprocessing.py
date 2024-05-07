@@ -28,26 +28,32 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     
     
     # split solution to displacement and crack field
-    u, s = w.split()   
-    Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
-    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
+    u, s = w.split() 
     
-    U = dlfx.fem.FunctionSpace(domain, Ue)
-    S = dlfx.fem.FunctionSpace(domain, Se)
-    s_interp = dlfx.fem.Function(S)
-    u_interp = dlfx.fem.Function(U)
+    u.name = "u"
+    write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
     
-    s_interp.interpolate(s)
-    u_interp.interpolate(u)
-    s_interp.name = 's'
-    u_interp.name = 'u'
+    s.name = "s"
+    write_field(domain,outputfile_xdmf_path,s,t,comm)  
+    # Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
+    # Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
     
-    # append xdmf-file
-    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
-    xdmfout.write_function(s_interp, t)
-    xdmfout.close()
-    return xdmfout
+    # U = dlfx.fem.FunctionSpace(domain, Ue)
+    # S = dlfx.fem.FunctionSpace(domain, Se)
+    # s_interp = dlfx.fem.Function(S)
+    # u_interp = dlfx.fem.Function(U)
+    
+    # s_interp.interpolate(s)
+    # u_interp.interpolate(u)
+    # s_interp.name = 's'
+    # u_interp.name = 'u'
+    
+    # # append xdmf-file
+    # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    # xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
+    # xdmfout.write_function(s_interp, t)
+    # xdmfout.close()
+    # return xdmfout
 
 def write_field(domain: dlfx.mesh.Mesh,
                                     outputfile_xdmf_path: str,
@@ -220,25 +226,33 @@ def getJString(Jx, Jy, Jz):
     return out_string
 
 
-def prepare_J_output_file(output_file_path: str):
+def prepare_graphs_output_file(output_file_path: str):
     for file in glob.glob(output_file_path):
         os.remove(output_file_path)
     logfile = open(output_file_path, 'w')  
-    logfile.write('# Jx Jy Jz \n')
+    logfile.write('# This is a general outputfile for displaying scalar quantities vs time, first column is time, further columns are data \n')
     logfile.close()
     return True
 
-def write_to_J_output_file(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float):
+# def write_to_J_output_file(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float):
+#     logfile = open(output_file_path, 'a')
+#     logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e}\n'.format(t, Jx, Jy, Jz))
+#     logfile.close()
+#     return True
+
+# def write_to_J_output_file_extended(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float, Jx_alt:float, Jy_alt:float, Jz_alt:float):
+#     logfile = open(output_file_path, 'a')
+#     logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e} {4:.4e} {5:.4e} {6:.4e}\n'.format(t, Jx, Jy, Jz, Jx_alt, Jy_alt, Jz_alt))
+#     logfile.close()
+#     return True
+
+def write_to_graphs_output_file(output_file_path: str, *args):
     logfile = open(output_file_path, 'a')
-    logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e}\n'.format(t, Jx, Jy, Jz))
+    formatted_data = ' '.join(['{:.4e}' for _ in range(len(args))])
+    logfile.write(formatted_data.format(*args) + '\n')
     logfile.close()
     return True
 
-def write_to_J_output_file_extended(output_file_path: str, t:float, Jx:float, Jy:float, Jz:float, Jx_alt:float, Jy_alt:float, Jz_alt:float):
-    logfile = open(output_file_path, 'a')
-    logfile.write('{0:.4e} {1:.4e} {2:.4e} {3:.4e} {4:.4e} {5:.4e} {6:.4e}\n'.format(t, Jx, Jy, Jz, Jx_alt, Jy_alt, Jz_alt))
-    logfile.close()
-    return True
 
 import matplotlib.pyplot as plt
 
@@ -274,46 +288,35 @@ import matplotlib.pyplot as plt
 #     plt.savefig(print_path + '/J.png') 
 #     plt.close()
     
-def print_J_plot(output_file_path, print_path):
-    def read_from_J_output_file(output_file_path):
+def print_graphs_plot(output_file_path, print_path, legend_labels=None, default_label="Column"):
+    def read_from_graphs_output_file(output_file_path):
         with open(output_file_path, 'r') as file:
             data = [line.strip().split() for line in file.readlines() if not line.startswith('#')]
         return data
     
-    data = read_from_J_output_file(output_file_path)
+    data = read_from_graphs_output_file(output_file_path)
     
     t_values = []
-    Jx_values = []
-    Jy_values = []
-    Jz_values = []
-    Jx_alt_values = []
-    Jy_alt_values = []
-    Jz_alt_values = []
-
+    column_values = [[] for _ in range(len(data[0]) - 1)]  # Initialize lists for column values
+    
     for line in data:
         t_values.append(float(line[0]))
-        Jx_values.append(float(line[1]))
-        Jy_values.append(float(line[2]))
-        Jz_values.append(float(line[3]))
-        if len(line) > 4:  # Check if there are alternative columns
-            Jx_alt_values.append(float(line[4]))
-            Jy_alt_values.append(float(line[5]))
-            Jz_alt_values.append(float(line[6]))
+        for i in range(1, len(line)):  # Start from index 1 to skip time column
+            column_values[i - 1].append(float(line[i]))
 
-    plt.plot(t_values, Jx_values, label='Jx')
-    plt.plot(t_values, Jy_values, label='Jy')
-    plt.plot(t_values, Jz_values, label='Jz')
-    
-    if len(data[0]) > 4:  # Check if there are alternative columns
-        plt.plot(t_values, Jx_alt_values, label='Jx_alt')
-        plt.plot(t_values, Jy_alt_values, label='Jy_alt')
-        plt.plot(t_values, Jz_alt_values, label='Jz_alt')
-        
+    if legend_labels is None:
+        legend_labels = [default_label + str(i + 1) for i in range(len(column_values))]
+    elif len(legend_labels) < len(column_values):
+        legend_labels += [default_label + str(i + 1) for i in range(len(legend_labels), len(column_values))]
+
+    for i, values in enumerate(column_values):
+        plt.plot(t_values, values, label=legend_labels[i])
+
     plt.xlabel('Time')
     plt.ylabel('Values')
-    plt.title('Jx, Jy, Jz vs Time')
+    plt.title('Columns vs Time')
     plt.legend()
-    plt.savefig(print_path + '/J.png') 
+    plt.savefig(print_path + '/graphs.png') 
     plt.close()
     
 
@@ -324,4 +327,25 @@ def number_of_nodes(domain: dlfx.mesh.Mesh):
             
         
         
+def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable):
+    '''
+    operates on nodes not on DOF locations
     
+    crack locator function returns a boolean array that determines whether a crack is present or not
+    
+    returns the bounding box in which all cracks are contained
+    '''
+    xx  = np.array(domain.geometry.x).T
+    crack_indices = crack_locator_function(xx)
+
+    crack_x = xx.T[crack_indices]
+
+    max_x = np.max(crack_x.T[0])
+    max_y = np.max(crack_x.T[1])
+    max_z = np.max(crack_x.T[2])
+
+    min_x = np.min(crack_x.T[0])
+    min_y = np.min(crack_x.T[1])
+    min_z = np.min(crack_x.T[2])
+    
+    return max_x, max_y, max_z, min_x, min_y, min_z

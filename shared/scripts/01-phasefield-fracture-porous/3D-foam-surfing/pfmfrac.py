@@ -17,7 +17,7 @@ import alex.solution as sol
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_J_path = alex.os.outputfile_J_full_path(script_path,script_name_without_extension)
+outputfile_J_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
 
@@ -47,23 +47,8 @@ with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'foam_mesh.
 Tend = 5.0
 dt = 0.0001
 
-# # elastic constants
-# lam = dlfx.fem.Constant(domain, 10.0)
-# mu = dlfx.fem.Constant(domain, 10.0)
-
-# # residual stiffness
-# eta = dlfx.fem.Constant(domain, 0.001)
-
-# # phase field parameters
-# Gc = dlfx.fem.Constant(domain, 1.0)
-# epsilon = dlfx.fem.Constant(domain, 0.05)
-# Mob = dlfx.fem.Constant(domain, 1.0)
-# iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
-
-
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
-# V = dlfx.fem.FunctionSpace(domain,Ve)
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),2) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
@@ -144,7 +129,7 @@ def before_first_time_step():
     # prepare newton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_J_output_file(outputfile_J_path)
+        pp.prepare_graphs_output_file(outputfile_J_path)
     # prepare xdmf output 
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
 
@@ -167,13 +152,14 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
     
 def get_bcs(t):
-    v_crack = 350/Tend
+    v_crack = 700/Tend
     # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
     xtip = np.array([50 + v_crack * t, 200],dtype=dlfx.default_scalar_type)
     xK1 = dlfx.fem.Constant(domain, xtip)
 
     bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,mixedFunctionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
+    
     bcs.append(bccrack)
     return bcs
 
@@ -205,7 +191,7 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
-        pp.write_to_J_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+        pp.write_to_graphs_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -224,7 +210,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_J_plot(outputfile_J_path,script_path)
+        pp.print_graphs_plot(outputfile_J_path,script_path)
     
 
 sol.solve_with_newton_adaptive_time_stepping(
