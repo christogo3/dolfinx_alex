@@ -7,6 +7,7 @@ import pyvista
 from mpi4py import MPI
 from petsc4py import PETSc as petsc
 
+
 import ufl 
 import numpy as np
 import os 
@@ -161,7 +162,13 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
         Gc=Gc,epsilon=epsilon, eta=eta,
         iMob=iMob, delta_t=delta_t)
     return [Res, dResdw]
-    
+
+S = dlfx.fem.FunctionSpace(domain,Te)
+s_zero = dlfx.fem.Function(S)
+c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
+sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
+s_zero.interpolate(sub_expr)
+
 def get_bcs(t):
     v_crack = 0.75/0.4
     xtip = np.array([0.25 + v_crack * t, 0.5])
@@ -175,7 +182,7 @@ def get_bcs(t):
     
     # irreversibility
     if(abs(t)> sys.float_info.epsilon*5): # dont do in first time step
-        # w.x.scatter_forward()
+        wm1.x.scatter_forward()
         # def newcrack(x):
         #     lock_tol = 0.0
         #     u, s = wm1.split()
@@ -185,11 +192,15 @@ def get_bcs(t):
         # crackfacets_update = dlfx.mesh.locate_entities(domain,domain.topology.dim-1, newcrack)
         # crackdofs_update = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,crackfacets_update)
         # bccrack_update = dlfx.fem.dirichletbc(dlfx.default_scalar_type(0.0), crackdofs_update, W.sub(1))
-        bcs.append(pf.irreversibility_bc(domain,W,wm1))
+        bcs.append(pf.irreversibility_bc(domain,W,wm1,s_zero,rank))
         
-        max_x, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1))
+        max_x_loc, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero),rank)
+        comm.Barrier()
+        max_x = comm.allreduce(max_x_loc, op=MPI.MAX)
+        comm.Barrier()
         
-        print("max_x_crack: " + str(max_x))
+        if rank == 0:
+            print("max_x_crack: " + str(max_x))
         
     # initial conditions    
     bcs.append(bccrack)
@@ -294,8 +305,9 @@ def after_timestep_success(t,dt,iters):
     
     Gw = dlfx.fem.Function(F)
     Gw.x.array[:] = Gvec.array
-    print(Gw.x.array.shape)
-    print(Gvec.array.shape)
+    if rank == 0:
+        print(Gw.x.array.shape)
+        print(Gvec.array.shape)
     Gw.name = 'Gel'
     
     
@@ -331,9 +343,12 @@ def after_timestep_success(t,dt,iters):
     G2_glob = G2_loc # = comm.allreduce(G2_loc, op=MPI.SUM)
     # comm.Barrier()
     
+    
+    J = alex.linearelastic.get_J_from_nodal_forces(eshelby,W,ufl.dx)
     if rank == 0:
         print(G1_glob)
         print(G2_glob)
+        print(J)
     
     # pp.write_scalar_fields(domain,comm,[Gw], ["Gel"], outputfile_xdmf_path, t)
     pp.write_field(domain,outputfile_xdmf_path,Gw,t,comm=comm)
@@ -402,6 +417,8 @@ def after_timestep_success(t,dt,iters):
     # update
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
+    
+    s_zero.x.array[:] = s.collapse().x.array[:] # ?
     
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]

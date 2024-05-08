@@ -4,6 +4,7 @@ from typing import Callable
 import numpy as np
 import alex.phasefield
 import dolfinx.fem as fem
+import alex.tensor
 
 from dolfinx.fem.petsc import assemble_vector
 
@@ -92,6 +93,9 @@ def get_J_3D_volume_integral_tf(eshelby_as_function: Callable, v: ufl.TestFuncti
     # Jza = assemble_vector(dlfx.fem.form(Jz))
     
     return Jxa, Jya, Jza
+
+def get_J_from_nodal_forces(eshelby_as_function: Callable, W: dlfx.fem.FunctionSpace, dx: ufl.Measure):
+    return alex.tensor.get_volume_integral_of_div_of_tensors_from_nodal_forces(eshelby_as_function,W,dx)
 
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))

@@ -90,18 +90,44 @@ def getDissipativeConfForce_volume_integral(dissipativeConfForce: any, dx: ufl.M
     return G_dis_x, G_dis_y, G_dis_z
      
 
-def get_dynamic_crack_locator_function(wm1: dlfx.fem.Function):
+def get_dynamic_crack_locator_function(wm1: dlfx.fem.Function, s_zero: dlfx.fem.Function):
     def newcrack(x):
         lock_tol = 0.0
-        u, s = wm1.split()
-        val = np.isclose(s.collapse().x.array[0:], lock_tol, atol=0.005)
+        # u, s = wm1.split()
+        # val = np.isclose(s.collapse().x.array[0:], lock_tol, atol=0.005) # works only on one process
+        val = np.isclose(s_zero.x.array[0:], lock_tol, atol=0.005)
         return val
     return newcrack
     
          
-def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: dlfx.fem.Function) -> dlfx.fem.DirichletBC:
-    crackfacets_update = dlfx.mesh.locate_entities(domain,domain.topology.dim-1, get_dynamic_crack_locator_function(wm1))
-    crackdofs_update = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,crackfacets_update)
+def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: dlfx.fem.Function, s_zero: dlfx.fem.Function, rank) -> dlfx.fem.DirichletBC:
+    def all(x):
+        return np.full_like(x[0],True)
+    
+    if(rank == 0):
+        print(wm1.x.array.shape)
+        
+    wm1.x.scatter_forward()
+    
+    dofmap : dlfx.cpp.common.IndexMap = W.dofmap.index_map
+    
+    all_entities = dlfx.mesh.locate_entities(domain,domain.topology.dim-1,all)
+    
+    all_dofs_s_local = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,all_entities)
+    
+    all_dofs_s_global = np.array(dofmap.local_to_global(all_dofs_s_local),dtype=np.int32)
+    
+    array_s = wm1.x.array[all_dofs_s_local]
+    
+    indices_where_zero_in_array_s = np.where(np.isclose(array_s,0.0,atol=0.05))
+    
+    dofs_s_zero = all_dofs_s_local[indices_where_zero_in_array_s]
+    
+    array_s_zero=wm1.x.array[dofs_s_zero]
+    
+    # crackfacets_update = dlfx.mesh.locate_entities(domain,domain.topology.dim-1, get_dynamic_crack_locator_function(wm1,s_zero))
+    # crackdofs_update = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,crackfacets_update)
+    crackdofs_update = dofs_s_zero #np.array(dofmap.local_to_global(dofs_s_zero),dtype=np.int32) #dofs_s_zero
     bccrack_update = dlfx.fem.dirichletbc(dlfx.default_scalar_type(0.0), crackdofs_update, W.sub(1))
     return bccrack_update
     
