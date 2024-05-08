@@ -182,20 +182,8 @@ def get_bcs(t):
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
     
     # irreversibility
-    if(abs(t)> sys.float_info.epsilon*5): # dont do in first time step
-        # wm1.x.scatter_forward()
-        # def newcrack(x):
-        #     lock_tol = 0.0
-        #     u, s = wm1.split()
-        #     array = s.x.array 
-        #     val = np.isclose(s.collapse().x.array[0:], lock_tol, atol=0.005)
-        #     return val
-        # crackfacets_update = dlfx.mesh.locate_entities(domain,domain.topology.dim-1, newcrack)
-        # crackdofs_update = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,crackfacets_update)
-        # bccrack_update = dlfx.fem.dirichletbc(dlfx.default_scalar_type(0.0), crackdofs_update, W.sub(1))
+    if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step
         bcs.append(pf.irreversibility_bc(domain,W,wm1))
-        
-        
         
     # initial conditions    
     bcs.append(bccrack)
@@ -211,7 +199,7 @@ def in_cylinder_around_crack_tip(x):
 dx_in_cylinder, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_around_crack_tip)
 
 
-labels = ["Jx_surf", "Ge_x_div", "Jx_nodal_forces", "Gad_x", "Gdis_x"]
+
 
 def after_timestep_success(t,dt,iters):
     
@@ -231,11 +219,6 @@ def after_timestep_success(t,dt,iters):
     
     J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n, comm=comm)
     
-    # comm.Barrier()
-    # J3D_glob_x = comm.allreduce(J3D_loc_x, op=MPI.SUM)
-    # J3D_glob_y = comm.allreduce(J3D_loc_y, op=MPI.SUM)
-    # J3D_glob_z = comm.allreduce(J3D_loc_z, op=MPI.SUM)
-    # comm.Barrier()
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
@@ -244,12 +227,6 @@ def after_timestep_success(t,dt,iters):
     
     J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, ufl.dx,comm)
     
-    # comm.Barrier()
-    # J3D_glob_x_ii = comm.allreduce(J3D_loc_x_ii, op=MPI.SUM)
-    # J3D_glob_y_ii = comm.allreduce(J3D_loc_y_ii, op=MPI.SUM)
-    # J3D_glob_z_ii = comm.allreduce(J3D_loc_z_ii, op=MPI.SUM)
-    # comm.Barrier()
-    
     if rank == 0:
         print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
        
@@ -257,24 +234,13 @@ def after_timestep_success(t,dt,iters):
     cohesiveConfStress = alex.phasefield.getCohesiveConfStress(s,Gc,epsilon)
     G_ad_x_glob, G_ad_y_glob, G_ad_z_glob = alex.phasefield.get_G_ad_3D_volume_integral(cohesiveConfStress, ufl.dx,comm)
     
-    # comm.Barrier()
-    # G_ad_x_glob = comm.allreduce(G_ad_x, op=MPI.SUM)
-    # G_ad_y_glob = comm.allreduce(G_ad_y, op=MPI.SUM)
-    # G_ad_z_glob = comm.allreduce(G_ad_z, op=MPI.SUM)
-    # comm.Barrier()
     
     if rank == 0:
         print(pp.getJString(G_ad_x_glob, G_ad_y_glob, G_ad_z_glob))
         
     dissipativeConfForce = alex.phasefield.getDissipativeConfForce(s,sm1,Mob,dt)
     G_dis_x_glob, G_dis_y_glob, G_dis_z_glob = alex.phasefield.getDissipativeConfForce_volume_integral(dissipativeConfForce,ufl.dx,comm)
-    
-    # comm.Barrier()
-    # G_dis_x_glob = comm.allreduce(G_dis_x, op=MPI.SUM)
-    # G_dis_y_glob = comm.allreduce(G_dis_y, op=MPI.SUM)
-    # G_dis_z_glob = comm.allreduce(G_dis_z, op=MPI.SUM)
-    # comm.Barrier()
-    
+        
     if rank == 0:
         print(pp.getJString(G_dis_x_glob, G_dis_y_glob, G_dis_z_glob))
         pp.write_to_graphs_output_file(outputfile_graph_path,t,J3D_glob_x, J3D_glob_x_ii, J_from_nodal_forces[0], G_dis_x_glob, G_ad_x_glob)
@@ -287,7 +253,6 @@ def after_timestep_success(t,dt,iters):
    
     s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
     max_x, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking),comm)
-        
     if rank == 0:
         print("Crack tip position x: " + str(max_x))
     
@@ -304,7 +269,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=labels)
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx_surf", "Ge_x_div", "Jx_nodal_forces", "Gad_x", "Gdis_x"])
         
         # cleanup only necessary on cluster
         # results_folder_path = alex.os.create_results_folder(script_path)

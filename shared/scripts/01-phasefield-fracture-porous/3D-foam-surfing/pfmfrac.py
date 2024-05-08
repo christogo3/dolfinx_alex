@@ -1,6 +1,6 @@
 import dolfinx as dlfx
 from mpi4py import MPI
-from petsc4py import PETSc
+from petsc4py import PETSc as petsc
 
 import ufl 
 import numpy as np
@@ -13,11 +13,12 @@ import alex.phasefield as pf
 import alex.boundaryconditions as bc
 import alex.postprocessing as pp
 import alex.solution as sol
+import alex.linearelastic
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_J_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
+outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
 
@@ -117,6 +118,7 @@ bcs.append(bccrack)
 
 # define solution, restart, trial and test space
 w =  dlfx.fem.Function(W)
+u,s = w.split()
 wrestart =  dlfx.fem.Function(W)
 wm1 =  dlfx.fem.Function(W) # trial space
 dw = ufl.TestFunction(W)
@@ -129,7 +131,7 @@ def before_first_time_step():
     # prepare newton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_graphs_output_file(outputfile_J_path)
+        pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm)
 
@@ -150,6 +152,13 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
         Gc=Gc,epsilon=epsilon, eta=eta,
         iMob=iMob, delta_t=delta_t)
     return [Res, dResdw]
+
+Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
+S = dlfx.fem.FunctionSpace(domain,Se)
+s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
+c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
+sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
+s_zero_for_tracking_at_nodes.interpolate(sub_expr)
     
 def get_bcs(t):
     v_crack = 700/Tend
@@ -159,6 +168,11 @@ def get_bcs(t):
 
     bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,mixedFunctionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
+    
+    # irreversibility
+    if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step
+        bcs.append(pf.irreversibility_bc(domain,W,wm1))
+    
     
     bcs.append(bccrack)
     return bcs
@@ -181,21 +195,26 @@ def after_timestep_success(t,dt,iters):
                             vector_field_names=["Ge"], 
                             outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
-    J3D_loc_x, J3D_loc_y, J3D_loc_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), outer_normal=n)
-    
-    comm.Barrier()
-    J3D_glob_x = comm.allreduce(J3D_loc_x, op=MPI.SUM)
-    J3D_glob_y = comm.allreduce(J3D_loc_y, op=MPI.SUM)
-    J3D_glob_z = comm.allreduce(J3D_loc_z, op=MPI.SUM)
-    comm.Barrier()
+    J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n,comm=comm)
+
     
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
-        pp.write_to_graphs_output_file(outputfile_J_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z)
+        
 
     # update
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
+    
+    # s_aux = dlfx.fem.Function(S)
+    # s_aux.interpolate(s)
+    
+    # s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
+    s_zero_for_tracking_at_nodes.interpolate(s)
+    x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
+    if rank == 0:
+        print("Crack tip position x: " + str(x_tip))
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip)
     
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
@@ -210,7 +229,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_J_path,script_path)
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["x_tip"])
     
 
 sol.solve_with_newton_adaptive_time_stepping(
