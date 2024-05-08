@@ -8,6 +8,7 @@ import dolfinx.plot as plot
 import matplotlib.pyplot as plt
 import glob 
 import os
+import sys
 
 def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
                                        outputfile_xdmf_path: str,
@@ -327,7 +328,7 @@ def number_of_nodes(domain: dlfx.mesh.Mesh):
             
         
         
-def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable, rank):
+def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable, comm: MPI.Intracomm):
     '''
     operates on nodes not on DOF locations
     
@@ -335,17 +336,18 @@ def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callab
     
     returns the bounding box in which all cracks are contained
     
-    TODO does not work in parallel
     '''
     
     try:
-        print("RANK:" + str(rank))
         xx  = np.array(domain.geometry.x).T
-        print("SHAPE OF XX" + str(xx.shape))
         crack_indices = crack_locator_function(xx)
-        print("SHAPE OF CRACK INDICES" + str(crack_indices.shape))
         crack_x = xx.T[crack_indices]
-        print("SHAPE OF CRACK X" + str(crack_x.shape))
+       
+        # if rank == 8:
+        #     print("RANK:" + str(rank))
+        #     print("SHAPE OF XX" + str(xx.shape))
+        #     print("SHAPE OF CRACK INDICES" + str(crack_indices.shape))
+        #     print("SHAPE OF CRACK X" + str(crack_x.shape))
         
         if(len(crack_x) != 0):
             max_x = np.max(crack_x.T[0])
@@ -356,28 +358,14 @@ def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callab
             min_y = np.min(crack_x.T[1])
             min_z = np.min(crack_x.T[2])
         else:
-            val_fail = -10000
+            val_fail = -sys.float_info.max
             max_x = val_fail
             max_y = val_fail
             max_z = val_fail
 
-            min_x = val_fail
-            min_y = val_fail
-            min_z = val_fail
-            
-            
-        
-        
+            min_x = -val_fail
+            min_y = -val_fail
+            min_z = -val_fail 
     except Exception as e:
-        raise Exception(e)
-        val_fail = -10000
-        max_x = val_fail
-        max_y = val_fail
-        max_z = val_fail
-
-        min_x = val_fail
-        min_y = val_fail
-        min_z = val_fail
-        
-    
-    return max_x, max_y, max_z, min_x, min_y, min_z
+        raise Exception(e) 
+    return comm.allreduce(max_x, op=MPI.MAX), comm.allreduce(max_y, op=MPI.MAX), comm.allreduce(max_z, op=MPI.MAX), comm.allreduce(min_x, op=MPI.MIN), comm.allreduce(min_y, op=MPI.MIN), comm.allreduce(min_z, op=MPI.MIN)
