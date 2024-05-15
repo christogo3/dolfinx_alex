@@ -229,6 +229,7 @@ def after_timestep_success(t,dt,iters):
     
     eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
     Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ufl.ds,comm)
+    Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,ufl.dx,comm)
     
     alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)
     
@@ -241,8 +242,9 @@ def after_timestep_success(t,dt,iters):
     s_zero_for_tracking.interpolate(s)
     max_x, max_y, min_x, min_y  = pp.crack_bounding_box_2D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking),comm)
     if rank == 0:
-        print("Crack tip position x: " + str(max_x))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy)
+        x_ct = max_x
+        print("Crack tip position x: " + str(x_ct))
+        pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
@@ -256,7 +258,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jx_vol", "Jy_vol", "x_ct"])
         
         # cleanup only necessary on cluster
         # results_folder_path = alex.os.create_results_folder(script_path)

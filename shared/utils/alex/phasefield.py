@@ -72,7 +72,7 @@ def getCohesiveConfStress(s: any, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Const
     return psisurf(s,Gc,epsilon) * ufl.Identity(3) - 2.0 * Gc.value * epsilon.value * ufl.outer(ufl.grad(s), ufl.grad(s))
     
 def get_G_ad_3D_volume_integral(cohesiveConfStress: any , dx: ufl.Measure, comm: MPI.Intracomm):
-    return tensor.get_volume_integral_of_div_of_tensors(cohesiveConfStress,dx,comm)
+    return tensor.get_volume_integral_of_div_of_tensors_3D(cohesiveConfStress,dx,comm)
     # G_ad_x = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(cohesiveConfStress)[0] ) * dx ) ))
     # G_ad_y = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(cohesiveConfStress)[1] ) * dx ) ))
     # G_ad_z = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(cohesiveConfStress)[2] ) * dx )))

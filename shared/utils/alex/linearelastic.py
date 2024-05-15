@@ -49,7 +49,11 @@ def get_J_3D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure, com
     # Jya = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[1] ) * dx ) ))
     # Jza = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[2] ) * dx )))
     # return Jxa, Jya, Jza
-    return alex.tensor.get_volume_integral_of_div_of_tensors(eshelby_as_function,dx,comm)
+    return alex.tensor.get_volume_integral_of_div_of_tensors_3D(eshelby_as_function,dx,comm)
+
+def get_J_2D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure, comm: MPI.Intracomm):
+    return alex.tensor.get_volume_integral_of_div_of_tensors_2D(eshelby_as_function,dx,comm)
+
 
 def get_J_from_nodal_forces(eshelby_as_function: Callable, W: dlfx.fem.FunctionSpace, dx: ufl.Measure, comm: MPI.Intracomm):
     return alex.tensor.get_volume_integral_of_div_of_tensors_from_nodal_forces(eshelby_as_function,W,dx, comm)
