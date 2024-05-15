@@ -22,25 +22,13 @@ outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_na
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 
 
-def mpi_print(output):
-    if rank == 0:
-        print(output)
-        sys.stdout.flush
-    return
-# set FEniCSX log level
-# dlfx.log.set_log_level(dlfx.log.LogLevel.INFO)
-# dlfx.log.set_output_file('xxx.log')
-
 # set and start stopwatch
 timer = dlfx.common.Timer()
 timer.start()
 
 # set MPI environment
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
-sys.stdout.flush()
+comm, rank, size = alex.os.set_mpi()
+alex.os.print_mpi_status(rank, size)
 
 with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'foam_mesh.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh()
@@ -53,29 +41,12 @@ Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),2) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
-# get dimension and bounds for each mpi process
+
 dim = domain.topology.dim
-x_min = np.min(domain.geometry.x[:,0]) 
-x_max = np.max(domain.geometry.x[:,0])   
-y_min = np.min(domain.geometry.x[:,1]) 
-y_max = np.max(domain.geometry.x[:,1])   
-z_min = np.min(domain.geometry.x[:,2]) 
-z_max = np.max(domain.geometry.x[:,2])
+alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
 
-# find global min/max over all mpi processes
-comm.Barrier()
-x_min_all = comm.allreduce(x_min, op=MPI.MIN)
-x_max_all = comm.allreduce(x_max, op=MPI.MAX)
-y_min_all = comm.allreduce(y_min, op=MPI.MIN)
-y_max_all = comm.allreduce(y_max, op=MPI.MAX)
-z_min_all = comm.allreduce(z_min, op=MPI.MIN)
-z_max_all = comm.allreduce(z_max, op=MPI.MAX)
-comm.Barrier()
-
-mpi_print('spatial dimensions: '+str(dim))
-mpi_print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all))
-mpi_print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all))
-mpi_print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all))
+x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
+pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)

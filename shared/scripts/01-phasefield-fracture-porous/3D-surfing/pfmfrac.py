@@ -164,11 +164,8 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
         iMob=iMob, delta_t=delta_t)
     return [Res, dResdw]
 
-S = dlfx.fem.FunctionSpace(domain,Te)
-s_zero_for_tracking = dlfx.fem.Function(S)
-c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
-sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
-s_zero_for_tracking.interpolate(sub_expr)
+
+s_zero_for_tracking = pp.get_s_zero_field_for_tracking(domain)
 
 def get_bcs(t):
     v_crack = 0.75/0.4
@@ -251,7 +248,8 @@ def after_timestep_success(t,dt,iters):
     wrestart.x.array[:] = w.x.array[:]
     
    
-    s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
+    # s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
+    s_zero_for_tracking.interpolate(s)
     max_x, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking),comm)
     if rank == 0:
         print("Crack tip position x: " + str(max_x))

@@ -39,7 +39,10 @@ def get_emod(lam: float, mu: float):
     return  mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
 
 def get_J_3D(eshelby_as_function: Callable, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
-    return alex.tensor.get_surface_integral_of_tensor(eshelby_as_function,n,ds,comm)
+    return alex.tensor.get_surface_integral_of_tensor_3D(eshelby_as_function,n,ds,comm)
+
+def get_J_2D(eshelby_as_function: Callable, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
+    return alex.tensor.get_surface_integral_of_tensor_2D(eshelby_as_function,n,ds,comm)
 
 def get_J_3D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure, comm: MPI.Intracomm):
     # Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(eshelby_as_function)[0] ) * dx ) ))
@@ -54,4 +57,9 @@ def get_J_from_nodal_forces(eshelby_as_function: Callable, W: dlfx.fem.FunctionS
 def sigma_as_tensor3D(u: float, lam:float, mu:float ):
         eps = ufl.sym(ufl.grad(u))
         val = lam * ufl.tr(eps) * ufl.Identity(3) + 2*mu*eps
+        return val
+    
+def sigma_as_tensor2D_plane_strain(u: float, lam:float, mu:float ):
+        eps = ufl.sym(ufl.grad(u))
+        val = lam * ufl.tr(eps) * ufl.Identity(2) + 2*mu*eps
         return val

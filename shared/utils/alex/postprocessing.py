@@ -10,6 +10,13 @@ import glob
 import os
 import sys
 
+from petsc4py import PETSc as petsc
+
+import alex.os
+
+import numpy as np
+from mpi4py import MPI
+
 def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
                                        outputfile_xdmf_path: str,
                                        comm: MPI.Intercomm,
@@ -226,6 +233,10 @@ def getJString(Jx, Jy, Jz):
     out_string = 'Jx: {0:.4e} Jy: {1:.4e} Jz: {2:.4e}'.format(Jx, Jy, Jz)
     return out_string
 
+def getJString2D(Jx, Jy):
+    out_string = 'Jx: {0:.4e} Jy: {1:.4e}'.format(Jx, Jy)
+    return out_string
+
 
 def prepare_graphs_output_file(output_file_path: str):
     for file in glob.glob(output_file_path):
@@ -326,7 +337,7 @@ def number_of_nodes(domain: dlfx.mesh.Mesh):
     return domain.topology.index_map(0).size_global
 
             
-        
+# Tracking ###############################    
         
 def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable, comm: MPI.Intracomm):
     '''
@@ -369,3 +380,152 @@ def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callab
     except Exception as e:
         raise Exception(e) 
     return comm.allreduce(max_x, op=MPI.MAX), comm.allreduce(max_y, op=MPI.MAX), comm.allreduce(max_z, op=MPI.MAX), comm.allreduce(min_x, op=MPI.MIN), comm.allreduce(min_y, op=MPI.MIN), comm.allreduce(min_z, op=MPI.MIN)
+
+def crack_bounding_box_2D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable, comm: MPI.Intracomm):
+    '''
+    operates on nodes not on DOF locations
+    
+    crack locator function returns a boolean array that determines whether a crack is present or not
+    
+    returns the bounding box in which all cracks are contained
+    
+    '''
+    
+    try:
+        xx  = np.array(domain.geometry.x).T
+        crack_indices = crack_locator_function(xx)
+        crack_x = xx.T[crack_indices]
+       
+        # if rank == 8:
+        #     print("RANK:" + str(rank))
+        #     print("SHAPE OF XX" + str(xx.shape))
+        #     print("SHAPE OF CRACK INDICES" + str(crack_indices.shape))
+        #     print("SHAPE OF CRACK X" + str(crack_x.shape))
+        
+        if(len(crack_x) != 0):
+            max_x = np.max(crack_x.T[0])
+            max_y = np.max(crack_x.T[1])
+
+            min_x = np.min(crack_x.T[0])
+            min_y = np.min(crack_x.T[1])
+        else:
+            val_fail = -sys.float_info.max
+            max_x = val_fail
+            max_y = val_fail
+
+            min_x = -val_fail
+            min_y = -val_fail
+    except Exception as e:
+        raise Exception(e) 
+    return comm.allreduce(max_x, op=MPI.MAX), comm.allreduce(max_y, op=MPI.MAX), comm.allreduce(min_x, op=MPI.MIN), comm.allreduce(min_y, op=MPI.MIN)
+
+
+
+# def crack_bounding_box(domain, crack_locator_function, comm):
+#     try:
+#         xx = np.array(domain.geometry.x).T
+#         crack_indices = crack_locator_function(xx)
+#         crack_x = xx.T[crack_indices]
+
+#         if len(crack_x) != 0:
+#             max_coords = np.max(crack_x, axis=0)
+#             min_coords = np.min(crack_x, axis=0)
+#         else:
+#             val_fail = -np.finfo(float).max
+#             max_coords = np.array([val_fail, val_fail, val_fail])
+#             min_coords = -max_coords
+#     except Exception as e:
+#         raise Exception(e)
+
+#     # Find global max/min over all MPI processes
+#     max_global_coords = comm.allreduce(max_coords, op=MPI.MAX)
+#     min_global_coords = comm.allreduce(min_coords, op=MPI.MIN)
+
+#     dimensions = len(max_global_coords)
+
+#     if dimensions == 2:
+#         return max_global_coords[0], max_global_coords[1], \
+#                min_global_coords[0], min_global_coords[1]
+#     elif dimensions == 3:
+#         return max_global_coords[0], max_global_coords[1], max_global_coords[2], \
+#                min_global_coords[0], min_global_coords[1], min_global_coords[2]
+#     else:
+        # raise ValueError("Unsupported number of dimensions: {}".format(dimensions))
+
+
+
+
+def get_s_zero_field_for_tracking(domain):
+    Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
+    S = dlfx.fem.FunctionSpace(domain,Se)
+    s_zero_for_tracking = dlfx.fem.Function(S)
+    c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
+    sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
+    s_zero_for_tracking.interpolate(sub_expr)
+    return s_zero_for_tracking
+
+# ##################################
+
+
+def compute_bounding_box(comm, domain):
+    # get dimension and bounds for each mpi process
+    dimensions = domain.geometry.x.shape[1]
+    
+    if dimensions == 2:
+        x_min = np.min(domain.geometry.x[:, 0]) 
+        x_max = np.max(domain.geometry.x[:, 0])   
+        y_min = np.min(domain.geometry.x[:, 1]) 
+        y_max = np.max(domain.geometry.x[:, 1])
+        z_min_all = z_max_all = None
+    elif dimensions == 3:
+        x_min = np.min(domain.geometry.x[:, 0]) 
+        x_max = np.max(domain.geometry.x[:, 0])   
+        y_min = np.min(domain.geometry.x[:, 1]) 
+        y_max = np.max(domain.geometry.x[:, 1])
+        z_min = np.min(domain.geometry.x[:, 2]) 
+        z_max = np.max(domain.geometry.x[:, 2])
+        z_min_all = comm.allreduce(z_min, op=MPI.MIN)
+        z_max_all = comm.allreduce(z_max, op=MPI.MAX)
+    else:
+        raise ValueError("Unsupported number of dimensions: {}".format(dimensions))
+
+    # find global min/max over all mpi processes
+    comm.Barrier()
+    x_min_all = comm.allreduce(x_min, op=MPI.MIN)
+    x_max_all = comm.allreduce(x_max, op=MPI.MAX)
+    y_min_all = comm.allreduce(y_min, op=MPI.MIN)
+    y_max_all = comm.allreduce(y_max, op=MPI.MAX)
+    comm.Barrier()
+    return x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all
+
+def print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all=None, z_max_all=None):
+    print('x_min, x_max: {}, {}'.format(x_min_all, x_max_all))
+    print('y_min, y_max: {}, {}'.format(y_min_all, y_max_all))
+    if z_min_all is not None and z_max_all is not None:
+        print('z_min, z_max: {}, {}'.format(z_min_all, z_max_all))
+
+
+# def compute_bounding_box_3D(comm, domain):
+#     # get dimension and bounds for each mpi process
+#     x_min = np.min(domain.geometry.x[:,0]) 
+#     x_max = np.max(domain.geometry.x[:,0])   
+#     y_min = np.min(domain.geometry.x[:,1]) 
+#     y_max = np.max(domain.geometry.x[:,1])   
+#     z_min = np.min(domain.geometry.x[:,2]) 
+#     z_max = np.max(domain.geometry.x[:,2])
+
+# # find global min/max over all mpi processes
+#     comm.Barrier()
+#     x_min_all = comm.allreduce(x_min, op=MPI.MIN)
+#     x_max_all = comm.allreduce(x_max, op=MPI.MAX)
+#     y_min_all = comm.allreduce(y_min, op=MPI.MIN)
+#     y_max_all = comm.allreduce(y_max, op=MPI.MAX)
+#     z_min_all = comm.allreduce(z_min, op=MPI.MIN)
+#     z_max_all = comm.allreduce(z_max, op=MPI.MAX)
+#     comm.Barrier()
+#     return x_min_all,x_max_all,y_min_all,y_max_all,z_min_all,z_max_all
+
+# def print_bounding_box_3D(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all):
+#     alex.os.mpi_print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all), rank)
+#     alex.os.mpi_print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all), rank)
+#     alex.os.mpi_print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all), rank)

@@ -13,15 +13,16 @@ def get_volume_integral_of_div_of_tensors_from_nodal_forces(tensor: ufl.classes.
 
     J_nodal_local_sum = get_local_sum_of_nodal_forces(J_nodal_vector_local_as_function)
     
-    J_nodal_global_sum = assemble_global_sum_3x1(J_nodal_local_sum, comm)
+    J_nodal_global_sum = assemble_global_sum_dimX1(J_nodal_local_sum, comm)
     return J_nodal_global_sum
 
-def assemble_global_sum_3x1(J_nodal_local_sum, comm: MPI.Intracomm = MPI.COMM_WORLD):
-    J_nodal_global_sum = np.zeros(3, dtype=np.float64)
-    for i in range(3):
+def assemble_global_sum_dimX1(J_nodal_local_sum, comm: MPI.Intracomm = MPI.COMM_WORLD):
+    J_nodal_global_sum = np.zeros(len(J_nodal_local_sum), dtype=np.float64)
+    for i in range(0,len(J_nodal_local_sum)):
         # J_sub = J_nodal_vector_local[i]
         J_nodal_global_sum[i] = comm.allreduce(J_nodal_local_sum[i], op=MPI.SUM)
     return J_nodal_global_sum
+
 
 def get_local_sum_of_nodal_forces(J_nodal_vector_local_as_function: dlfx.fem.Function) -> Tuple[float, float, float]:
     J_nodal_local_sum = np.zeros(3, dtype=np.float64)
@@ -53,13 +54,20 @@ def get_volume_integral_of_div_of_tensors(tensor: ufl.classes.ListTensor, dx: uf
     Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(tensor)[0] ) * dx ) ))
     Jya = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(tensor)[1] ) * dx ) ))
     Jza = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( ufl.div(tensor)[2] ) * dx )))
-    return assemble_global_sum_3x1([Jxa, Jya, Jza], comm)
+    return assemble_global_sum_dimX1([Jxa, Jya, Jza], comm)
 
-def get_surface_integral_of_tensor(tensor: ufl.classes.ListTensor, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
+def get_surface_integral_of_tensor_3D(tensor: ufl.classes.ListTensor, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
     Jx = (tensor[0,0]*n[0]+tensor[0,1]*n[1]+tensor[0,2]*n[2])*ds
     Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
     Jy = (tensor[1,0]*n[0]+tensor[1,1]*n[1]+tensor[1,2]*n[2])*ds
     Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
     Jz = (tensor[2,0]*n[0]+tensor[2,1]*n[1]+tensor[2,2]*n[2])*ds
     Jza = dlfx.fem.assemble_scalar(dlfx.fem.form(Jz))
-    return assemble_global_sum_3x1([Jxa, Jya, Jza], comm)
+    return assemble_global_sum_dimX1([Jxa, Jya, Jza], comm)
+
+def get_surface_integral_of_tensor_2D(tensor: ufl.classes.ListTensor, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
+    Jx = (tensor[0,0]*n[0]+tensor[0,1]*n[1])*ds
+    Jxa = dlfx.fem.assemble_scalar(dlfx.fem.form(Jx))
+    Jy = (tensor[1,0]*n[0]+tensor[1,1]*n[1])*ds
+    Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
+    return assemble_global_sum_dimX1([Jxa, Jya], comm)

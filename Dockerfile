@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 # ENV DISPLAY=127.0.0.1:0.0
 
 # Install required Python packages
-RUN pip install numpy pyfiglet uvw tqdm vtk pyvista
+RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio h5py
 
 # Set PYTHONPATH to include /home/utils
 ENV PYTHONPATH="/home/utils:${PYTHONPATH}"

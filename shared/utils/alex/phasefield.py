@@ -15,6 +15,13 @@ def psisurf(s: any, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
     return psisurf
 
+def psisurf_from_function(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant) -> any:
+    '''
+        Gc from function
+    '''
+    psisurf = Gc*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
+    return psisurf
+
 
 class StaticPhaseFieldProblem3D:
     # Constructor method
@@ -59,18 +66,6 @@ class StaticPhaseFieldProblem3D:
         eshelby = self.psiel_degraded(s,eta,u,lam.value,mu.value) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam.value,mu.value, eta))
         return ufl.as_tensor(eshelby)
     
-    # def getEshelby( u: any, s: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
-    #     return deg(s) * psiel(u) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T, deg(s) * sigma_wo_deg(u))
-        
-    # def deg(s,eta):
-    #     return degrad_quadratic(s,eta)
-    
-    # def sigma_wo_deg(u):
-    #         return lam.value * ufl.tr(ufl.sym(ufl.grad(u))) * ufl.Identity(3) + 2.0 * mu.value * ufl.sym(ufl.grad(u)) 
-        
-    # def psiel(u):
-    #     return 0.5*ufl.inner(sigma_wo_deg(u), ufl.sym(ufl.grad(u)))
-    #     # u,s = ufl.split(w)
     
     
 def getCohesiveConfStress(s: any, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant):
@@ -90,7 +85,7 @@ def getDissipativeConfForce_volume_integral(dissipativeConfForce: any, dx: ufl.M
     G_dis_x = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( dissipativeConfForce[0] ) * dx ) ))
     G_dis_y = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( dissipativeConfForce[1] ) * dx ) ))
     G_dis_z = dlfx.fem.assemble_scalar(dlfx.fem.form( ( ( dissipativeConfForce[2] ) * dx )))
-    return tensor.assemble_global_sum_3x1([G_dis_x, G_dis_y, G_dis_z],comm)
+    return tensor.assemble_global_sum_dimX1([G_dis_x, G_dis_y, G_dis_z],comm)
      
 
 def get_dynamic_crack_locator_function(wm1: dlfx.fem.Function, s_zero: dlfx.fem.Function):
@@ -126,6 +121,48 @@ def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: d
     crackdofs_update = dofs_s_zero #np.array(dofmap.local_to_global(dofs_s_zero),dtype=np.int32) #dofs_s_zero
     bccrack_update = dlfx.fem.dirichletbc(dlfx.default_scalar_type(0.0), crackdofs_update, W.sub(1))
     return bccrack_update
+
+
+class StaticPhaseFieldProblem2D:
+    # Constructor method
+    def __init__(self, degradationFunction: Callable,
+                       psisurf: Callable
+                 ):
+        self.degradation_function = degradationFunction
+
+        # Set all parameters here! Material etc
+        self.psisurf : Callable = psisurf
+        self.sigma_undegraded : Callable = le.sigma_as_tensor2D_plane_strain
+        
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
+        def residuum(u: any, s: any, du: any, ds: any, sm1: any):
+            pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
+            equi = ufl.derivative(pot, u, du)
+            sdrive = ufl.derivative(pot, s, ds)
+            rate = (s-sm1)/delta_t*ds*ufl.dx
+            Res = iMob*rate+sdrive+equi
+            dResdw = ufl.derivative(Res, w, ddw)
+            return [ Res, dResdw]
+            
+        u, s = ufl.split(w)
+        um1, sm1 = ufl.split(wm1)
+        du, ds = ufl.split(dw)
+        
+        return residuum(u,s,du,ds,sm1)
+    
+    def sigma_degraded(self, u,s,lam,mu, eta):
+        return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
+        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+        
+    def psiel_degraded(self,s,eta,u,lam,mu):
+        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+    
+    def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+        u, s = ufl.split(w)
+        # Wen = self.degradation_function(s,eta) * self.psiel_undegraded(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
+        eshelby = self.psiel_degraded(s,eta,u,lam,mu) * ufl.Identity(2) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam,mu, eta))
+        return ufl.as_tensor(eshelby)
+    
     
     
     

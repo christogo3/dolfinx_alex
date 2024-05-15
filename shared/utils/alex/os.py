@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 from datetime import datetime
+from mpi4py import MPI
 
 scripts_directory = os.path.join('/home','scripts')
 resources_directory = os.path.join('/home','resources')
@@ -20,6 +21,16 @@ def mpi_print(output, rank=0):
         print(output)
         sys.stdout.flush
     return
+
+def set_mpi():
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    return comm,rank,size
+
+def print_mpi_status(rank, size):
+    print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
+    sys.stdout.flush()
 
 
 def create_timestamp_string():
@@ -40,3 +51,7 @@ def copy_contents_to_results_folder(source_folder, results_folder):
             shutil.copy(source_item, results_folder)
         elif os.path.isdir(source_item) and not item.endswith("_results"):
             shutil.copytree(source_item, os.path.join(results_folder, item))
+            
+            
+            
+

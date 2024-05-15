@@ -67,9 +67,12 @@ def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm)
         xmax = np.isclose(x[0],x_max_all)
         ymin = np.isclose(x[1],y_min_all)
         ymax = np.isclose(x[1],y_max_all)
-        zmin = np.isclose(x[2],z_min_all)
-        zmax = np.isclose(x[2],z_max_all)
-        boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
+        if domain.geometry.dim == 3:
+            zmin = np.isclose(x[2],z_min_all)
+            zmax = np.isclose(x[2],z_max_all)
+            boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
+        else: #2D
+            boundaries = [xmin, xmax, ymin, ymax]
         return reduce(np.logical_or, boundaries)
     return boundary
 
@@ -111,8 +114,9 @@ def surfing_boundary_conditions(mixedFunctionSpace: dlfx.fem.FunctionSpace, K1: 
     w_D.sub(0).x.scatter_forward()
     w_D.sub(0).sub(1).interpolate(u_y)
     w_D.sub(0).x.scatter_forward()
-    w_D.sub(0).sub(2).interpolate(u_z)
-    w_D.sub(0).x.scatter_forward()
+    if mixedFunctionSpace.mesh.geometry.dim == 3: # only in 3D
+        w_D.sub(0).sub(2).interpolate(u_z)
+        w_D.sub(0).x.scatter_forward()
     return w_D   
 
 def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
