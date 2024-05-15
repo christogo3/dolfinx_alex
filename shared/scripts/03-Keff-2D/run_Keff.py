@@ -29,7 +29,7 @@ outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name
 comm, rank, size = alex.os.set_mpi()
 alex.os.print_mpi_status(rank, size)
 
-with dlfx.io.XDMFFile(comm, os.path.join(script_path,'Keff_mesh.xdmf'), 'r') as mesh_inp: 
+with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'Keff_mesh.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="Grid")
     mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
     

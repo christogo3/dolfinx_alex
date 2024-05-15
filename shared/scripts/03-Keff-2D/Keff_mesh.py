@@ -4,6 +4,8 @@ import numpy as np
 import gmsh
 import os
 
+import alex.os
+
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
@@ -80,4 +82,7 @@ if mesh_info:
     print(elem_data)
 
 cell_mesh = meshio.Mesh(points=nodes, cells={'triangle': elems}, cell_data={'name_to_read': [elem_data]})
-meshio.write(filename+'.xdmf', cell_mesh)
+# print(os.path.join(alex.os.resources_directory,script_name_without_extension+'.xdmf'))
+meshio.write(os.path.join(alex.os.resources_directory,script_name_without_extension+'.xdmf'), cell_mesh)
+
+
