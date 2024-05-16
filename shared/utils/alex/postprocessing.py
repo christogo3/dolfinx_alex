@@ -92,8 +92,6 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
     
-    
-    # split solution to displacement and crack field
     Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
     
     S = dlfx.fem.FunctionSpace(domain, Se)
@@ -157,6 +155,16 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
             
             xdmf_out.write_function(out_scalar_field,t)
     xdmf_out.close()
+    
+def get_extreme_values_of_scalar_field(domain: dlfx.mesh.Mesh, scalar_field_function: any, comm: MPI.Intercomm):
+    Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
+    S = dlfx.fem.FunctionSpace(domain, Se)
+    scalar_field_expression = dlfx.fem.Expression(scalar_field_function, 
+                                                        S.element.interpolation_points())
+    scalar_field = dlfx.fem.Function(S) 
+    scalar_field.interpolate(scalar_field_expression)
+    return comm.reduce(np.max(scalar_field.x.array), MPI.MAX), comm.reduce(np.min(scalar_field.x.array), MPI.MIN)
+    scalar_field.x.array
 
 
 def tag_part_of_boundary(domain: dlfx.mesh.Mesh, where: Callable, tag: int) -> any:

@@ -34,7 +34,9 @@ polyhedras_id = data.cell_data_dict['gmsh:geometrical']['tetra']
 cells_id_max = np.max(cells_id)
 # active_cells = cells #  look into gmesh geometrical for polys! #[cell for index, cell in enumerate(cells) if cells_id[index] <= f_vol*cells_id_max]
 # active_cells = [cell for index, cell in enumerate(cells) if cells_id[index] <= f_vol*cells_id_max]
-active_cells = [cell for index, cell in enumerate(cells) if polyhedras_id[index] not in [5]]
+# active_cells = [cell for index, cell in enumerate(cells) if polyhedras_id[index] not in [5]]
+active_cells = [cell for index, cell in enumerate(cells) if (index + 1) % 10 != 0]
+
 
 # setup dolfinx mesh
 cell = ufl.Cell('tetrahedron', 3) # 3D
@@ -78,6 +80,6 @@ min_z = np.min(domain.geometry.x[:,2])
 # write xdmf-file with mesh
 print('Writing '+filename+'.xdmf ...')
     
-with dlfx.io.XDMFFile(comm, "/home/resources/polycrystal_cube.xdmf", 'w') as xdmf:
+with dlfx.io.XDMFFile(comm, "/home/resources/polycrystal_cube_finer.xdmf", 'w') as xdmf:
     xdmf.write_mesh(domain)
     

@@ -54,11 +54,11 @@ class StaticPhaseFieldProblem3D:
         return residuum(u,s,du,ds,sm1)
     
     def sigma_degraded(self, u,s,lam,mu, eta):
-        return self.degradation_function(s=s,eta=eta) * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+        return self.degradation_function(s=s,eta=eta) * le.sigma_as_tensor(u=u,lam=lam,mu=mu)
         # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
         
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * le.psiel(u,le.sigma_as_tensor3D(u=u,lam=lam,mu=mu))
+        return self.degradation_function(s,eta) * le.psiel(u,le.sigma_as_tensor(u=u,lam=lam,mu=mu))
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
@@ -132,7 +132,7 @@ class StaticPhaseFieldProblem2D:
 
         # Set all parameters here! Material etc
         self.psisurf : Callable = psisurf
-        self.sigma_undegraded : Callable = le.sigma_as_tensor2D_plane_strain
+        self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
         
     def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any):

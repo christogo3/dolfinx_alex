@@ -138,7 +138,7 @@ def get_bcs(t):
     xK1 = dlfx.fem.Constant(domain, xtip)
 
     bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,mixedFunctionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
-    # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
+    # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,eps_mac,0)
     
     # irreversibility
     if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step

@@ -76,7 +76,7 @@ fdim = domain.topology.dim -1
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
-bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,0,eps_mac)
+bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,eps_mac,0)
 bcs.append(bccrack)
 
 

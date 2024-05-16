@@ -6,32 +6,58 @@ from mpi4py import MPI
 from functools import reduce
 import math
 from alex.linearelastic import get_nu
+import alex.util as ut
 
 def linear_displacements_mixed(mixedFunctionSpace: dlfx.fem.FunctionSpace, 
                                eps_mac: dlfx.fem.Constant,
                                subspace_idx:int = 0):
-    # assume mixedFunctionSpace.sub(0) contains the displacementFields
     w_D = dlfx.fem.Function(mixedFunctionSpace)
+    dim = ut.get_dimension_of_function(w_D.sub(subspace_idx))
+    for k in range(0, dim):
+        w_D.sub(subspace_idx).sub(k).interpolate(lambda x: eps_mac.value[k, 0]*x[0] + eps_mac.value[k, 1]*x[1] + eps_mac.value[k, 2]*x[2] )
+        w_D.x.scatter_forward()
     
     # def u_x(x):
     #     return eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2]
     # w_D.sub(0).sub(0).interpolate(u_x)
-    w_D.sub(subspace_idx).sub(0).interpolate(lambda x: eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2] )
-    w_D.sub(subspace_idx).x.scatter_forward()
-    w_D.sub(subspace_idx).sub(1).interpolate(lambda x: eps_mac.value[1, 0]*x[0] + eps_mac.value[1, 1]*x[1] + eps_mac.value[1, 2]*x[2] )
-    w_D.sub(subspace_idx).x.scatter_forward()
-    w_D.sub(subspace_idx).sub(2).interpolate(lambda x: eps_mac.value[2, 0]*x[0] + eps_mac.value[2, 1]*x[1] + eps_mac.value[2, 2]*x[2] )
-    w_D.sub(subspace_idx).x.scatter_forward()
+    # w_D.sub(subspace_idx).sub(0).interpolate(lambda x: eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2] )
+    # w_D.sub(subspace_idx).x.scatter_forward()
+    # w_D.sub(subspace_idx).sub(1).interpolate(lambda x: eps_mac.value[1, 0]*x[0] + eps_mac.value[1, 1]*x[1] + eps_mac.value[1, 2]*x[2] )
+    # w_D.sub(subspace_idx).x.scatter_forward()
+    # w_D.sub(subspace_idx).sub(2).interpolate(lambda x: eps_mac.value[2, 0]*x[0] + eps_mac.value[2, 1]*x[1] + eps_mac.value[2, 2]*x[2] )
+    # w_D.sub(subspace_idx).x.scatter_forward()
     return w_D
 
-def define_dirichlet_bc_from_interpolated_function_mixed(domain: dlfx.mesh.Mesh,
+def linear_displacements(V: dlfx.fem.FunctionSpace, 
+                               eps_mac: dlfx.fem.Constant):
+    u_D = dlfx.fem.Function(V)
+    dim = ut.get_dimension_of_function(u_D)
+    for k in range(0, dim):
+        u_D.sub(k).interpolate(lambda x: eps_mac.value[k, 0]*x[0] + eps_mac.value[k, 1]*x[1] + eps_mac.value[k, 2]*x[2] )
+        u_D.x.scatter_forward()
+        
+    # def u_x(x):
+    #     return eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2]
+    # w_D.sub(0).sub(0).interpolate(u_x)
+    # u_D.sub(subspace_idx).sub(0).interpolate(lambda x: eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2] )
+    # u_D.sub(subspace_idx).x.scatter_forward()
+    # u_D.sub(subspace_idx).sub(1).interpolate(lambda x: eps_mac.value[1, 0]*x[0] + eps_mac.value[1, 1]*x[1] + eps_mac.value[1, 2]*x[2] )
+    # u_D.sub(subspace_idx).x.scatter_forward()
+    # u_D.sub(subspace_idx).sub(2).interpolate(lambda x: eps_mac.value[2, 0]*x[0] + eps_mac.value[2, 1]*x[1] + eps_mac.value[2, 2]*x[2] )
+    # u_D.sub(subspace_idx).x.scatter_forward()
+    return u_D
+
+def define_dirichlet_bc_from_interpolated_function(domain: dlfx.mesh.Mesh,
                                                          desired_value_at_boundary_function: dlfx.fem.Function,
                                                          where_function: Callable,
-                                                         mixedFunctionSpace: dlfx.fem.FunctionSpace,
+                                                         functionSpace: dlfx.fem.FunctionSpace,
                                                          subspace_idx: int) -> dlfx.fem.DirichletBC:
     fdim = domain.topology.dim-1
     facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, where_function)
-    dofs_at_boundary = dlfx.fem.locate_dofs_topological(mixedFunctionSpace.sub(subspace_idx), fdim, facets_at_boundary)
+    if subspace_idx < 0:
+        dofs_at_boundary = dlfx.fem.locate_dofs_topological(functionSpace, fdim, facets_at_boundary)
+    else:
+        dofs_at_boundary = dlfx.fem.locate_dofs_topological(functionSpace.sub(subspace_idx), fdim, facets_at_boundary)
     bc = dlfx.fem.dirichletbc(desired_value_at_boundary_function,dofs_at_boundary)
     return bc
 
@@ -75,6 +101,23 @@ def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm)
             boundaries = [xmin, xmax, ymin, ymax]
         return reduce(np.logical_or, boundaries)
     return boundary
+
+def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        xmin = np.isclose(x[0],x_min_all)
+        xmax = np.isclose(x[0],x_max_all)
+        ymin = np.isclose(x[1],y_min_all)
+        ymax = np.isclose(x[1],y_max_all)
+        if domain.geometry.dim == 3:
+            zmin = np.isclose(x[2],z_min_all)
+            zmax = np.isclose(x[2],z_max_all)
+            boundaries = [xmin, ymin, zmin]
+        else: #2D
+            boundaries = [xmin, ymin]
+        return reduce(np.logical_and, boundaries)
+    return boundary
+
 
 def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, excluded_where_function: Callable) -> Callable:
     
@@ -143,15 +186,16 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     
     where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=crack_boundary_where)
     bcs = []
-    bcs.append(define_dirichlet_bc_from_interpolated_function_mixed(domain, w_D, where, mixedFunctionSpace,subspace_idx))
+    bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, mixedFunctionSpace,subspace_idx))
     return bcs
     
 
 def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
                                                                comm: MPI.Intercomm,
-                                                               mixedFunctionSpace: dlfx.fem.FunctionSpace,
-                                                               subspace_idx: int, 
-                                                               eps_mac: dlfx.fem.Constant):
+                                                               functionSpace: dlfx.fem.FunctionSpace,
+                                                               eps_mac: dlfx.fem.Constant,
+                                                               subspace_idx: int = -1 
+                                                               ):
     
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     
@@ -177,12 +221,15 @@ def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Me
     def back(x):
         return np.isclose(x[2], z_min_all)
     
-    w_D = linear_displacements_mixed(mixedFunctionSpace, subspace_idx=subspace_idx, eps_mac=eps_mac)
-    
     bcs = []
-    for where_function in [top, bottom,left, right, front, back]:
-        bcs.append(define_dirichlet_bc_from_interpolated_function_mixed(domain,w_D,where_function,mixedFunctionSpace,subspace_idx))
+    if subspace_idx < 0:
+        w_D = linear_displacements(V=functionSpace,eps_mac=eps_mac)
+    else:
+        w_D = linear_displacements_mixed(functionSpace, subspace_idx=subspace_idx, eps_mac=eps_mac)
         
+    for where_function in [top, bottom,left, right, front, back]:
+        bcs.append(define_dirichlet_bc_from_interpolated_function(domain,w_D,where_function,functionSpace,subspace_idx))
+    
     return bcs
 
 

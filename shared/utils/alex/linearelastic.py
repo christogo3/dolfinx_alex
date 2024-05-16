@@ -1,11 +1,10 @@
 import dolfinx as dlfx
 import ufl 
 from typing import Callable
-import numpy as np
 import alex.phasefield
-import dolfinx.fem as fem
 import alex.tensor
 from mpi4py import MPI
+import alex.util as ut
 
 from dolfinx.fem.petsc import assemble_vector
 
@@ -29,7 +28,7 @@ def psiel_voigt(u: any, eps_funct: Callable, cmat: any) -> any:
     psiel = 0.5*ufl.dot(eps_funct(u), cmat*eps_funct(u))
     return psiel
 
-def psiel(u: any, sigma: any):
+def psiel(u: dlfx.fem.Function, sigma: any):
     return 0.5*ufl.inner(sigma, ufl.sym(ufl.grad(u)))
 
 def get_nu(lam: float, mu: float):
@@ -58,12 +57,38 @@ def get_J_2D_volume_integral(eshelby_as_function: Callable, dx: ufl.Measure, com
 def get_J_from_nodal_forces(eshelby_as_function: Callable, W: dlfx.fem.FunctionSpace, dx: ufl.Measure, comm: MPI.Intracomm):
     return alex.tensor.get_volume_integral_of_div_of_tensors_from_nodal_forces(eshelby_as_function,W,dx, comm)
 
-def sigma_as_tensor3D(u: float, lam:float, mu:float ):
+def sigma_as_tensor(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant ):
         eps = ufl.sym(ufl.grad(u))
-        val = lam * ufl.tr(eps) * ufl.Identity(3) + 2*mu*eps
+        val = lam * ufl.tr(eps) * ufl.Identity(ut.get_dimension_of_function(u)) + 2*mu*eps
         return val
     
-def sigma_as_tensor2D_plane_strain(u: float, lam:float, mu:float ):
-        eps = ufl.sym(ufl.grad(u))
-        val = lam * ufl.tr(eps) * ufl.Identity(2) + 2*mu*eps
-        return val
+# def sigma_as_tensor2D_plane_strain(u: dlfx.fem.Function, lam:float, mu:float ):
+#         eps = ufl.sym(ufl.grad(u))
+#         val = lam * ufl.tr(eps) * ufl.Identity(2) + 2*mu*eps
+#         return val
+    
+    
+class StaticLinearElasticProblem:
+    # Constructor method
+    def __init__(self):
+        self.traction = 0.0
+        return 
+        
+    def prep_newton(self, u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, dx: ufl.Measure = ufl.dx):
+        def residuum(u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction):
+            pot = psiel(u,sigma_as_tensor(u,lam,mu))*dx + self.traction
+            equi = ufl.derivative(pot, u, du)
+            Res = equi
+            dResdw = ufl.derivative(Res, u, ddu)
+            return [ Res, dResdw]        
+        return residuum(u,du,ddu)
+    
+    def set_traction_bc(self, sigma: any, u: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure = ufl.ds):
+        self.traction = ufl.inner(ufl.dot(sigma,n),u)*ds
+        
+
+def sigvM(sig):
+    sdev = ufl.dev(sig)
+    I2 = 0.5*ufl.inner(sdev,sdev)
+    vonMises = ufl.sqrt(3*I2)
+    return vonMises       

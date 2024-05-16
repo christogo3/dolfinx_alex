@@ -135,7 +135,6 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
         iMob=iMob, delta_t=delta_t)
     return [Res, dResdw]
 
-
 def top(x):
     return np.isclose(x[1],y_max_all)
 
