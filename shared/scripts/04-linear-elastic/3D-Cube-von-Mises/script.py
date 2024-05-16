@@ -13,6 +13,8 @@ import os
 
 from mpi4py import MPI
 
+import sys
+
 comm = MPI.COMM_WORLD
 
 
@@ -33,6 +35,7 @@ syy = values
 
 principal_stresses_at_failure = []
 total_iterations = len(sxx) * len(sxy) * len(sxz) * len(syz) * len(szz) * len(syy)
+computation = 1
 # with tqdm(total=total_iterations) as pbar:
 for val_sxx in sxx:
         for val_sxy in sxy:
@@ -53,13 +56,17 @@ for val_sxx in sxx:
 
                             principal_stress_at_failure = np.linalg.eigvals(sig_at_failure)
                             
-                            if comm.rank==0:
+                            if comm.Get_rank() == 0:
                                 principal_stresses_at_failure.append(principal_stress_at_failure)
+                                print("Running computation {} of {} total".format(computation,total_iterations))
+                                sys.stdout.flush()
+                            
+                            computation += 1
                                 # pbar.update(1) 
                             # print("Principal Stresses:", principal_stress_at_failure)
 
 
-if comm.rank == 0:
+if comm.Get_rank() == 0:
     def are_close(a, b, tol=1e-6):
         return abs(a - b) < tol
 
