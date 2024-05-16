@@ -33,8 +33,8 @@ syy = values
 
 principal_stresses_at_failure = []
 total_iterations = len(sxx) * len(sxy) * len(sxz) * len(syz) * len(szz) * len(syy)
-with tqdm(total=total_iterations) as pbar:
-    for val_sxx in sxx:
+# with tqdm(total=total_iterations) as pbar:
+for val_sxx in sxx:
         for val_sxy in sxy:
             for val_sxz in sxz:
                 for val_syz in syz:
@@ -55,7 +55,7 @@ with tqdm(total=total_iterations) as pbar:
                             
                             if comm.rank==0:
                                 principal_stresses_at_failure.append(principal_stress_at_failure)
-                                pbar.update(1) 
+                                # pbar.update(1) 
                             # print("Principal Stresses:", principal_stress_at_failure)
 
 

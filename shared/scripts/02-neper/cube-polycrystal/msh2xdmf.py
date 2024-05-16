@@ -35,7 +35,7 @@ cells_id_max = np.max(cells_id)
 # active_cells = cells #  look into gmesh geometrical for polys! #[cell for index, cell in enumerate(cells) if cells_id[index] <= f_vol*cells_id_max]
 # active_cells = [cell for index, cell in enumerate(cells) if cells_id[index] <= f_vol*cells_id_max]
 # active_cells = [cell for index, cell in enumerate(cells) if polyhedras_id[index] not in [5]]
-active_cells = [cell for index, cell in enumerate(cells) if (index + 1) % 10 != 0]
+active_cells = [cell for index, cell in enumerate(cells) if (polyhedras_id[index]) % 6 != 0]
 
 
 # setup dolfinx mesh

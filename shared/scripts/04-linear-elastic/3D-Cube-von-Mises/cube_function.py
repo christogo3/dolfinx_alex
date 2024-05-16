@@ -39,13 +39,13 @@ def run_simulation(sig_mac_param, comm: MPI.Intercomm):
     # sys.stdout.flush()
 
     # mesh 
-    N = 16 
+    # N = 16 
 
     # generate domain
     #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
     # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-    with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'polycrystal_cube_finer.xdmf'), 'r') as mesh_inp: 
+    with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'polycrystal_cube.xdmf'), 'r') as mesh_inp: 
         domain = mesh_inp.read_mesh()
 
 
