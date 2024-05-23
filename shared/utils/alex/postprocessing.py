@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import glob 
 import os
 import sys
+import basix
 
 from petsc4py import PETSc as petsc
 
@@ -70,21 +71,24 @@ def write_field(domain: dlfx.mesh.Mesh,
                                     comm: MPI.Intercomm) :
     
     
-    # split solution to displacement and crack field
     Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
     
+    
     S = dlfx.fem.FunctionSpace(domain, Se)
+    
+    # shape = (domain.geometry.dim,)
+    # S = dlfx.fem.functionspace(domain, ("CG", 1, shape)) 
+     
     field_interp = dlfx.fem.Function(S)
     
     field_interp.interpolate(field)
 
     field_interp.name = field.name
     
-    # append xdmf-file
-    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    xdmfout.write_function(field_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
-    xdmfout.close()
-    return xdmfout
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
+        xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    # xdmfout.write_function()
+        xdmfout.write_function(field_interp, t)
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
                                     outputfile_xdmf_path: str,
@@ -92,20 +96,32 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
     
+    # shape = (domain.geometry.dim,)
+    # S = dlfx.fem.functionspace(domain, ("CG", 1, shape))  
+    
+
+    # test = domain.ufl_domain().ufl_cell()
+    
     Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
     
+    # Se = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
+    # S  = dlfx.fem.functionspace()
     S = dlfx.fem.FunctionSpace(domain, Se)
+    
     field_interp = dlfx.fem.Function(S)
     
     field_interp.interpolate(field)
 
     field_interp.name = field.name
+    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
+        xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    # xdmfout.write_function()
+        xdmfout.write_function(field_interp, t)
     
     # append xdmf-file
-    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    xdmfout.write_function(field_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
-    xdmfout.close()
-    return xdmfout
+     
+    # xdmfout.close()
+    # return xdmfout
 
 
     

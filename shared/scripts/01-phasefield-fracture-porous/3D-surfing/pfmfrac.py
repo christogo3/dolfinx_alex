@@ -1,4 +1,6 @@
 from typing import Callable, Union
+
+import basix.ufl
 import alex.linearelastic
 import alex.phasefield
 import dolfinx as dlfx
@@ -24,6 +26,7 @@ from  dolfinx.cpp.la import InsertMode
 
 from dolfinx.fem.petsc import assemble_vector
 import petsc4py
+import basix
 
 
 script_path = os.path.dirname(__file__)
@@ -73,8 +76,12 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
+
+# Ve = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
+# Te = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(1,))
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
+# W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Te]))
 
 # define crack by boundary
 def crack(x):
@@ -83,7 +90,11 @@ def crack(x):
 # define boundary condition on top and bottom
 fdim = domain.topology.dim -1
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
+
+# V = W.sub(0).collapse()
+# S = W.sub(1).collapse()
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
+
 
 # def crack_bounding_box_3D(domain: dlfx.mesh.Mesh, crack_locator_function: Callable):
 #     '''

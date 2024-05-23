@@ -37,6 +37,9 @@ def get_nu(lam: float, mu: float):
 def get_emod(lam: float, mu: float):
     return  mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
 
+def get_K(lam: float, mu: float):
+    return  lam + 2.0 / 3.0 * mu
+
 def get_J_3D(eshelby_as_function: Callable, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
     return alex.tensor.get_surface_integral_of_tensor_3D(eshelby_as_function,n,ds,comm)
 
@@ -61,6 +64,9 @@ def sigma_as_tensor(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.C
         eps = ufl.sym(ufl.grad(u))
         val = lam * ufl.tr(eps) * ufl.Identity(ut.get_dimension_of_function(u)) + 2*mu*eps
         return val
+    
+def sigma_as_tensor_from_epsilon(eps_el, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+    return lam * ufl.tr(eps_el) * ufl.Identity(3) + 2 * mu * eps_el
     
 # def sigma_as_tensor2D_plane_strain(u: dlfx.fem.Function, lam:float, mu:float ):
 #         eps = ufl.sym(ufl.grad(u))

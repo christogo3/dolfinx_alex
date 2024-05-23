@@ -13,81 +13,111 @@ comm = MPI.COMM_WORLD
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 
-# Remove the file if it exists
-file_path = os.path.join(script_path, 'failure_surface.csv')
-if os.path.exists(file_path):
-    os.remove(file_path)
+# if comm.Get_rank() == 0:
+#     # Remove the file if it exists
+#     file_path = os.path.join(script_path, 'failure_surface.csv')
+#     if os.path.exists(file_path):
+#         os.remove(file_path)
 
-# Define arrays
-n_values = 2
-values = np.linspace(-1.0, 1.0, n_values)
+# # Define arrays
+# n_values = 3
+# values = np.linspace(-1.0, 1.0, n_values)
 
-# Initialize arrays
-sxx = values
-sxy = values
-sxz = values
-syz = values
-szz = values
-syy = values
+# # Initialize arrays
+# sxx = values
+# sxy = values
+# sxz = values
+# syz = values
+# szz = values
+# syy = values
 
-total_iterations = len(sxx) * len(sxy) * len(sxz) * len(syz) * len(szz) * len(syy)
-computation = 1
+# total_iterations = len(sxx) * len(sxy) * len(sxz) * len(syz) * len(szz) * len(syy)
+# computation = 1
 
-for val_sxx in sxx:
-    for val_sxy in sxy:
-        for val_sxz in sxz:
-            for val_syz in syz:
-                for val_szz in szz:
-                    for val_syy in syy:
-                        sig_mac = np.array([[val_sxx, val_sxy, val_sxz],
-                                             [val_sxy, val_syy, val_syz],
-                                             [val_sxz, val_syz, val_szz]])
-                        if np.all(sig_mac == 0):  # if all entries are zero then no ev
-                            break
+# for val_sxx in sxx:
+#     for val_sxy in sxy:
+#         for val_sxz in sxz:
+#             for val_syz in syz:
+#                 for val_szz in szz:
+#                     for val_syy in syy:
+#                         sig_mac = np.array([[val_sxx, val_sxy, val_sxz],
+#                                              [val_sxy, val_syy, val_syz],
+#                                              [val_sxz, val_syz, val_szz]])
+#                         if np.linalg.norm(sig_mac) < 1.0e-3:  # if all entries are zero then no ev
+#                             break
 
-                        try:
-                            comm.barrier()
-                            sig_vm_max = cube_function.run_simulation(sig_mac_param=sig_mac, comm=comm)
-                            sig_vm_c = 1.0
-                            sig_at_failure = sig_mac * sig_vm_c / sig_vm_max  # if linear
-                            principal_stress_at_failure = np.linalg.eigvals(sig_at_failure)
+#                         try:
+#                             comm.barrier()
+#                             sig_vm_max = cube_function.run_simulation(sig_mac_param=sig_mac, comm=comm)
+#                             sig_vm_c = 1.0
+#                             sig_at_failure = sig_mac * sig_vm_c / sig_vm_max  # if linear
+#                             principal_stress_at_failure = np.linalg.eigvals(sig_at_failure) # does not make sense to do this in main stresses since not isotropic?
                             
-                            if comm.Get_rank() == 0:
-                                with open(os.path.join(script_path, 'failure_surface.csv'), 'a') as file:
-                                    file.write(','.join(map(str, principal_stress_at_failure)) + '\n')
-                                print("Running computation {} of {} total".format(computation, total_iterations))
-                                sys.stdout.flush()
+#                             if comm.Get_rank() == 0:
+#                                 with open(os.path.join(script_path, 'failure_surface.csv'), 'a') as file:
+#                                     if np.linalg.norm(principal_stress_at_failure) < 5.0 * sig_vm_c:
+#                                         file.write(','.join(map(str, principal_stress_at_failure)) + '\n')
+#                                 print("Running computation {} of {} total".format(computation, total_iterations))
+#                                 sys.stdout.flush()
 
-                            computation += 1
-                            comm.barrier()
-                        except Exception as e:
-                            if comm.Get_rank() == 0:
-                                print("An error occurred in computation " + str(computation) + " message:", e)
-                                print("sigma is: \n")
-                                print(sig_mac)
-                            computation += 1
+#                             computation += 1
+#                             comm.barrier()
+#                         except Exception as e:
+#                             if comm.Get_rank() == 0:
+#                                 print("An error occurred in computation " + str(computation) + " message:", e)
+#                                 print("sigma is: \n")
+#                                 print(sig_mac)
+#                             computation += 1
 
-# Read data from the file for plotting
-points = np.genfromtxt(os.path.join(script_path, 'failure_surface.csv'), delimiter=',')
 
-# Compute convex hull
-hull = ConvexHull(points)
 
-# Plot convex hull
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+if comm.Get_rank() == 0:
+    
+    
+    def are_close(a, b, tol=1e-6):
+        return abs(a - b) < tol
 
-# Plot points
-ax.plot(points[:, 0], points[:, 1], points[:, 2], 'o')
+    def remove_duplicates(arr):
+            unique_arrays = []
+            for sub_arr in arr:
+                is_duplicate = False
+                for unique_sub_arr in unique_arrays:
+                    if (are_close(sub_arr[0], unique_sub_arr[0]) and
+                        are_close(sub_arr[1], unique_sub_arr[1]) and
+                        are_close(sub_arr[2], unique_sub_arr[2])):
+                        is_duplicate = True
+                        break
+                if not is_duplicate:
+                    unique_arrays.append(sub_arr)
+            return unique_arrays
+    
+    # Read data from the file for plotting
+    points = np.genfromtxt(os.path.join(script_path, 'failure_surface.csv'), delimiter=',')
+        
+    points = np.array(remove_duplicates(points))
+    
+    mask = np.isnan(points).any(axis=1)
+    
+    points = points[~mask]
 
-# Create triangulation of convex hull vertices
-triang = Triangulation(points[:, 0], points[:, 1], triangles=hull.simplices)
+    # Compute convex hull
+    hull = ConvexHull(points)
 
-# Plot smooth surface of convex hull
-ax.plot_trisurf(triang, points[:, 2], color='blue', alpha=0.5)
+    # Plot convex hull
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
-# Save the plot as a screenshot
-plt.savefig(os.path.join(script_path, 'failure_surface.png'))
+    # Plot points
+    ax.plot(points[:, 0], points[:, 1], points[:, 2], 'o')
+
+    # Create triangulation of convex hull vertices
+    triang = Triangulation(points[:, 0], points[:, 1], triangles=hull.simplices)
+
+    # Plot smooth surface of convex hull
+    ax.plot_trisurf(triang, points[:, 2], color='blue', alpha=0.5)
+
+    # Save the plot as a screenshot
+    plt.savefig(os.path.join(script_path, 'failure_surface.png'))
 
 
 

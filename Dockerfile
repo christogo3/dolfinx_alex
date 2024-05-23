@@ -1,5 +1,18 @@
 # Use the dolfinx/dolfinx:stable image as base
-FROM dolfinx/dolfinx:stable
+# FROM dolfinx/dolfinx:stable
+FROM dolfinx/dolfinx:v0.7.3
+
+RUN apt clean
+
+# RUN apt-key update
+
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
+# RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 871920D1991BC93C
+
+# Ensure APT is using HTTPS for the repositories
+RUN apt-get update && apt-get install -y \
+    apt-transport-https \
+    ca-certificates
 
 # Set the working directory in the container
 WORKDIR /home
@@ -12,13 +25,6 @@ RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
-
-
-# Install X server and other necessary packages
-# RUN apt-get update && apt-get install -y xserver-xorg-core xserver-xorg-video-dummy openmpi-bin
-
-# Set DISPLAY environment variable
-# ENV DISPLAY=127.0.0.1:0.0
 
 # Install required Python packages
 RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio h5py
