@@ -88,19 +88,34 @@ def write_runtime_to_newton_logfile(logfile_path: str, runtime: float):
     logfile.write('# \n')
     logfile.close()
     return True
+
+def default_hook():
+    return
+
+def default_hook_tdt(t,dt):
+    return
+
+def default_hook_dt(dt):
+    return
+
+def default_hook_t(t):
+    return
+
+def default_hook_all(t,dt,iters):
+    return
     
 def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              w: dlfx.fem.Function, 
                                              Tend: float,
                                              dt: float,
-                                             before_first_timestep_hook: Callable,
-                                             after_last_timestep_hook: Callable,
-                                             before_each_timestep_hook: Callable, 
-                                             get_residuum_and_gateaux: Callable,
-                                             get_bcs: Callable,
-                                             after_timestep_success_hook: Callable,
-                                             after_timestep_restart_hook: Callable,
-                                             comm: MPI.Intercomm,
+                                             before_first_timestep_hook: Callable = default_hook,
+                                             after_last_timestep_hook: Callable = default_hook,
+                                             before_each_timestep_hook: Callable = default_hook_tdt, 
+                                             get_residuum_and_gateaux: Callable = default_hook_dt,
+                                             get_bcs: Callable = default_hook_t,
+                                             after_timestep_success_hook: Callable = default_hook_all,
+                                             after_timestep_restart_hook: Callable = default_hook_all,
+                                             comm: MPI.Intercomm = MPI.COMM_WORLD,
                                              print = False):
     rank = comm.Get_rank()
     
@@ -204,9 +219,9 @@ class CustomLinearProblem(fem.petsc.LinearProblem):
             self._solver.solve(self._b, self._x)
             self.u.x.scatter_forward()    
     
-def solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  before_first_timestep_hook: Callable, before_each_timestep_hook: Callable, after_last_timestep_hook: Callable, get_residuum_and_tangent: Callable, get_bcs: Callable, after_iteration_hook: Callable, after_timestep_success_hook: Callable, comm):
+def solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  before_first_timestep_hook: Callable, before_each_timestep_hook: Callable, after_last_timestep_hook: Callable, get_residuum_and_tangent: Callable, get_bcs: Callable, after_iteration_hook: Callable, after_timestep_success_hook: Callable, comm, print_bool=False):
     
-        before_first_timestep_hook()
+        before_first_timestep_hook()            
         for i, t in enumerate(load_steps):
             
             
@@ -221,11 +236,13 @@ def solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  before_first_t
             # "pc_factor_mat_solver_type": "mumps",
             # })
             
-            
-            niter = 0
             Jacobi = dlfx.fem.form(tangent_form)
             Residual_form = dlfx.fem.form(Residual)
-            parameter_handover_after_last_iteration = solve_with_custom_newton(Jacobi,Residual_form,Du,du,comm,bcs,after_iteration_hook=after_iteration_hook)
+            parameter_handover_after_last_iteration, niter = solve_with_custom_newton(Jacobi,Residual_form,Du,du,comm,bcs,after_iteration_hook=after_iteration_hook, print_bool=print_bool)
+            
+            if print_bool and comm.Get_rank() == 0:
+                print_timestep_overview(niter,converged=True,restart_solution=False)
+                
             after_timestep_success_hook(t,i,niter,parameter_handover_after_last_iteration)
             
         #     tangent_problem = CustomLinearProblem(
@@ -279,7 +296,20 @@ def solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  before_first_t
         
         
 
-def solve_with_custom_newton(jacobian, residual, uh, du,comm, bcs, after_iteration_hook):
+def solve_with_custom_newton(jacobian, residual, uh, du,comm, bcs, after_iteration_hook, print_bool=False):
+    # def assemble_rhs_and_apply_bcs(jacobian, residual, uh, bcs, L):
+    #     dlfx.fem.petsc.assemble_vector(L, residual)
+    #     L.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    #     L.scale(-1)
+
+    #         # Compute b - J(u_D-u_(i-1))
+    #     dlfx.fem.petsc.apply_lifting(L, [jacobian], [bcs], x0=[uh.vector], scale=1)
+    #         # Set du|_bc = u_{i-1}-u_D
+    #     dlfx.fem.petsc.set_bc(L, bcs, uh.vector, 1.0)
+    #     L.ghostUpdate(addv=PETSc.InsertMode.INSERT_VALUES, mode=PETSc.ScatterMode.FORWARD)
+    
+    
+    
     A = dlfx.fem.petsc.create_matrix(jacobian)
     L = dlfx.fem.petsc.create_vector(residual)
     
@@ -291,23 +321,36 @@ def solve_with_custom_newton(jacobian, residual, uh, du,comm, bcs, after_iterati
     max_iterations = 25
     du_norm = []
     
+    # assemble_rhs_and_apply_bcs(jacobian, residual, uh, bcs, L)
+    # nRes0 = 100000000
+    
+    converged = False
     while i < max_iterations:
+        if i != 0:
+            if correction_norm/u0 < 1e-10:
+                converged = True
+                break
+        
     # Assemble Jacobian and residual
         with L.localForm() as loc_L:
             loc_L.set(0)
         A.zeroEntries()
         dlfx.fem.petsc.assemble_matrix(A, jacobian, bcs=bcs)
         A.assemble()
+        
         dlfx.fem.petsc.assemble_vector(L, residual)
         L.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         L.scale(-1)
 
-        # Compute b - J(u_D-u_(i-1))
+            # Compute b - J(u_D-u_(i-1))
         dlfx.fem.petsc.apply_lifting(L, [jacobian], [bcs], x0=[uh.vector], scale=1)
-        # Set du|_bc = u_{i-1}-u_D
+            # Set du|_bc = u_{i-1}-u_D
         dlfx.fem.petsc.set_bc(L, bcs, uh.vector, 1.0)
         L.ghostUpdate(addv=PETSc.InsertMode.INSERT_VALUES, mode=PETSc.ScatterMode.FORWARD)
+        # assemble_rhs_and_apply_bcs(jacobian, residual, uh, bcs, L)
+        
 
+        
         # Solve linear problem
         solver.solve(L, du.vector)
         du.x.scatter_forward()
@@ -315,20 +358,39 @@ def solve_with_custom_newton(jacobian, residual, uh, du,comm, bcs, after_iterati
         # Update u_{i+1} = u_i + delta u_i
         uh.x.array[:] += du.x.array
         uh.x.scatter_forward()
+        
+        if i == 0:
+            u0 = uh.vector.norm(0)
         i += 1
         
         parameters = after_iteration_hook()
 
         # Compute norm of update
         correction_norm = du.vector.norm(0)
+        
+
+        
 
         # Compute L2 error comparing to the analytical solution
         du_norm.append(correction_norm)
 
-        print(f"Iteration {i}: Correction norm {correction_norm}")
-        if correction_norm < 1e-10:
-            return parameters
-    if comm.getRank() == 0:
+        if print_bool and comm.Get_rank() == 0:
+            print(f"Converged: {converged}")
+            # print(f"Iteration {i}: Correction norm {correction_norm}")
+            print(f"Iteration {i}: Relative correction norm {correction_norm/u0 }")
+            sys.stdout.flush()
+        # if correction_norm < 1e-10:
+        #     converged = True
+        #     break
+        #     # return parameters, i
+    if converged:
+        if print_bool and comm.Get_rank() == 0:
+            print(f"Converged: { converged }")
+            # print(f"Iteration {i}: Correction norm {correction_norm}")
+            print(f"Iteration {i}: Relative correction norm {correction_norm/u0 }")
+            sys.stdout.flush()
+        return parameters, i
+    if comm.Get_rank() == 0:
         raise Exception("Newton not converged")
-    
-    
+
+

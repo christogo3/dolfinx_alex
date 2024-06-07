@@ -4,6 +4,7 @@ from typing import Callable
 import numpy as np
 import matplotlib.pyplot as plt
 
+import alex.util
 import gmsh
 from mpi4py import MPI
 import ufl
@@ -20,7 +21,8 @@ import os
 import alex.postprocessing as pp
 import sys
 
-print(f"DOLFINx version: {dolfinx.__version__} based on GIT commit: {dolfinx.git_commit_hash} of https://github.com/FEniCS/dolfinx/")
+
+
 
 hsize = 0.2
 
@@ -78,6 +80,9 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
+if rank == 0:
+    alex.util.print_dolfinx_version()
+
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
@@ -94,7 +99,7 @@ Et = E / 100.0  # tangent modulus
 H = E * Et / (E - Et)  # hardening modulus
 
 
-deg_u = 2
+deg_u = 1
 shape = (gdim,)
 V = fem.functionspace(domain, ("P", deg_u, shape))
 # Ve = ufl.VectorElement("P", domain.ufl_cell(), 2) # displacements
@@ -122,104 +127,38 @@ bcs = [
 ]
 
 n = ufl.FacetNormal(domain)
+ds = ufl.Measure("ds", domain=domain, subdomain_data=facets)
+
 q_lim = float(2 / np.sqrt(3) * np.log(Re / Ri) * sig0)
-
 loading = fem.Constant(domain, 0.0)
-# -
-
-# ### Internal state variables and `Quadrature` elements
-#
-# When dealing with nonlinear constitutive models, internal state variables such as plastic strains represent the history seen by the material and have to be stored in some way. We choose here to represent them using `Quadrature` elements. This choice will make it possible to express the complex non-linear material constitutive equation at the Gauss points only, without involving any interpolation of non-linear expressions throughout the element. It will ensure an optimal convergence rate for the Newton-Raphson method, see chap. 26 of {cite:p}`logg2012fenicsbook`. We will need `Quadrature` elements for 4-dimensional vectors and scalars, the number of Gauss points will be determined by the required degree `deg_quad` of the `Quadrature` element, see the [](/tips/quadrature_schemes/quadrature_schemes.md) tour for more details on the choice of quadrature rules.
-#
-# ```{note}
-# We point out that, although the problem is 2D, plastic strain still occur in the transverse $zz$ direction. This will require us to keep track of the out-of-plane $zz$ components of stress/strain states.
-# ```
-
-deg_quad = 2  # quadrature degree for internal state variable representation
-# W0e = basix.ufl.quadrature_element(
-#     domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad
-# )
-# We = basix.ufl.quadrature_element(
-#     domain.basix_cell(), value_shape=(alex.plasticity.get_history_field_dimension_for_symmetric_second_order_tensor(gdim),), scheme="default", degree=deg_quad
-# )
-
-W0e = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=deg_quad, quad_scheme="default")
-We = ufl.VectorElement("Quadrature", domain.ufl_cell(), degree=deg_quad,dim=4, quad_scheme="default")
 
 
-
-
-
-W = fem.functionspace(domain, We)
-W0 = fem.functionspace(domain, W0e)
-
-# Various functions are defined to keep track of the current internal state and currently computed increments.
-
-# +
-sig_np1 = fem.Function(W)
-sig_n = fem.Function(W)
-N_np1 = fem.Function(W)
-beta = fem.Function(W0)
-alpha_n = fem.Function(W0, name="Cumulative_plastic_strain")
-dGamma = fem.Function(W0)
 u = fem.Function(V, name="Total_displacement")
 du = fem.Function(V, name="Iteration_correction")
 Du = fem.Function(V, name="Current_increment")
 v = ufl.TrialFunction(V)
 u_ = ufl.TestFunction(V)
 
-# P0 = fem.functionspace(domain, ("DG", 0))
-# p_avg = fem.Function(P0, name="Plastic_strain")
-
-
-
-eps = alex.plasticity.eps_as_3D_tensor_function(gdim)
-
-
-
-as_3D_tensor = alex.plasticity.from_history_field_to_3D_tensor_mapper(gdim)
-
-
-
-# def to_vect(X):
-#     return ufl.as_vector([X[0, 0], X[1, 1], X[2, 2], X[0, 1]])
-
-to_vect = alex.plasticity.to_history_field_vector_mapper(gdim)
-
-
-ds = ufl.Measure("ds", domain=domain, subdomain_data=facets)
-dx = ufl.Measure(
-    "dx",
-    domain=domain,
-    metadata={"quadrature_degree": deg_quad, "quadrature_scheme": "default"},
-)
-
-
-# During the Newton-Raphson iterations, we will have to interpolate some `ufl` expressions at quadrature points to update the corresponding functions. We define the `interpolate_quadrature` function to do so. We first get the quadrature points location in the reference element and then use the `fem.Expression.eval` to evaluate the expression on all cells.
-
-# +
-
-
+deg_quad = 2  # quadrature degree for internal state variable representation
+sig_np1, sig_n, N_np1, beta, alpha_n, dGamma = alex.plasticity.define_internal_state_variables(gdim, domain, deg_quad,quad_scheme="default")
+dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
 
-
+eps = alex.plasticity.eps_as_3D_tensor_function(gdim)
+as_3D_tensor = alex.plasticity.from_history_field_to_3D_tensor_mapper(gdim)
+to_vect = alex.plasticity.to_history_field_vector_mapper(gdim)
 
 Nitermax, tol = 200, 1e-6  # parameters of the Newton-Raphson procedure
 Nincr = 20
 load_steps = np.linspace(0, 1.1, Nincr + 1)[1:] ** 0.5
 
-
 results = np.zeros((Nincr + 1, 3))
-
-
 def after_last_time_step():
     if len(bottom_inside_dof) > 0:  # test if proc has dof
         plt.plot(results[:, 0], results[:, 1], "-oC3")
         plt.xlabel("Displacement of inner boundary")
         plt.ylabel(r"Applied pressure $q/q_{lim}$")
 
-        # plt.show()
-    # Save the figure to a file
         plt.savefig('/home/scripts/05-plasticity/plot.png')
 
     if len(bottom_inside_dof) > 0:
@@ -237,7 +176,6 @@ def get_residuum_and_tangent():
     return alex.plasticity.get_residual_and_tangent(n, loading, as_3D_tensor(sig_np1), u_, v, eps, ds(3), dx, lmbda,mu,as_3D_tensor(N_np1),beta,H)
 
 
-
 def get_bcs(t):
     loading.value = t * q_lim
     return bcs
@@ -247,9 +185,11 @@ def before_each_time_step(t):
     Du.x.array[:] = 0
     
 def before_first_time_step():
+    
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_graphs_output_file(outputfile_graph_path)
+    
+    pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
     
     # we set all functions to zero before entering the loop in case we would like to reexecute this code cell
     sig_np1.vector.set(0.0)
@@ -262,9 +202,6 @@ def before_first_time_step():
     return
 
 def after_iteration():
-    # Du.vector.axpy(1, du.vector)  # Du = Du + 1*du
-    # Du.x.scatter_forward()
-
     dEps = eps(Du)
     sig_np1_expr, N_np1_expr, beta_expr, dGamma_expr = alex.plasticity.constitutive_update(dEps, as_3D_tensor(sig_n), alpha_n,sig0,H,lmbda,mu)
     sig_np1_expr = to_vect(sig_np1_expr)
@@ -276,7 +213,10 @@ def after_iteration():
     beta.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,beta_expr)
     return dGamma_expr
 
-def after_time_step_success(t, i, niter, parameter_after_last_iteration):
+def after_time_step_success(t, i, iters, parameter_after_last_iteration):
+        if rank == 0:
+            sol.write_to_newton_logfile(logfile_path,t,1./Nincr,iters)
+    
         dGamma_expr = parameter_after_last_iteration
     # Update the displacement with the converged increment
         u.vector.axpy(1, Du.vector)  # u = u + 1*Du
@@ -285,20 +225,16 @@ def after_time_step_success(t, i, niter, parameter_after_last_iteration):
         pp.write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
 
     # Update the previous plastic strain
-        # _ , _, _, dGamma_expr = alex.plasticity.constitutive_update(dEps, as_3D_tensor(sig_n), alpha_n,sig0,H,lmbda,mu)
         dGamma.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points, dGamma_expr )
-        alpha_n.vector.axpy(1, dGamma.vector)
-        
-        # pp.write_field(domain,outputfile_xdmf_path,alpha_n,t,comm)
+        alpha_n.vector.axpy(1, dGamma.vector)        
+        pp.write_scalar_fields(domain, comm, [alpha_n], ["alpha_n"], outputfile_xdmf_path, t)
 
     # Update the previous stress
         sig_n.x.array[:] = sig_np1.x.array[:]
 
         if len(bottom_inside_dof) > 0:  # test if proc has dof
-            results[i + 1, :] = (u.x.array[bottom_inside_dof[0]], t, niter)
+            results[i + 1, :] = (u.x.array[bottom_inside_dof[0]], t, iters)
     
-
-
 sol.solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  
                                   before_first_timestep_hook=before_first_time_step, 
                                   after_last_timestep_hook=after_last_time_step, 
@@ -307,10 +243,5 @@ sol.solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,
                                   get_residuum_and_tangent=get_residuum_and_tangent, 
                                   get_bcs=get_bcs, 
                                   after_timestep_success_hook=after_time_step_success,
-                                  comm=comm)
-
-# ## References
-#
-# ```{bibliography}
-# :filter: docname in docnames
-# ```
+                                  comm=comm,
+                                  print_bool=True)

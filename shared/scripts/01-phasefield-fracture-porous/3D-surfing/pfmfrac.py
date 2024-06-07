@@ -152,7 +152,7 @@ def before_first_time_step():
         sol.prepare_newton_logfile(logfile_path)
         pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
-    pp.write_mesh_and_get_outputfile_xdmf(domain, outputfile_xdmf_path, comm,meshtags=cell_tags)
+    pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm,meshtags=cell_tags)
     # xdmfout.write_meshtags(cell_tags, domain.geometry)
     
     if rank == 0:

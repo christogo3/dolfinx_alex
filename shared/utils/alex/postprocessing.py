@@ -18,7 +18,7 @@ import alex.os
 import numpy as np
 from mpi4py import MPI
 
-def write_mesh_and_get_outputfile_xdmf(domain: dlfx.mesh.Mesh,
+def write_meshoutputfile(domain: dlfx.mesh.Mesh,
                                        outputfile_xdmf_path: str,
                                        comm: MPI.Intercomm,
                                        meshtags: any = None):
@@ -63,6 +63,8 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     # xdmfout.write_function(s_interp, t)
     # xdmfout.close()
     # return xdmfout
+    
+
 
 def write_field(domain: dlfx.mesh.Mesh,
                                     outputfile_xdmf_path: str,
@@ -70,58 +72,49 @@ def write_field(domain: dlfx.mesh.Mesh,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
     
-    
-    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
-    
-    
+    # Se = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=2, quad_scheme="default")
+    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
     S = dlfx.fem.FunctionSpace(domain, Se)
-    
-    # shape = (domain.geometry.dim,)
-    # S = dlfx.fem.functionspace(domain, ("CG", 1, shape)) 
-     
     field_interp = dlfx.fem.Function(S)
     
-    field_interp.interpolate(field)
-
-    field_interp.name = field.name
+    interpolate_to_vertices_for_output(field, S, field_interp)
     
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
         xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     # xdmfout.write_function()
+        # xdmfout.write_function(field, t)
         xdmfout.write_function(field_interp, t)
+
+def interpolate_to_vertices_for_output(field, S, field_interp):
+    def is_quadrature_element(element):
+    # https://github.com/michalhabera/dolfiny/blob/master/dolfiny/interpolation.py
+        return element._family == "Quadrature"
+
+    if is_quadrature_element(field.function_space.ufl_element()): # quadrature elements need to be interpolated via expression
+        expr = dlfx.fem.Expression(field,S.element.interpolation_points())
+        field_interp.interpolate(expr)
+    else:
+        field_interp.interpolate(field) 
+        
+    field_interp.name = field.name
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
                                     outputfile_xdmf_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
-    
-    # shape = (domain.geometry.dim,)
-    # S = dlfx.fem.functionspace(domain, ("CG", 1, shape))  
-    
-
-    # test = domain.ufl_domain().ufl_cell()
-    
+        
     Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
-    
-    # Se = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
-    # S  = dlfx.fem.functionspace()
     S = dlfx.fem.FunctionSpace(domain, Se)
     
     field_interp = dlfx.fem.Function(S)
     
-    field_interp.interpolate(field)
+    interpolate_to_vertices_for_output(field, S, field_interp)
 
     field_interp.name = field.name
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
         xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    # xdmfout.write_function()
         xdmfout.write_function(field_interp, t)
-    
-    # append xdmf-file
-     
-    # xdmfout.close()
-    # return xdmfout
 
 
     
@@ -157,7 +150,7 @@ def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fiel
     xdmf_out.close()
             
 def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str, t: float):
-    Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
+    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
     S = dlfx.fem.FunctionSpace(domain, Se) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(scalar_fields_as_functions)):

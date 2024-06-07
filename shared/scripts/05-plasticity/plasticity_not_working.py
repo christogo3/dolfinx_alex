@@ -315,7 +315,7 @@ for step, factor in enumerate(cycles):
     ofile.write_function(u, step)
 
     # Interpolate and write output
-    # dolfiny.interpolation.interpolate(P, Po)
+    dolfiny.interpolation.interpolate(P, Po)
     # dolfiny.interpolation.interpolate(B, Bo)
     # dolfiny.interpolation.interpolate(S, So)
     # dolfiny.interpolation.interpolate(h, ho)

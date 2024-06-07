@@ -101,7 +101,39 @@ def eps_as_3D_tensor_function(dim: int):
     elif dim == 3:
         return eps_3D
     
+def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):  
+    # W0e = basix.ufl.quadrature_element(
+#     domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad
+# )
+# We = basix.ufl.quadrature_element(
+#     domain.basix_cell(), value_shape=(alex.plasticity.get_history_field_dimension_for_symmetric_second_order_tensor(gdim),), scheme="default", degree=deg_quad
+# )
+    W0e = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=deg_quad, quad_scheme=quad_scheme)
+    We = ufl.VectorElement("Quadrature", domain.ufl_cell(), degree=deg_quad,dim=get_history_field_dimension_for_symmetric_second_order_tensor(gdim), quad_scheme="default")
+    W = fem.functionspace(domain, We)
+    W0 = fem.functionspace(domain, W0e)
+
+
+    sig_np1 = fem.Function(W, name="stress_at_current_timestep")
     
+    N_np1 = fem.Function(W, name="normal_to_yield_surface")
+    beta = fem.Function(W0, name="beta")
+    dGamma = fem.Function(W0, name="plastic_increment")
+    
+    # history variables 
+    sig_n = fem.Function(W, name="stress_at_last_timestep")
+    alpha_n = fem.Function(W0, name="Cumulative_plastic_strain")
+    
+    return sig_np1,sig_n,N_np1,beta,alpha_n,dGamma
+
+def define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, quad_scheme):
+    dx = ufl.Measure(
+    "dx",
+    domain=domain,
+    metadata={"quadrature_degree": deg_quad, "quadrature_scheme": quad_scheme},
+    )
+    
+    return dx
     
     
 
