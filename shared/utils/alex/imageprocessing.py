@@ -36,11 +36,11 @@ def voxel_data_as_cell_tags(voxel_data, domain):
     return cell_tags
 
 
-def read_voxel_data_leS(voxel_file_in_path, voxel_number_x):
+def read_voxel_data_leS(voxel_file_in_path, voxel_number_x, voxel_number_y, voxel_number_z):
     voxel_data = read_voxel_file_leS(voxel_file_in_path)
     
     voxel_data = list(map(float, voxel_data))
-    voxel_data = np.array(voxel_data,dtype=float).reshape((voxel_number_x, voxel_number_x, voxel_number_x),order="F")
+    voxel_data = np.array(voxel_data,dtype=float).reshape((voxel_number_x, voxel_number_y, voxel_number_z),order="F")
     return voxel_data
 
 def read_voxel_file_leS(voxel_file_in_path):
@@ -48,23 +48,23 @@ def read_voxel_file_leS(voxel_file_in_path):
         voxel_data = file.read().split()
     return voxel_data
 
-def output_reduced_voxel_file_leS(script_path, script_name_without_extension, voxel_file_in_path, voxel_number_x, subarray_size, start_x, start_y, start_z, dtype=np.uint8):
+def output_reduced_voxel_file_leS(script_path, script_name_without_extension, voxel_file_in_path, voxel_number_x, voxel_number_y, voxel_number_z, subarray_size, start_x, start_y, start_z, dtype=np.uint8):
     # voxel_data = read_voxel_data_leS(voxel_file_in_path,voxel_number_x)
     with open(voxel_file_in_path, 'r') as file:
              voxel_data = file.read().split()
     
     voxel_data = list(map(int, voxel_data))
-    voxel_data = np.array(voxel_data,dtype=dtype).reshape((voxel_number_x, voxel_number_x, voxel_number_x))
+    voxel_data = np.array(voxel_data,dtype=dtype).reshape((voxel_number_x, voxel_number_y, voxel_number_z))
 
     sub_vol = voxel_data[start_x:start_x+subarray_size, start_y:start_y+subarray_size, start_z:start_z+subarray_size].flatten()
 
     voxel_file_out_path_sub = os.path.join(script_path,script_name_without_extension + "_sub"+ str(subarray_size)+ ".dat")
     write_voxel_file_leS(subarray_size, sub_vol, voxel_file_out_path_sub)
 
-def write_voxel_file_leS(voxel_dimenstion : int, flattened_voxel_array, voxel_file_out_path: str):
+def write_voxel_file_leS(voxel_dimension_x : int, flattened_voxel_array, voxel_file_out_path: str):
     with open(voxel_file_out_path, 'w') as file:
-                for i in range(0, len(flattened_voxel_array), voxel_dimenstion):
-                    line = ' '.join(map(str, flattened_voxel_array[i:i+voxel_dimenstion]))
+                for i in range(0, len(flattened_voxel_array), voxel_dimension_x):
+                    line = ' '.join(map(str, flattened_voxel_array[i:i+voxel_dimension_x]))
                     file.write(line + '\n')
 
 # clips a function u at a given value and assigns above and below values to another function u_clipped                

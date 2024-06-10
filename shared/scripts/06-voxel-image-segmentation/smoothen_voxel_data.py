@@ -23,7 +23,7 @@ voxel_file_in_path  = os.path.join(script_path,"output_sub"+ str(voxel_number_x_
 
 
 # The voxel data as a 3D array
-voxel_data_3d_array = img.read_voxel_data_leS(voxel_file_in_path, voxel_number_x_reduced)
+voxel_data_3d_array = img.read_voxel_data_leS(voxel_file_in_path, voxel_number_x_reduced, voxel_number_x_reduced, voxel_number_x_reduced)
 
 # write back for test
 # img.write_voxel_file_leS(voxel_number_x_reduced, voxel_data_3d_array.flatten(order="F"), os.path.join(script_path,"output_back" + str(voxel_number_x_reduced) + ".dat"))

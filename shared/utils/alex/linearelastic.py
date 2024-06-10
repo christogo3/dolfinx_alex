@@ -90,7 +90,7 @@ class StaticLinearElasticProblem:
         return residuum(u,du,ddu)
     
     def set_traction_bc(self, sigma: any, u: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure = ufl.ds):
-        self.traction = ufl.inner(ufl.dot(sigma,n),u)*ds
+        self.traction = ufl.inner(ufl.dot(sigma,n),u)*ds # TODO use test function here? no since derivative?
         
 
 def sigvM(sig):

@@ -7,8 +7,8 @@ services:
     volumes:
       - ./shared:/home
     working_dir: /home
-    # deploy:
-    #   resources:
-    #     limits:
-    #       cpus: "10.0"
-    #       memory: 24G
+    deploy:
+      resources:
+        limits:
+          cpus: "10.0"
+          memory: 24G
