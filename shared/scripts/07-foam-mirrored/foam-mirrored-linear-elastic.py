@@ -8,6 +8,7 @@ import ufl
 import numpy as np
 import os 
 import sys
+import math
 
 import alex.os
 import alex.boundaryconditions as bc
@@ -41,16 +42,18 @@ sys.stdout.flush()
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'mirrored_hypo_test_128.xdmf'), 'r') as mesh_inp: 
-    domain = mesh_inp.read_mesh(name="Grid")
+with dlfx.io.XDMFFile(comm, os.path.join(script_path,'msh2xdmf.xdmf'), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh()
 
 dt = 0.05
-Tend = 2.0 * dt
+Tend = 10.0 * dt
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
 mu = dlfx.fem.Constant(domain, 10.0)
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
+Gc = dlfx.fem.Constant(domain, 1.0)
+K1 = dlfx.fem.Constant(domain, 0.001 * math.sqrt(Gc.value*E_mod))
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
@@ -95,7 +98,25 @@ eps_mac = dlfx.fem.Constant(domain, np.array([[0.01, 0.0, 0.0],
 
 
 def get_bcs(t):
-    bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac)
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
+    
+    # def left(x):
+    #     return np.isclose(x[0], x_min_all,atol=0.01)
+    
+    # leftfacets = dlfx.mesh.locate_entities_boundary(domain, fdim, left)
+    # leftdofs_x = dlfx.fem.locate_dofs_topological(V.sub(0), fdim, leftfacets)
+    # bcleft_x = dlfx.fem.dirichletbc(1.0, leftdofs_x, V.sub(0))
+    
+    v_crack = (x_max_all-x_min_all)/Tend
+    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    xtip = np.array([ v_crack * t, (y_max_all+y_min_all)/2.0],dtype=dlfx.default_scalar_type)
+    xK1 = dlfx.fem.Constant(domain, xtip)
+
+    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
+    
+    
+    # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac,subspace_idx=-1,atol=0.01)
+    # bcs = [bcleft_x]
     return bcs
 
 n = ufl.FacetNormal(domain)
@@ -104,6 +125,11 @@ def after_timestep_success(t,dt,iters):
     
     u.name = "u"
     pp.write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
+    # pp.write_vector_fields(domain=domain,comm=comm,
+    #                        vector_fields_as_functions=[u],
+    #                        vector_field_names=["u"],
+    #                        outputfile_xdmf_path=outputfile_xdmf_path,
+    #                        t=t)
     
     sig_vm = le.sigvM(le.sigma_as_tensor(u,lam,mu))
     # sig_vm.name = "sigvm"
@@ -152,6 +178,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     get_bcs=get_bcs,
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
-    comm=comm
+    comm=comm,
+    print=True
 )
 

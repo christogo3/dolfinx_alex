@@ -86,16 +86,16 @@ def print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_ma
         print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all))
         print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all))  
 
-def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -> Callable:
+def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):
-        xmin = np.isclose(x[0],x_min_all)
-        xmax = np.isclose(x[0],x_max_all)
-        ymin = np.isclose(x[1],y_min_all)
-        ymax = np.isclose(x[1],y_max_all)
+        xmin = close_func(x[0],x_min_all,atol=atol)
+        xmax = close_func(x[0],x_max_all,atol=atol)
+        ymin = close_func(x[1],y_min_all,atol=atol)
+        ymax = close_func(x[1],y_max_all,atol=atol)
         if domain.geometry.dim == 3:
-            zmin = np.isclose(x[2],z_min_all)
-            zmax = np.isclose(x[2],z_max_all)
+            zmin = close_func(x[2],z_min_all,atol=atol)
+            zmax = close_func(x[2],z_max_all,atol=atol)
             boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
         else: #2D
             boundaries = [xmin, xmax, ymin, ymax]
@@ -119,17 +119,17 @@ def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -
     return boundary
 
 
-def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, excluded_where_function: Callable) -> Callable:
+def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, excluded_where_function: Callable, atol: float) -> Callable:
     
         
-    total_boundary = get_boundary_of_box_as_function(domain, comm)
+    total_boundary = get_boundary_of_box_as_function(domain, comm,atol=atol)
     
     def boundary(x):
         return np.logical_and(total_boundary(x), np.logical_not(excluded_where_function(x)))
     return boundary
     
 
-def surfing_boundary_conditions(mixedFunctionSpace: dlfx.fem.FunctionSpace, K1: dlfx.fem.Constant, xK1: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant) -> dlfx.fem.Function:
+def surfing_boundary_conditions(functionSpace: dlfx.fem.FunctionSpace, K1: dlfx.fem.Constant, xK1: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, subspace_index: int =0) -> dlfx.fem.Function:
     def get_polar_coordinates(x):
         delta_x = x[0] - xK1.value[0]
         delta_y = x[1] - xK1.value[1]
@@ -151,27 +151,40 @@ def surfing_boundary_conditions(mixedFunctionSpace: dlfx.fem.FunctionSpace, K1: 
         
     def u_z(x):
         return 0.0 * x[2]
-              
-    w_D = dlfx.fem.Function(mixedFunctionSpace)
-    w_D.sub(0).sub(0).interpolate(u_x)
-    w_D.sub(0).x.scatter_forward()
-    w_D.sub(0).sub(1).interpolate(u_y)
-    w_D.sub(0).x.scatter_forward()
-    if mixedFunctionSpace.mesh.geometry.dim == 3: # only in 3D
-        w_D.sub(0).sub(2).interpolate(u_z)
-        w_D.sub(0).x.scatter_forward()
-    return w_D   
+    
+    if subspace_index >= 0:      
+        w_D = dlfx.fem.Function(functionSpace)
+        w_D.sub(subspace_index).sub(0).interpolate(u_x)
+        w_D.sub(subspace_index).x.scatter_forward()
+        w_D.sub(subspace_index).sub(1).interpolate(u_y)
+        w_D.sub(subspace_index).x.scatter_forward()
+        if functionSpace.mesh.geometry.dim == 3: # only in 3D
+            w_D.sub(subspace_index).sub(2).interpolate(u_z)
+            w_D.sub(subspace_index).x.scatter_forward()
+        return w_D 
+    else:
+        w_D = dlfx.fem.Function(functionSpace)
+        w_D.sub(0).interpolate(u_x)
+        w_D.x.scatter_forward()
+        w_D.sub(1).interpolate(u_y)
+        w_D.x.scatter_forward()
+        if functionSpace.mesh.geometry.dim == 3: # only in 3D
+            w_D.sub(2).interpolate(u_z)
+            w_D.x.scatter_forward()
+        return w_D 
+          
 
 def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
                                                                comm: MPI.Intercomm,
-                                                               mixedFunctionSpace: dlfx.fem.FunctionSpace,
+                                                               functionSpace: dlfx.fem.FunctionSpace,
                                                                subspace_idx: int,
                                                                K1: dlfx.fem.Constant,
                                                                xK1: dlfx.fem.Constant,
                                                                lam: dlfx.fem.Constant,
                                                                mu: dlfx.fem.Constant,
-                                                               epsilon: float):
-    w_D = surfing_boundary_conditions(mixedFunctionSpace,K1,xK1,lam,mu)
+                                                               epsilon: float,
+                                                               atol = None):
+    w_D = surfing_boundary_conditions(functionSpace,K1,xK1,lam,mu,subspace_index=subspace_idx)
     
     '''
         only if crack extends in x direction and starts at xmin at y = (y_max-y_min)/2
@@ -184,42 +197,52 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
         excluded = np.logical_and(x_range, y_range)
         return excluded
     
-    where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=crack_boundary_where)
+    where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=crack_boundary_where, atol=atol)
     bcs = []
-    bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, mixedFunctionSpace,subspace_idx))
+    bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, functionSpace,subspace_idx))
     return bcs
     
+def close_func(x,value,atol):
+        if atol:
+            return np.isclose(x,value,atol=atol)
+        else:
+            return np.isclose(x,value)
 
 def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
                                                                comm: MPI.Intercomm,
                                                                functionSpace: dlfx.fem.FunctionSpace,
                                                                eps_mac: dlfx.fem.Constant,
-                                                               subspace_idx: int = -1 
+                                                               subspace_idx: int = -1,
+                                                               atol : float = None 
                                                                ):
     
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     
+
+    
     # define top boundary
     def top(x):
-        return np.isclose(x[1], y_max_all)
-
+        return close_func(x[1],y_max_all,atol)
+        # return np.isclose(x[1], y_max_all)
 
     # define bottom boundary
     def bottom(x):
-        return np.isclose(x[1], y_min_all)
+        return close_func(x[1],y_min_all,atol)
+        # return np.isclose(x[1], y_min_all)
 
     def left(x):
-        return np.isclose(x[0], x_min_all)
+        return close_func(x[0],x_min_all,atol)
+        # return np.isclose(x[0], x_min_all)
 
     def right(x):
-        return np.isclose(x[0], x_max_all)
-
+        return close_func(x[0],x_max_all,atol)
+        # return np.isclose(x[0], x_max_all)
 
     def front(x):
-        return np.isclose(x[2], z_max_all)
+        return close_func(x[2], z_max_all,atol)
 
     def back(x):
-        return np.isclose(x[2], z_min_all)
+        return close_func(x[2], z_min_all,atol)
     
     bcs = []
     if subspace_idx < 0:

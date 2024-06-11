@@ -80,7 +80,7 @@ def write_field(domain: dlfx.mesh.Mesh,
     interpolate_to_vertices_for_output(field, S, field_interp)
     
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
-        xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+        # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     # xdmfout.write_function()
         # xdmfout.write_function(field, t)
         xdmfout.write_function(field_interp, t)
@@ -95,7 +95,9 @@ def interpolate_to_vertices_for_output(field, S, field_interp):
         field_interp.interpolate(expr)
     else:
         field_interp.interpolate(field) 
-        
+    
+    # expr = dlfx.fem.Expression(field,S.element.interpolation_points())
+    # field_interp.interpolate(expr)
     field_interp.name = field.name
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
@@ -113,7 +115,7 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
 
     field_interp.name = field.name
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
-        xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+        # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
         xdmfout.write_function(field_interp, t)
 
 
