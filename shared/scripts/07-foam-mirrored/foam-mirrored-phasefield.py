@@ -23,6 +23,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+outputfile_vtk_path = alex.os.outputfile_vtk_full_path(script_path,script_name_without_extension)
 
 # set FEniCSX log level
 # dlfx.log.set_log_level(log.LogLevel.INFO)
@@ -116,6 +117,7 @@ def before_first_time_step():
         pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
+    pp.write_meshoutputfile(domain, outputfile_vtk_path, comm)
 
 def before_each_time_step(t,dt):
     # report solution status
@@ -153,7 +155,7 @@ def get_bcs(t):
     # leftdofs_x = dlfx.fem.locate_dofs_topological(V.sub(0), fdim, leftfacets)
     # bcleft_x = dlfx.fem.dirichletbc(1.0, leftdofs_x, V.sub(0))
     
-    v_crack = (x_max_all-crack_tip_start_location_x)/Tend
+    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
     # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
     xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
     xK1 = dlfx.fem.Constant(domain, xtip)
@@ -175,23 +177,23 @@ ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
 def after_timestep_success(t,dt,iters):
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
-
-    # # write to newton-log-file
-    # if rank == 0:
-    #     sol.write_to_newton_logfile(logfile_path,t,dt,iters)
+    pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)
+    # write to newton-log-file
+    if rank == 0:
+        sol.write_to_newton_logfile(logfile_path,t,dt,iters)
         
-    # # compute J-Integral
-    # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    # divEshelby = ufl.div(eshelby)
-    # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
-    #                         vector_field_names=["Ge"], 
-    #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    # compute J-Integral
+    eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
+    divEshelby = ufl.div(eshelby)
+    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+                            vector_field_names=["Ge"], 
+                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
-    # J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n,comm=comm)
+    J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n,comm=comm)
 
     
-    # if rank == 0:
-    #     print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
+    if rank == 0:
+        print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         
 
     # update
@@ -206,7 +208,7 @@ def after_timestep_success(t,dt,iters):
     x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
     if rank == 0:
         print("Crack tip position x: " + str(x_tip))
-        # pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip)
              
     
     
@@ -223,7 +225,11 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        # pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["x_tip"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip"])
+
+        # cleanup only necessary on cluster
+        # results_folder_path = alex.os.create_results_folder(script_path)
+        # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
