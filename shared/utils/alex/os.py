@@ -16,6 +16,9 @@ def outputfile_graph_full_path(script_path: str, script_name_without_extension: 
 def outputfile_xdmf_full_path(script_path: str, script_name_without_extension: str) -> str:
     return os.path.join(script_path, script_name_without_extension + ".xdmf")
 
+def outputfile_vtk_full_path(script_path: str, script_name_without_extension: str) -> str:
+    return os.path.join(script_path, script_name_without_extension + ".vtk")
+
 def mpi_print(output, rank=0):
     if rank == 0:
         print(output)

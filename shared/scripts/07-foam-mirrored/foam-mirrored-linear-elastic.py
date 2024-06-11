@@ -21,6 +21,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+outputfile_vtk_path = alex.os.outputfile_vtk_full_path(script_path,script_name_without_extension)
 
 # set FEniCSX log level
 # dlfx.log.set_log_level(log.LogLevel.INFO)
@@ -79,6 +80,9 @@ def before_first_time_step():
         pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
+    pp.write_meshoutputfile(domain, outputfile_vtk_path, comm)
+
+
 
 def before_each_time_step(t,dt):
     # report solution status
@@ -125,6 +129,7 @@ def after_timestep_success(t,dt,iters):
     
     u.name = "u"
     pp.write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
+    pp.write_vector_field(domain,outputfile_vtk_path,u,t,comm)
     # pp.write_vector_fields(domain=domain,comm=comm,
     #                        vector_fields_as_functions=[u],
     #                        vector_field_names=["u"],
@@ -137,6 +142,18 @@ def after_timestep_success(t,dt,iters):
     pp.write_scalar_fields(domain,comm,[sig_vm],["sigvm"],outputfile_xdmf_path,t)
     
     sig_vm_max, sig_vm_min = pp.get_extreme_values_of_scalar_field(domain,sig_vm,comm)
+    
+    
+    
+    # Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
+    # S = dlfx.fem.FunctionSpace(domain, Se)
+    # field_interp = dlfx.fem.Function(S)
+    # field_interp.name = "u"
+    # field_interp.interpolate(u)
+    
+    # with dlfx.io.VTKFile(comm, outputfile_vtk_path, 'a') as vtk_out:
+    #     vtk_out.write_function(field_interp,t)
+    
     
     # write to newton-log-file
     if rank == 0:

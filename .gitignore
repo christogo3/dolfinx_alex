@@ -436,6 +436,8 @@ Temporary Items
 *.png
 *.txt
 *.dat
+*vtu
+*vtk
 
 */resources/*
 

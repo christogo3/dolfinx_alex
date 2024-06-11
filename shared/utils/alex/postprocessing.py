@@ -19,18 +19,38 @@ import numpy as np
 from mpi4py import MPI
 
 def write_meshoutputfile(domain: dlfx.mesh.Mesh,
-                                       outputfile_xdmf_path: str,
+                                       outputfile_path: str,
                                        comm: MPI.Intercomm,
                                        meshtags: any = None):
-    xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'w')
-    xdmfout.write_mesh(domain)
-    if( not meshtags is None):
-         xdmfout.write_meshtags(meshtags, domain.geometry)
-    xdmfout.close()
+    
+    if outputfile_path.endswith(".xdmf"):
+        with dlfx.io.XDMFFile(comm, outputfile_path, 'w') as xdmfout:
+            xdmfout.write_mesh(domain)
+            if( not meshtags is None):
+                xdmfout.write_meshtags(meshtags, domain.geometry)
+            xdmfout.close()
+        # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
+    # xdmfout.write_function()
+        # xdmfout.write_function(field, t)
+            # xdmfout.write_function(field_interp, t)
+    elif outputfile_path.endswith(".vtk"):
+        with dlfx.io.VTKFile(comm, outputfile_path, 'w') as vtkout:
+            vtkout.write_mesh(domain)
+            # vtkout.write_function(field_interp,t)
+    # xdmfout = dlfx.io.XDMFFile(comm, outputfile_path, 'w')
+    else:
+        return False
+    
     return True
 
+# def write_meshoutputfile_vtk(domain: dlfx.mesh.Mesh,
+#                                        outputfile_vtk_path: str,
+#                                        comm: MPI.Intercomm,):
+#     with dlfx.io.VTKFile(comm, outputfile_vtk_path, 'w') as vtk_out:
+#         vtk_out.write_mesh(domain,0.0)
+
 def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
-                                    outputfile_xdmf_path: str,
+                                    outputfile_path: str,
                                     w: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
@@ -40,10 +60,10 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     u, s = w.split() 
     
     u.name = "u"
-    write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
+    write_vector_field(domain,outputfile_path,u,t,comm)
     
     s.name = "s"
-    write_field(domain,outputfile_xdmf_path,s,t,comm)  
+    write_field(domain,outputfile_path,s,t,comm)  
     # Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
     # Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
     
@@ -67,7 +87,7 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
 
 
 def write_field(domain: dlfx.mesh.Mesh,
-                                    outputfile_xdmf_path: str,
+                                    outputfile_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
@@ -79,11 +99,19 @@ def write_field(domain: dlfx.mesh.Mesh,
     
     interpolate_to_vertices_for_output(field, S, field_interp)
     
-    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
+    write_to_output_file(outputfile_path, t, comm, field_interp)
+
+def write_to_output_file(outputfile_path, t, comm, field_interp):
+    if outputfile_path.endswith(".xdmf"):
+        with dlfx.io.XDMFFile(comm, outputfile_path, 'a') as xdmfout:
         # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     # xdmfout.write_function()
         # xdmfout.write_function(field, t)
-        xdmfout.write_function(field_interp, t)
+            xdmfout.write_function(field_interp, t)
+    elif outputfile_path.endswith(".vtk"):
+        with dlfx.io.VTKFile(comm, outputfile_path, 'a') as vtkout:
+            vtkout.write_function(field_interp,t)
+    
 
 def interpolate_to_vertices_for_output(field, S, field_interp):
     def is_quadrature_element(element):
@@ -101,7 +129,7 @@ def interpolate_to_vertices_for_output(field, S, field_interp):
     field_interp.name = field.name
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
-                                    outputfile_xdmf_path: str,
+                                    outputfile_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
                                     comm: MPI.Intercomm) :
@@ -113,10 +141,8 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
     
     interpolate_to_vertices_for_output(field, S, field_interp)
 
-    field_interp.name = field.name
-    with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmfout:
-        # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-        xdmfout.write_function(field_interp, t)
+    # field_interp.name = field.name
+    write_to_output_file(outputfile_path, t, comm, field_interp)
 
 
     
