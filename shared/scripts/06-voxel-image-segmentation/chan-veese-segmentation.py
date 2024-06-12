@@ -117,21 +117,3 @@ sol.solve_with_newton_adaptive_time_stepping(domain,w=u_h, Tend=Tend,dt=dt.value
                                              print=True)
 
 
-
-
-
-# problem = NonlinearProblem(Res,u_h,bcs=[],J=dResDu) # TODO reduce to large -> runs out of memory
-# solver = NewtonSolver(comm, problem)
-# solver.report = True
-# solver.max_it = 8
-# print("start newton")
-# (iters, converged) = solver.solve(u_h)
-# print(iters)
-# print(converged)
-
-
-
-
-
-
-# print("hi")

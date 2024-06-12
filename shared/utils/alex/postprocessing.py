@@ -14,6 +14,8 @@ import basix
 from petsc4py import PETSc as petsc
 
 import alex.os
+import alex.util as ut
+import alex.imageprocessing as img
 
 import numpy as np
 from mpi4py import MPI
@@ -574,3 +576,24 @@ def print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_a
 #     alex.os.mpi_print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all), rank)
 #     alex.os.mpi_print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all), rank)
 #     alex.os.mpi_print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all), rank)
+
+
+def volume_of_mesh(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, dx : ufl.Measure):
+    vol = dlfx.fem.assemble_scalar(dlfx.fem.form( ( dlfx.fem.Constant(domain,1.0) ) * ufl.dx ))
+    return comm.allreduce(vol,MPI.SUM)
+
+def volume_of_mesh_above_threshhold(domain: dlfx.mesh.Mesh, function: dlfx.fem.Function, threshhold: float, comm: MPI.Intercomm, dx : ufl.Measure):
+    S = ut.get_CG_functionspace(domain)
+    switch_function = dlfx.fem.Function(S)
+    img.clip(function,switch_function,threshhold,1.0,0.0)
+    
+    vol_above = dlfx.fem.assemble_scalar(dlfx.fem.form( ( switch_function  ) * dx ))
+    return comm.allreduce(vol_above,MPI.SUM)
+
+def percentage_of_volume_above(domain: dlfx.mesh.Mesh, function: dlfx.fem.Function, threshhold: float, comm: MPI.Intercomm, dx : ufl.Measure):
+    vol = volume_of_mesh(domain,comm,dx)
+    vol_above = volume_of_mesh_above_threshhold(domain, function,threshhold, comm, dx)
+    return comm.allreduce(vol_above / vol, MPI.MAX)
+
+
+

@@ -97,4 +97,6 @@ def sigvM(sig):
     sdev = ufl.dev(sig)
     I2 = 0.5*ufl.inner(sdev,sdev)
     vonMises = ufl.sqrt(3*I2)
-    return vonMises       
+    return vonMises 
+
+      

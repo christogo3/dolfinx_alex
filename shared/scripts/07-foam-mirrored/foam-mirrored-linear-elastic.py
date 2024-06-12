@@ -54,7 +54,7 @@ lam = dlfx.fem.Constant(domain, 10.0)
 mu = dlfx.fem.Constant(domain, 10.0)
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 Gc = dlfx.fem.Constant(domain, 1.0)
-K1 = dlfx.fem.Constant(domain, 0.001 * math.sqrt(Gc.value*E_mod))
+K1 = dlfx.fem.Constant(domain, 0.1 * math.sqrt(Gc.value*E_mod))
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
@@ -96,7 +96,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
 
 
-eps_mac = dlfx.fem.Constant(domain, np.array([[0.01, 0.0, 0.0],
+eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
                      [0.0, 0.0, 0.0],
                      [0.0, 0.0, 0.0]]))
 
@@ -143,7 +143,9 @@ def after_timestep_success(t,dt,iters):
     
     sig_vm_max, sig_vm_min = pp.get_extreme_values_of_scalar_field(domain,sig_vm,comm)
     
-    
+    vol = pp.volume_of_mesh(domain, comm,ufl.dx)
+    vol_above = pp.volume_of_mesh_above_threshhold(domain,sig_vm,0.2,comm,ufl.dx)
+    percentage_above = pp.percentage_of_volume_above(domain,sig_vm,0.2,comm,ufl.dx)
     
     # Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
     # S = dlfx.fem.FunctionSpace(domain, Se)
