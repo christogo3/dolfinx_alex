@@ -89,7 +89,7 @@ for vals in all_combinations:
 
     try:
         comm.barrier()
-        scal_at_failure = ps.bisection_method(simulation_wrapper, desired_simulation_result, 0.001, 1.0, tol=0.05 * desired_simulation_result)
+        scal_at_failure = ps.bisection_method(simulation_wrapper, desired_simulation_result, 0.001, 1.0, tol=0.05 * desired_simulation_result, comm=comm)
         
         principal_tensor_values_at_failure = np.linalg.eigvals(tensor_param * scal_at_failure)  # does not make sense to do this in main stresses since not isotropic?
         tensor_critical_value_hom_material = 1.0

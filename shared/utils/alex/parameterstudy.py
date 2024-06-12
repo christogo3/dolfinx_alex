@@ -1,4 +1,7 @@
-def bisection_method(f, target, a, b, tol=1e-6, max_iter=100):
+from mpi4py import MPI
+import sys
+
+def bisection_method(f, target, a, b, tol=1e-6, max_iter=100, comm : MPI.Intercomm = MPI.COMM_WORLD):
     for _ in range(max_iter):
         c = (a + b) / 2.0
         fc = f(c)

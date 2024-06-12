@@ -141,7 +141,7 @@ def run_simulation(scal,eps_mac_param, comm: MPI.Intercomm):
         
         # pp.write_scalar_fields(domain,comm,[sig_vm],["sigvm"],outputfile_xdmf_path,t)
         
-        sig_vm_max, sig_vm_min = pp.get_extreme_values_of_scalar_field(domain,sig_vm,comm)
+        # sig_vm_max, sig_vm_min = pp.get_extreme_values_of_scalar_field(domain,sig_vm,comm)
         
         # vol = pp.volume_of_mesh(domain, comm,ufl.dx)
         # vol_above = pp.volume_of_mesh_above_threshhold(domain,sig_vm,0.2,comm,ufl.dx)
