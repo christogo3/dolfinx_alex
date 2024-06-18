@@ -172,7 +172,7 @@ def after_last_time_step():
         plt.savefig('/home/scripts/05-plasticity/plot2.png')
 
 
-def get_residuum_and_tangent():
+def get_residuum_and_tangent(dt):
     return alex.plasticity.get_residual_and_tangent(n, loading, as_3D_tensor(sig_np1), u_, v, eps, ds(3), dx, lmbda,mu,as_3D_tensor(N_np1),beta,H)
 
 
@@ -181,7 +181,7 @@ def get_bcs(t):
     return bcs
     
 
-def before_each_time_step(t):
+def before_each_time_step(t,dt):
     Du.x.array[:] = 0
     
 def before_first_time_step():
@@ -213,7 +213,8 @@ def after_iteration():
     beta.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,beta_expr)
     return dGamma_expr
 
-def after_time_step_success(t, i, iters, parameter_after_last_iteration):
+i_arr = np.array([0])
+def after_time_step_success(t, iters, parameter_after_last_iteration):
         if rank == 0:
             sol.write_to_newton_logfile(logfile_path,t,1./Nincr,iters)
     
@@ -233,7 +234,9 @@ def after_time_step_success(t, i, iters, parameter_after_last_iteration):
         sig_n.x.array[:] = sig_np1.x.array[:]
 
         if len(bottom_inside_dof) > 0:  # test if proc has dof
-            results[i + 1, :] = (u.x.array[bottom_inside_dof[0]], t, iters)
+            results[i_arr[0] + 1, :] = (u.x.array[bottom_inside_dof[0]], t, iters)
+            
+        i_arr[0] = i_arr[0]+1
     
 sol.solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  
                                   before_first_timestep_hook=before_first_time_step, 

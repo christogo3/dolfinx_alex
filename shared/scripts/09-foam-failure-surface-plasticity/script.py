@@ -1,5 +1,5 @@
 import numpy as np
-import foam_linear_elastic_func as sim
+import foam_plasticity_func as sim
 from mpi4py import MPI
 import sys
 import os

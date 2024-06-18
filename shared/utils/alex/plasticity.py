@@ -24,7 +24,7 @@ def constitutive_update(Δε, old_sig, alpha_n,sigY,H,lam,mu):
     dgamma1 = pos(f_tr) / (2. * mu + 2./3. * H)
     n_elas1 = sig_dev_tr / ufl.sqrt(ufl.inner(sig_dev_tr,sig_dev_tr)) * pos(f_tr) / f_tr
     
-    new_sig = sig_tr - 2.0 * mu * dgamma1 * n_elas1
+    new_sig = sig_tr - 2.0 * mu * dgamma1 * n_elas1  # yields the same results as above!
     # new_sig = sig_tr - beta * sig_dev_tr
     
     return new_sig, n_elas, beta, dgamma
@@ -110,8 +110,8 @@ def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):
 # )
     W0e = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=deg_quad, quad_scheme=quad_scheme)
     We = ufl.VectorElement("Quadrature", domain.ufl_cell(), degree=deg_quad,dim=get_history_field_dimension_for_symmetric_second_order_tensor(gdim), quad_scheme="default")
-    W = fem.functionspace(domain, We)
     W0 = fem.functionspace(domain, W0e)
+    W = fem.functionspace(domain, We)
 
 
     sig_np1 = fem.Function(W, name="stress_at_current_timestep")

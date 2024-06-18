@@ -255,6 +255,57 @@ def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Me
     
     return bcs
 
+def get_total_linear_displacement_boundary_condition_at_box_for_incremental_formulation(domain: dlfx.mesh.Mesh, 
+                                                               w_n: dlfx.fem.Function,
+                                                               comm: MPI.Intercomm,
+                                                               functionSpace: dlfx.fem.FunctionSpace,
+                                                               eps_mac: dlfx.fem.Constant,
+                                                               subspace_idx: int = -1,
+                                                               atol : float = None 
+                                                               ):
+    
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    
+
+    
+    # define top boundary
+    def top(x):
+        return close_func(x[1],y_max_all,atol)
+        # return np.isclose(x[1], y_max_all)
+
+    # define bottom boundary
+    def bottom(x):
+        return close_func(x[1],y_min_all,atol)
+        # return np.isclose(x[1], y_min_all)
+
+    def left(x):
+        return close_func(x[0],x_min_all,atol)
+        # return np.isclose(x[0], x_min_all)
+
+    def right(x):
+        return close_func(x[0],x_max_all,atol)
+        # return np.isclose(x[0], x_max_all)
+
+    def front(x):
+        return close_func(x[2], z_max_all,atol)
+
+    def back(x):
+        return close_func(x[2], z_min_all,atol)
+    
+    bcs = []
+    if subspace_idx < 0:
+        dw_D = linear_displacements(V=functionSpace,eps_mac=eps_mac)
+        dw_D.x.array[:] = dw_D.x.array[:] - w_n.x.array[:]
+    else:
+        dw_D = linear_displacements_mixed(functionSpace, subspace_idx=subspace_idx, eps_mac=eps_mac)
+        dw_D.x.array[:] = dw_D.x.array[:] - w_n.x.array[:]
+        
+    dw_D.x.scatter_forward()
+    for where_function in [top, bottom,left, right, front, back]:
+        bcs.append(define_dirichlet_bc_from_interpolated_function(domain,dw_D,where_function,functionSpace,subspace_idx))
+    
+    return bcs
+
 
 
 

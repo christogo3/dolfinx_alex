@@ -58,7 +58,7 @@ N = 16
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
 Tend = 1.0
-dt = 0.05
+dt = 0.2
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
@@ -296,7 +296,8 @@ sol.solve_with_newton_adaptive_time_stepping(
     get_bcs=get_bcs,
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
-    comm=comm
+    comm=comm,
+    print=True
 )
 
 

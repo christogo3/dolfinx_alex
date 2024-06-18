@@ -23,9 +23,6 @@ import sys
 import alex.boundaryconditions as bc
 
 
-
-
-
 # set MPI environment
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -99,10 +96,12 @@ bc_right_z = dolfinx.fem.dirichletbc(0.0,right_dofs_z, V.sub(2))
     
 
 u = fem.Function(V, name="Total_displacement")
+
 du = fem.Function(V, name="Iteration_correction")
 Du = fem.Function(V, name="Current_increment")
+DuRestart =  fem.Function(V, name="Current_increment_restart")
 v = ufl.TrialFunction(V)
-u_ = ufl.TestFunction(V)
+u_tf = ufl.TestFunction(V)
 
 deg_quad = 2  # quadrature degree for internal state variable representation
 sig_np1, sig_n, N_np1, beta, alpha_n, dGamma = alex.plasticity.define_internal_state_variables(gdim, domain, deg_quad,quad_scheme="default")
@@ -113,16 +112,16 @@ eps = alex.plasticity.eps_as_3D_tensor_function(gdim)
 as_3D_tensor = alex.plasticity.from_history_field_to_3D_tensor_mapper(gdim)
 to_vect = alex.plasticity.to_history_field_vector_mapper(gdim)
 
-Nitermax, tol = 200, 1e-6  # parameters of the Newton-Raphson procedure
-Nincr = 200
-load_steps = np.linspace(0, 10.1, Nincr + 1)[1:] ** 0.5
+# Nitermax, tol = 200, 1e-6  # parameters of the Newton-Raphson procedure
+# Nincr = 200
+# load_steps = np.linspace(0, 10.1, Nincr + 1)[1:] ** 0.5
 
-results = np.zeros((Nincr + 1, 3))
+# results = np.zeros((Nincr + 1, 3))
 def after_last_time_step():
     return
 
 def get_residuum_and_tangent(dt):
-    return alex.plasticity.get_residual_and_tangent(n, loading, as_3D_tensor(sig_np1), u_, v, eps, ds, dx, lmbda,mu,as_3D_tensor(N_np1),beta,H)
+    return alex.plasticity.get_residual_and_tangent(n, loading, as_3D_tensor(sig_np1), u_tf, v, eps, ds, dx, lmbda,mu,as_3D_tensor(N_np1),beta,H)
 
 def get_bcs(t):
     if rank == 0:
@@ -148,9 +147,7 @@ def before_each_time_step(t,dt):
     Du.x.array[:] = 0 # TODO change maybe for better convergence
     
 def before_first_time_step():
-    # if rank == 0:
-    #     print("before_first_timestep entered")
-    #     sys.stdout.flush()
+    DuRestart.x.array[:] = np.ones_like(DuRestart.x.array[:])
     
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
@@ -178,9 +175,9 @@ def after_iteration():
     beta.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,beta_expr)
     return dGamma_expr
 
-def after_time_step_success(t,  iters, parameter_after_last_iteration):
+def after_time_step_success(t, dt,iters, parameter_after_last_iteration):
         if rank == 0:
-            sol.write_to_newton_logfile(logfile_path,t,1./Nincr,iters)
+            sol.write_to_newton_logfile(logfile_path,t,dt,iters)
     
         dGamma_expr = parameter_after_last_iteration
     # Update the displacement with the converged increment
@@ -201,14 +198,49 @@ def after_time_step_success(t,  iters, parameter_after_last_iteration):
 
     # Update the previous stress
         sig_n.x.array[:] = sig_np1.x.array[:]
+        
+        DuRestart.x.array[:] = Du.x.array[:] 
+        
+
+def after_timestep_restart(t,dt,iters):
+        Du.x.array[:] = DuRestart.x.array[:]
     
-sol.solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  
-                                  before_first_timestep_hook=before_first_time_step, 
-                                  after_last_timestep_hook=after_last_time_step, 
-                                  before_each_timestep_hook=before_each_time_step, 
-                                  after_iteration_hook=after_iteration, 
-                                  get_residuum_and_tangent=get_residuum_and_tangent, 
-                                  get_bcs=get_bcs, 
-                                  after_timestep_success_hook=after_time_step_success,
-                                  comm=comm,
-                                  print_bool=True)
+# sol.solve_with_newton(domain, Du, du, Nitermax, tol, load_steps,  
+#                                   before_first_timestep_hook=before_first_time_step, 
+#                                   after_last_timestep_hook=after_last_time_step, 
+#                                   before_each_timestep_hook=before_each_time_step, 
+#                                   after_iteration_hook=after_iteration, 
+#                                   get_residuum_and_tangent=get_residuum_and_tangent, 
+#                                   get_bcs=get_bcs, 
+#                                   after_timestep_success_hook=after_time_step_success,
+#                                   comm=comm,
+#                                   print_bool=True)
+
+# sol.solve_with_newton_b(domain, Du, du, Nitermax, tol, load_steps, 
+#                                   Tend=10.1,
+#                                   dt=0.05, 
+#                                   before_first_timestep_hook=before_first_time_step, 
+#                                   after_last_timestep_hook=after_last_time_step, 
+#                                   before_each_timestep_hook=before_each_time_step, 
+#                                   after_iteration_hook=after_iteration, 
+#                                   get_residuum_and_tangent=get_residuum_and_tangent, 
+#                                   get_bcs=get_bcs, 
+#                                   after_timestep_success_hook=after_time_step_success,
+#                                   comm=comm,
+#                                   print_bool=True)
+
+sol.solve_with_custom_newton_adaptive_time_stepping(domain=domain,
+                                                    sol=Du,
+                                                    dsol=du,
+                                                    Tend=10.1,
+                                                    dt=0.05,
+                                                    before_first_timestep_hook=before_first_time_step,
+                                                    after_last_timestep_hook=after_last_time_step,
+                                                    after_timestep_restart_hook=after_timestep_restart,
+                                                    after_iteration_hook=after_iteration,
+                                                    get_residuum_and_gateaux=get_residuum_and_tangent,
+                                                    get_bcs=get_bcs,
+                                                    after_timestep_success_hook=after_time_step_success,
+                                                    comm=comm,
+                                                    print_bool=True
+                                                    )
