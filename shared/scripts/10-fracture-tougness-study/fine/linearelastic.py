@@ -95,25 +95,43 @@ eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
                     [0.0, 0.6, 0.0],
                     [0.0, 0.0, 0.0]]))
 
+x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
+crack_tip_start_location_x = 0.1*(x_max_all-x_min_all) + x_min_all
+crack_tip_start_location_y = (y_max_all + y_min_all) / 2.0
 
+import math
+E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
+Gc = dlfx.fem.Constant(domain, 1.0)
+K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
+atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
     
-    vertices_at_corner = dlfx.mesh.locate_entities(domain,fdim-1,bc.get_corner_of_box_as_function(domain,comm))
-    dofs_at_corner_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,vertices_at_corner)
-    bc_corner_x = dlfx.fem.dirichletbc(0.0,dofs_at_corner_x,V.sub(0))
-    dofs_at_corner_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,vertices_at_corner)
-    bc_corner_y = dlfx.fem.dirichletbc(0.0,dofs_at_corner_y,V.sub(1))
-    dofs_at_corner_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,vertices_at_corner)
-    bc_corner_z = dlfx.fem.dirichletbc(0.0,dofs_at_corner_z,V.sub(2))
-    bcs = [bc_corner_x,  bc_corner_y, bc_corner_z]
     
-    sig_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-                    [0.0, 0.6, 0.0],
-                    [0.0, 0.0, 0.0]]))
+    # vertices_at_corner = dlfx.mesh.locate_entities(domain,fdim-1,bc.get_corner_of_box_as_function(domain,comm))
+    # dofs_at_corner_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,vertices_at_corner)
+    # bc_corner_x = dlfx.fem.dirichletbc(0.0,dofs_at_corner_x,V.sub(0))
+    # dofs_at_corner_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,vertices_at_corner)
+    # bc_corner_y = dlfx.fem.dirichletbc(0.0,dofs_at_corner_y,V.sub(1))
+    # dofs_at_corner_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,vertices_at_corner)
+    # bc_corner_z = dlfx.fem.dirichletbc(0.0,dofs_at_corner_z,V.sub(2))
+    # bcs = [bc_corner_x,  bc_corner_y, bc_corner_z]
     
-    # linearElasticProblem.set_traction_bc(sigma=sig_mac,u=u,n=n,ds=ufl.ds)
+    # sig_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
+    #                 [0.0, 0.6, 0.0],
+    #                 [0.0, 0.0, 0.0]]))
     
-    bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac)
+    # # linearElasticProblem.set_traction_bc(sigma=sig_mac,u=u,n=n,ds=ufl.ds)
+    
+    
+    
+    # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac)
+    
+    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
+    xK1 = dlfx.fem.Constant(domain, xtip)
+
+    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.5*(y_max_all-y_min_all), atol=atol)
     return bcs
 
 n = ufl.FacetNormal(domain)
