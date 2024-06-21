@@ -112,17 +112,18 @@ def get_bcs(t):
     def right(x):
         return np.isclose(x[0],x_max_all,atol=atol)
     
-    dofs_left_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,left)
-    dofs_left_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,left)
-    dofs_left_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,left)
+    facets_left = dlfx.mesh.locate_entities_boundary(domain, fdim, left)
+    dofs_left_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim,facets_left)
+    dofs_left_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim,facets_left)
+    dofs_left_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim,facets_left)
     bc_left_x = dlfx.fem.dirichletbc(-0.1,dofs_left_x,V.sub(0))
     bc_left_y = dlfx.fem.dirichletbc(0.0,dofs_left_y,V.sub(1))
     bc_left_z = dlfx.fem.dirichletbc(0.0,dofs_left_z,V.sub(2))
     
-    
-    dofs_right_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,right)
-    dofs_right_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,right)
-    dofs_right_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,right)
+    facets_right = dlfx.mesh.locate_entities_boundary(domain, fdim, right)
+    dofs_right_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim,facets_right)
+    dofs_right_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim,facets_right)
+    dofs_right_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim,facets_right)
     bc_right_x = dlfx.fem.dirichletbc(0.1,dofs_right_x,V.sub(0))
     bc_right_y = dlfx.fem.dirichletbc(0.0,dofs_right_y,V.sub(1))
     bc_right_z = dlfx.fem.dirichletbc(0.0,dofs_right_z,V.sub(2))
