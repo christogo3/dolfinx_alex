@@ -55,7 +55,7 @@ Tend = 10.0 * dt
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 2) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 2) # fracture fields
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),2) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 dim = domain.topology.dim
@@ -144,6 +144,8 @@ sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
 
+xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
+
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
@@ -157,7 +159,9 @@ def get_bcs(t):
     
     v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
     # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
-    xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
+    xtip[0] = crack_tip_start_location_x + v_crack * t
+    xtip[1] = crack_tip_start_location_y
+    # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
     xK1 = dlfx.fem.Constant(domain, xtip)
 
     bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=5.0*epsilon.value, atol=atol)
@@ -208,7 +212,7 @@ def after_timestep_success(t,dt,iters):
     x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
     if rank == 0:
         print("Crack tip position x: " + str(x_tip))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip)
              
     
     
@@ -225,7 +229,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip", "xtip"])
 
         # cleanup only necessary on cluster
         results_folder_path = alex.os.create_results_folder(script_path)
