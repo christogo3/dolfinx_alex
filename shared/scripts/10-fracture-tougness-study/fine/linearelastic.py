@@ -106,6 +106,29 @@ K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
     
+    def left(x):
+        return np.isclose(x[0],x_min_all,atol=atol)
+    
+    def right(x):
+        return np.isclose(x[0],x_max_all,atol=atol)
+    
+    dofs_left_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,left)
+    dofs_left_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,left)
+    dofs_left_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,left)
+    bc_left_x = dlfx.fem.dirichletbc(-0.1,dofs_left_x,V.sub(0))
+    bc_left_y = dlfx.fem.dirichletbc(0.0,dofs_left_y,V.sub(1))
+    bc_left_z = dlfx.fem.dirichletbc(0.0,dofs_left_z,V.sub(2))
+    
+    
+    dofs_right_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,right)
+    dofs_right_y = dlfx.fem.locate_dofs_topological(V.sub(1),fdim-1,right)
+    dofs_right_z = dlfx.fem.locate_dofs_topological(V.sub(2),fdim-1,right)
+    bc_right_x = dlfx.fem.dirichletbc(0.1,dofs_right_x,V.sub(0))
+    bc_right_y = dlfx.fem.dirichletbc(0.0,dofs_right_y,V.sub(1))
+    bc_right_z = dlfx.fem.dirichletbc(0.0,dofs_right_z,V.sub(2))
+    
+    
+    bcs = [bc_left_x, bc_left_y, bc_left_z,  bc_right_x, bc_right_y, bc_right_z,]
     
     # vertices_at_corner = dlfx.mesh.locate_entities(domain,fdim-1,bc.get_corner_of_box_as_function(domain,comm))
     # dofs_at_corner_x = dlfx.fem.locate_dofs_topological(V.sub(0),fdim-1,vertices_at_corner)
@@ -126,12 +149,12 @@ def get_bcs(t):
     
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac)
     
-    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
-    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
-    xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
-    xK1 = dlfx.fem.Constant(domain, xtip)
+    # v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+    # # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
+    # xK1 = dlfx.fem.Constant(domain, xtip)
 
-    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.5*(y_max_all-y_min_all), atol=atol)
+    # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.5*(y_max_all-y_min_all), atol=atol)
     return bcs
 
 n = ufl.FacetNormal(domain)
