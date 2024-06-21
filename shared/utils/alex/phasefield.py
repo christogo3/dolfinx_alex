@@ -11,7 +11,7 @@ def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     return degrad
 
 
-def psisurf(s: any, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
+def psisurf(s: dlfx.fem.Function, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
     return psisurf
 
@@ -162,6 +162,11 @@ class StaticPhaseFieldProblem2D:
         # Wen = self.degradation_function(s,eta) * self.psiel_undegraded(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
         eshelby = self.psiel_degraded(s,eta,u,lam,mu) * ufl.Identity(2) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam,mu, eta))
         return ufl.as_tensor(eshelby)
+    
+    
+    def getGlobalFractureSurface(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure):
+        S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
+        return S
     
     
     
