@@ -187,14 +187,6 @@ def after_timestep_success(t,dt,iters):
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
     
-    # break out of loop if no postprocessing required
-    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0:
-        success_timestep_counter.value = success_timestep_counter.value + 1.0
-        return 
-    
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
-    # pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)
-    # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
         
@@ -223,7 +215,15 @@ def after_timestep_success(t,dt,iters):
     if rank == 0:
         print("Crack tip position x: " + str(x_tip))
         pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip[0])
-             
+    
+    # break out of loop if no postprocessing required
+    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0:
+        success_timestep_counter.value = success_timestep_counter.value + 1.0
+        return 
+    
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)
+    # write to newton-log-file     
     
     
 def after_timestep_restart(t,dt,iters):
