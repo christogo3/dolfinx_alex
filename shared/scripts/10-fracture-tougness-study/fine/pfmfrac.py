@@ -55,7 +55,7 @@ Tend = 10.0 * dt
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) # fracture fields
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 dim = domain.topology.dim
@@ -178,7 +178,19 @@ n = ufl.FacetNormal(domain)
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol),5)
 ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
 
+
+success_timestep_counter = dlfx.fem.Constant(domain,0.0)
+postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 def after_timestep_success(t,dt,iters):
+    
+    # update
+    wm1.x.array[:] = w.x.array[:]
+    wrestart.x.array[:] = w.x.array[:]
+    
+    # break out of loop if no postprocessing required
+    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0:
+        success_timestep_counter.value = success_timestep_counter.value + 1.0
+        return 
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     # pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)
@@ -200,9 +212,7 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         
 
-    # update
-    wm1.x.array[:] = w.x.array[:]
-    wrestart.x.array[:] = w.x.array[:]
+
     
     # s_aux = dlfx.fem.Function(S)
     # s_aux.interpolate(s)
