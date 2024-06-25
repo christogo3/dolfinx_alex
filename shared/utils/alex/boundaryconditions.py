@@ -61,6 +61,22 @@ def define_dirichlet_bc_from_interpolated_function(domain: dlfx.mesh.Mesh,
     bc = dlfx.fem.dirichletbc(desired_value_at_boundary_function,dofs_at_boundary)
     return bc
 
+def define_dirichlet_bc_from_value(domain: dlfx.mesh.Mesh,
+                                                         desired_value_at_boundary: float,
+                                                         coordinate_idx,
+                                                         where_function: Callable,
+                                                         functionSpace: dlfx.fem.FunctionSpace,
+                                                         subspace_idx: int) -> dlfx.fem.DirichletBC:
+    fdim = domain.topology.dim-1
+    facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, where_function)
+    if subspace_idx < 0:
+        space = functionSpace.sub(coordinate_idx)
+    else:
+        space = functionSpace.sub(subspace_idx).sub(coordinate_idx)
+    dofs_at_boundary = dlfx.fem.locate_dofs_topological(space, fdim, facets_at_boundary)
+    bc = dlfx.fem.dirichletbc(desired_value_at_boundary,dofs_at_boundary,space)
+    return bc
+
 def get_dimensions(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm):
         x_min = np.min(domain.geometry.x[:,0]) 
         x_max = np.max(domain.geometry.x[:,0])   
@@ -99,6 +115,17 @@ def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm,
             boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
         else: #2D
             boundaries = [xmin, xmax, ymin, ymax]
+        return reduce(np.logical_or, boundaries)
+    return boundary
+
+
+def get_frontback_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        # Only 3D
+        zmin = close_func(x[2],z_min_all,atol=atol)
+        zmax = close_func(x[2],z_max_all,atol=atol)
+        boundaries = [zmin, zmax]
         return reduce(np.logical_or, boundaries)
     return boundary
 
@@ -225,7 +252,17 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     
     where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=crack_boundary_where, atol=atol)
     bcs = []
+    
+    
     bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, functionSpace,subspace_idx))
+    
+    # TODOset front and back faces to zero ~plane strain?
+    bcs.append(define_dirichlet_bc_from_value(domain=domain,
+                                             desired_value_at_boundary=0.0,
+                                             coordinate_idx=2,
+                                             where_function=get_frontback_boundary_of_box_as_function(domain,comm,atol=atol),
+                                             functionSpace=functionSpace,
+                                             subspace_idx=subspace_idx))
     return bcs
     
 def close_func(x,value,atol):
