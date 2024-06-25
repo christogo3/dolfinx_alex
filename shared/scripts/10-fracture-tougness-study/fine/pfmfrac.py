@@ -117,7 +117,7 @@ def before_first_time_step():
         pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
-    pp.write_meshoutputfile(domain, outputfile_vtk_path, comm)
+    # pp.write_meshoutputfile(domain, outputfile_vtk_path, comm)
 
 def before_each_time_step(t,dt):
     # report solution status
