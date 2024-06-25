@@ -187,7 +187,7 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
     
-    u, s = ufl.split(w)
+    # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
     Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
     
