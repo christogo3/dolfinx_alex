@@ -203,12 +203,7 @@ def after_timestep_success(t,dt,iters):
     if rank == 0:
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         
-
-
-    
-    # s_aux = dlfx.fem.Function(S)
-    # s_aux.interpolate(s)
-    
+ 
     # s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
     s_zero_for_tracking_at_nodes.interpolate(s)
     x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)

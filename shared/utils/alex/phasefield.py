@@ -53,7 +53,7 @@ class StaticPhaseFieldProblem3D:
         
         return residuum(u,s,du,ds,sm1)
     
-    def sigma_degraded(self, u,s,lam,mu, eta):
+    def sigma_degraded(self, u,s,lam: dlfx.fem.Constant,mu: dlfx.fem.Constant, eta):
         return self.degradation_function(s=s,eta=eta) * le.sigma_as_tensor(u=u,lam=lam,mu=mu)
         # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
         

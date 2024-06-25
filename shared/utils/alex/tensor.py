@@ -17,7 +17,7 @@ def get_volume_integral_of_div_of_tensors_from_nodal_forces(tensor: ufl.classes.
     return J_nodal_global_sum
 
 def assemble_global_sum_dimX1(J_nodal_local_sum, comm: MPI.Intracomm = MPI.COMM_WORLD):
-    J_nodal_global_sum = np.zeros(len(J_nodal_local_sum), dtype=np.float64)
+    J_nodal_global_sum = np.zeros(len(J_nodal_local_sum), dtype=dlfx.default_scalar_type)
     for i in range(0,len(J_nodal_local_sum)):
         # J_sub = J_nodal_vector_local[i]
         J_nodal_global_sum[i] = comm.allreduce(J_nodal_local_sum[i], op=MPI.SUM)
@@ -25,7 +25,7 @@ def assemble_global_sum_dimX1(J_nodal_local_sum, comm: MPI.Intracomm = MPI.COMM_
 
 
 def get_local_sum_of_nodal_forces(J_nodal_vector_local_as_function: dlfx.fem.Function) -> Tuple[float, float, float]:
-    J_nodal_local_sum = np.zeros(3, dtype=np.float64)
+    J_nodal_local_sum = np.zeros(3, dtype=dlfx.default_scalar_type)
     for i in range(3):
         num_dofs_local = get_num_of_dofs_locally(J_nodal_vector_local_as_function[i])
         J_nodal_local_sum[i] = np.sum(J_nodal_vector_local_as_function[i].x.array[:num_dofs_local])

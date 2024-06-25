@@ -597,3 +597,15 @@ def percentage_of_volume_above(domain: dlfx.mesh.Mesh, function: dlfx.fem.Functi
 
 
 
+def reaction_force_3D(sigma_func, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
+    Rx = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[0] * ds))
+    Ry = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[1] * ds))
+    Rz = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[2] * ds))
+    return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM), comm.allreduce(Rz,MPI.SUM)]
+
+
+def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, u_n: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
+    du = u-u_n
+    t = ufl.dot(sigma_func,n)
+    dW = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.inner(t,du)*ds))
+    return comm.allreduce(dW,MPI.SUM)

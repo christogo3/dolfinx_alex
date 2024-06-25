@@ -178,14 +178,23 @@ n = ufl.FacetNormal(domain)
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol),5)
 ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
 
+top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol),1)
+ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+
+Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
     
-    # update
-    wm1.x.array[:] = w.x.array[:]
-    wrestart.x.array[:] = w.x.array[:]
+    u, s = ufl.split(w)
+    sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
+    Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
+    
+    um1, _ = ufl.split(wm1)
+
+    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds(5),comm=comm)
+    Work.value = Work.value + dW
     
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
@@ -204,6 +213,7 @@ def after_timestep_success(t,dt,iters):
         print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
         
 
+    
 
     
     # s_aux = dlfx.fem.Function(S)
@@ -214,7 +224,12 @@ def after_timestep_success(t,dt,iters):
     x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
     if rank == 0:
         print("Crack tip position x: " + str(x_tip))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip[0])
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip[0], Rx_top, Ry_top, Rz_top, dW, Work.value)
+    
+    
+    # update
+    wm1.x.array[:] = w.x.array[:]
+    wrestart.x.array[:] = w.x.array[:]
     
     # break out of loop if no postprocessing required
     if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0:
@@ -239,7 +254,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip", "xtip"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip", "xtip", "Rx", "Ry", "Rz", "dW", "W"])
 
         # cleanup only necessary on cluster
         results_folder_path = alex.os.create_results_folder(script_path)
