@@ -604,8 +604,8 @@ def reaction_force_3D(sigma_func, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI
     return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM), comm.allreduce(Rz,MPI.SUM)]
 
 
-def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, u_n: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
-    du = u-u_n
+def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
+    du = u-um1
     t = ufl.dot(sigma_func,n)
     dW = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.inner(t,du)*ds))
     return comm.allreduce(dW,MPI.SUM)

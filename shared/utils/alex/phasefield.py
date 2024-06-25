@@ -15,6 +15,14 @@ def psisurf(s: dlfx.fem.Function, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Const
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
     return psisurf
 
+def surf(s: dlfx.fem.Function, epsilon: dlfx.fem.Constant) -> any:
+    surf = (((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
+    return surf
+
+def get_surf_area(s: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+    A = dlfx.fem.assemble_scalar(dlfx.fem.form(surf(s,epsilon) * dx))
+    return comm.allreduce(A,MPI.SUM)
+
 def psisurf_from_function(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant) -> any:
     '''
         Gc from function

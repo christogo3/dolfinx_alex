@@ -118,6 +118,15 @@ def get_bottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Int
         return reduce(np.logical_or, boundaries)
     return boundary
 
+def get_topbottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        ymin = close_func(x[1],y_min_all,atol=atol)
+        ymax = close_func(x[1],y_max_all,atol=atol)
+        boundaries = [ymin, ymax]
+        return reduce(np.logical_or, boundaries)
+    return boundary
+
 def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -> Callable:
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):
@@ -137,8 +146,9 @@ def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -
 
 def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, excluded_where_function: Callable, atol: float) -> Callable:
     
-        
-    total_boundary = get_boundary_of_box_as_function(domain, comm,atol=atol)
+    # TODO total boundary or only apply at top and bottom?
+    # total_boundary = get_boundary_of_box_as_function(domain, comm,atol=atol)
+    total_boundary = get_topbottom_boundary_of_box_as_function(domain, comm,atol=atol)
     
     def boundary(x):
         return np.logical_and(total_boundary(x), np.logical_not(excluded_where_function(x)))

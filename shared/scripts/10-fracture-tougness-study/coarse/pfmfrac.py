@@ -182,7 +182,7 @@ top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_
 ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
@@ -196,15 +196,17 @@ def after_timestep_success(t,dt,iters):
     dW = pp.work_increment_external_forces(sigma,u,um1,n,ds(5),comm=comm)
     Work.value = Work.value + dW
     
+    A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
+    
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
         
     # compute J-Integral
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
-    divEshelby = ufl.div(eshelby)
-    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
-                            vector_field_names=["Ge"], 
-                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    # divEshelby = ufl.div(eshelby)
+    # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+    #                         vector_field_names=["Ge"], 
+    #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
     J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n,comm=comm)
 
@@ -224,7 +226,7 @@ def after_timestep_success(t,dt,iters):
     x_tip, max_y, max_z, min_x, min_y, min_z = pp.crack_bounding_box_3D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
     if rank == 0:
         print("Crack tip position x: " + str(x_tip))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip[0], Rx_top, Ry_top, Rz_top, dW, Work.value)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, J3D_glob_x, J3D_glob_y, J3D_glob_z,x_tip, xtip[0], Rx_top, Ry_top, Rz_top, dW, Work.value, A)
     
     
     # update
@@ -232,8 +234,9 @@ def after_timestep_success(t,dt,iters):
     wrestart.x.array[:] = w.x.array[:]
     
     # break out of loop if no postprocessing required
-    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0:
-        success_timestep_counter.value = success_timestep_counter.value + 1.0
+    success_timestep_counter.value = success_timestep_counter.value + 1.0
+    # break out of loop if no postprocessing required
+    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
@@ -254,7 +257,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip", "xtip", "Rx", "Ry", "Rz", "dW", "W"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy", "Jz", "x_tip", "xtip", "Rx", "Ry", "Rz", "dW", "W", "A"])
 
         # cleanup only necessary on cluster
         results_folder_path = alex.os.create_results_folder(script_path)
