@@ -216,8 +216,6 @@ def after_timestep_success(t,dt,iters):
         
 
     
-
-    
     # s_aux = dlfx.fem.Function(S)
     # s_aux.interpolate(s)
     

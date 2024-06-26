@@ -256,7 +256,7 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     
     bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, functionSpace,subspace_idx))
     
-    # TODOset front and back faces to zero ~plane strain?
+    # TODO set front and back faces to zero ~plane strain?
     bcs.append(define_dirichlet_bc_from_value(domain=domain,
                                              desired_value_at_boundary=0.0,
                                              coordinate_idx=2,
