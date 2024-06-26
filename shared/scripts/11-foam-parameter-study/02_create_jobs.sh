@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Define the base directory where the simulation folders are located
-BASE_DIR="/home/scripts/11-foam-parameter-study"
+# BASE_DIR="/home/scripts/11-foam-parameter-study"
+BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study"
 
 # Define the directory where the job template is located
 JOB_TEMPLATE_DIR="./00_jobs"
@@ -60,6 +61,8 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6"
     fi
 done
+
+
 
 
 

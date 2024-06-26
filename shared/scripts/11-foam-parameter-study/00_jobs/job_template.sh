@@ -2,7 +2,7 @@
 #SBATCH -J {JOB_NAME}
 #SBATCH -A project02338
 #SBATCH -t 10080  # "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
-#SBATCH --mem-per-cpu=5000
+#SBATCH --mem-per-cpu=6000
 #SBATCH -n 48
 #SBATCH -e /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study/{FOLDER_NAME}/%x.err.%j
 #SBATCH -o /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study/{FOLDER_NAME}/%x.out.%j
