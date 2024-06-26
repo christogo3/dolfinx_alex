@@ -32,7 +32,7 @@ do
         sed -e "s/{FOLDER_NAME}/$DIR/g" \
             -e "s/{TOTAL_COMPUTATIONS}/$TOTAL_COMPUTATIONS/g" \
             -e "s/{CURRENT_COMPUTATION}/$CURRENT_COMPUTATION/g" \
-            -e "s/{JOB_NAME}/$DIR/g" \
+            -e "s/{JOB_NAME}/$CURRENT_COMPUTATION/g" \
             "$JOB_TEMPLATE" > "$JOB_SCRIPT_PATH"
 
         # Check if the job script was created successfully
@@ -43,3 +43,4 @@ do
         fi
     fi
 done
+
