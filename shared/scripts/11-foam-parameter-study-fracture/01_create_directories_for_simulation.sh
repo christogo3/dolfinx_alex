@@ -1,21 +1,21 @@
 #!/bin/bash
 
 # Define the possible values for each parameter
-# MESH_FILES=("coarse_pores" "medium_pores" "fine_pores")
+MESH_FILES=("coarse_pores" "medium_pores" "fine_pores")
+LAM_MUE_PAIRS=(
+    "1.0" "1.0" 
+    "10.0 10.0"
+    "15.0 10.0"
+)
+GC_PARAMS=(0.5 1.0 1.5)
+EPS_FACTOR_PARAMS=(25.0 50.0 100.0)
+
+# MESH_FILES=("coarse_pores")
 # LAM_MUE_PAIRS=(
 #     "10.0 20.0"
-#     "20.0 30.0"
-#     "30.0 40.0"
 # )
-# GC_PARAMS=(1.0 2.0 3.0)
-# EPS_FACTOR_PARAMS=(50.0 100.0 150.0)
-
-MESH_FILES=("coarse_pores")
-LAM_MUE_PAIRS=(
-    "10.0 20.0"
-)
-GC_PARAMS=(1.0)
-EPS_FACTOR_PARAMS=(50.0 100.0)
+# GC_PARAMS=(1.0)
+# EPS_FACTOR_PARAMS=(50.0 100.0)
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
