@@ -80,6 +80,7 @@ for vals in combinations_to_process:
         
         principal_tensor_values_at_failure = np.linalg.eigvals(tensor_param * scal_at_failure) 
 
+        tensor_values_at_failure = tensor_param * scal_at_failure
         # Directly write results to files
         if rank == 0:
             if np.linalg.norm(principal_tensor_values_at_failure) < 5.0 * tensor_critical_value_hom_material:
@@ -87,7 +88,7 @@ for vals in combinations_to_process:
                     principal_file.write(','.join(map(str, principal_tensor_values_at_failure)) + '\n')
                 
                 with open(tensor_values_file_path, 'a') as tensor_file:
-                    tensor_file.write(','.join(map(str, tensor_param.flatten())) + '\n')
+                    tensor_file.write(','.join(map(str, tensor_values_at_failure.flatten())) + '\n')
 
         if rank == 0:
             print("Running computation {} of {} total".format(current_computation + 1, chunk_size))
