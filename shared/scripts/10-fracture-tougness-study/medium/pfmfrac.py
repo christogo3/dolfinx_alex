@@ -182,7 +182,7 @@ top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_
 ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,100.0)
+postprocessing_interval = dlfx.fem.Constant(domain,400.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
