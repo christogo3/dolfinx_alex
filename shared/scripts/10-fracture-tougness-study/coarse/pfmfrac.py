@@ -233,8 +233,7 @@ def after_timestep_success(t,dt,iters):
     
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
-    # break out of loop if no postprocessing required
-    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
+    if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)

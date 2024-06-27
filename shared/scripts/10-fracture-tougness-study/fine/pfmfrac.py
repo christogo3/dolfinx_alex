@@ -182,7 +182,7 @@ top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_
 ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,2000.0)
+postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
@@ -236,7 +236,7 @@ def after_timestep_success(t,dt,iters):
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
     # break out of loop if no postprocessing required
-    if int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
+    if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
