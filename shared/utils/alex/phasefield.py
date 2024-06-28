@@ -5,6 +5,7 @@ import alex.linearelastic as le
 import numpy as np
 import alex.tensor as tensor
 from mpi4py import MPI
+import math
 
 def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
