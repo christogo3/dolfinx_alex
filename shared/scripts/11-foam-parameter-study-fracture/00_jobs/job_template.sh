@@ -4,8 +4,8 @@
 #SBATCH -t 10080  # "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 #SBATCH --mem-per-cpu=6000
 #SBATCH -n 48
-#SBATCH -e /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study/{FOLDER_NAME}/%x.err.%j
-#SBATCH -o /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study/{FOLDER_NAME}/%x.out.%j
+#SBATCH -e /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture/{FOLDER_NAME}/%x.err.%j
+#SBATCH -o /home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture/{FOLDER_NAME}/%x.out.%j
 #SBATCH --mail-type=End
 #SBATCH -C i01
 
@@ -13,7 +13,7 @@
 cd /home/as12vapa/dolfinx_alex
 
 # Parameters for simulation_script.py (passed as command-line arguments)
-srun -n 48 apptainer exec --bind ./shared:/home alex-dolfinx.sif python3 /home/scripts/11-foam-parameter-study/{FOLDER_NAME}/script.py \
+srun -n 48 apptainer exec --bind ./shared:/home alex-dolfinx.sif python3 /home/scripts/11-foam-parameter-study-fracture/{FOLDER_NAME}/script.py \
     --mesh_file {MESH_FILE} \
     --lam_param {LAM_PARAM} \
     --mue_param {MUE_PARAM} \

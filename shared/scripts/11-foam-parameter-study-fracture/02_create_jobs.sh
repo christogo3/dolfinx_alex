@@ -2,7 +2,7 @@
 
 # Define the base directory where the simulation folders are located
 # BASE_DIR="/home/scripts/11-foam-parameter-study"
-BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study"
+BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture"
 
 # Define the directory where the job template is located
 JOB_TEMPLATE_DIR="./00_jobs"

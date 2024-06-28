@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Base directory where the simulation folders are located
-BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study"
+BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture"
 
 echo "Starting job submission script"
 echo "Base directory: ${BASE_DIR}"
