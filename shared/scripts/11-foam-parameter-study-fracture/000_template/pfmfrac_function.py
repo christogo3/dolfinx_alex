@@ -78,9 +78,13 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
 
     Mob = dlfx.fem.Constant(domain, 1000.0)
     iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
-
-    E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
-    K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
+   
+    
+    sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
+    L = (y_max_all-y_min_all)
+    # E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
+    # K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
+    K1 = dlfx.fem.Constant(domain, 1.0 * sig_c * math.sqrt(L))
 
 
     # define crack by boundary

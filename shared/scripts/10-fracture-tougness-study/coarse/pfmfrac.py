@@ -80,6 +80,11 @@ E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
 
 
+
+# sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
+# L = (y_max_all-y_min_all)
+# test = K1.value/(sig_c*math.sqrt(L))
+
 # define crack by boundary
 crack_tip_start_location_x = 0.1*(x_max_all-x_min_all) + x_min_all
 crack_tip_start_location_y = (y_max_all + y_min_all) / 2.0

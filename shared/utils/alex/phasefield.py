@@ -10,6 +10,9 @@ def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
     return degrad
 
+def sig_c_quadr_deg(Gc, mu, epsilon):
+    return 9.0/16.0 * math.sqrt(Gc*2.0*mu/(6.0*epsilon))
+
 
 def psisurf(s: dlfx.fem.Function, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
