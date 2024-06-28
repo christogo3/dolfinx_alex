@@ -236,10 +236,10 @@ def after_timestep_success(t,dt,iters):
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
     
-    # break out of loop if no postprocessing required
-    success_timestep_counter.value = success_timestep_counter.value + 1.0
-    if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
-        return 
+    # # break out of loop if no postprocessing required
+    # success_timestep_counter.value = success_timestep_counter.value + 1.0
+    # if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
+    #     return 
     
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     # pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)

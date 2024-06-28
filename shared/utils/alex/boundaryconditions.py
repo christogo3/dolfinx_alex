@@ -245,12 +245,17 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def crack_boundary_where(x):
         xtip = xK1.value[0] 
-        x_range = x[0] < xtip + 3.0 * epsilon
+        # x_range = x[0] < xtip + 3.0 * epsilon TODO is this necessary
+        x_range = np.isclose(x[0],x_min_all,atol=3.0*epsilon)
         y_range = np.isclose(x[1],(y_max_all - y_min_all)/2.0,atol=3.0*epsilon)
         excluded = np.logical_and(x_range, y_range)
         return excluded
     
-    where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=crack_boundary_where, atol=atol)
+    def nothing_excluded(x):
+        np.full_like(x[0],False)
+    
+    
+    where = get_boundary_for_surfing_boundary_condition_at_box_as_function(domain,comm,excluded_where_function=nothing_excluded, atol=atol)
     bcs = []
     
     
