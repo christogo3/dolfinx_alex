@@ -3,19 +3,12 @@
 # Define the possible values for each parameter
 MESH_FILES=("coarse_pores" "medium_pores" "fine_pores")
 LAM_MUE_PAIRS=(
-    "1.0" "1.0" 
+    "1.0 1.0" 
     "10.0 10.0"
     "15.0 10.0"
 )
 GC_PARAMS=(0.5 1.0 1.5)
 EPS_FACTOR_PARAMS=(25.0 50.0 100.0)
-
-# MESH_FILES=("coarse_pores")
-# LAM_MUE_PAIRS=(
-#     "10.0 20.0"
-# )
-# GC_PARAMS=(1.0)
-# EPS_FACTOR_PARAMS=(50.0 100.0)
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
@@ -36,8 +29,11 @@ replicate_folder() {
     current_time=$(date +%Y%m%d_%H%M%S)
     folder_name="simulation_${current_time}_${mesh_file}_lam${lam_param}_mue${mue_param}_Gc${gc_param}_eps${eps_factor_param}_order${element_order}"
 
-    # Create a new directory based on the template
-    cp -r "${SCRIPT_DIR}/${TEMPLATE_FOLDER}" "${SCRIPT_DIR}/${folder_name}"
+    # Create the new directory
+    mkdir -p "${SCRIPT_DIR}/${folder_name}"
+    
+    # Copy the contents of the template folder to the new directory
+    rsync -av --exclude='000_template' "${SCRIPT_DIR}/${TEMPLATE_FOLDER}/" "${SCRIPT_DIR}/${folder_name}/"
 }
 
 # Iterate over all combinations of parameters
@@ -58,4 +54,5 @@ for mesh_file in "${MESH_FILES[@]}"; do
         done
     done
 done
+
 
