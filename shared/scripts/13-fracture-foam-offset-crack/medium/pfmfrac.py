@@ -82,7 +82,7 @@ K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
 
 # define crack by boundary
 crack_tip_start_location_x = 0.1*(x_max_all-x_min_all) + x_min_all
-crack_tip_start_location_y = (y_max_all + y_min_all) / 4.0
+crack_tip_start_location_y = y_min_all + (y_max_all - y_min_all) / 4.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=(0.02*((y_max_all-y_min_all))))
