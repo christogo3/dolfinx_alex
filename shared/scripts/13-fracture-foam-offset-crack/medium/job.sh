@@ -10,7 +10,7 @@
 #SBATCH -C i01
 
 # # cd $HPC_SCRATCH
-cd /home/as12vapa/dolfiny_alex
+cd /home/as12vapa/dolfinx_alex
 
 # Parameters for simulation_script.py (passed as command-line arguments)
 srun -n 48 apptainer exec --bind ./shared:/home alex-dolfinx.sif python3 /home/scripts/13-fracture-foam-offset-crack/medium/pfmfrac.py
