@@ -15,6 +15,10 @@ def sig_c_quadr_deg(Gc, mu, epsilon):
     return 9.0/16.0 * math.sqrt(Gc*2.0*mu/(6.0*epsilon))
 
 
+def get_Gc_for_given_sig_c(sig_c, mu, epsilon):
+    return (256.0 * epsilon / (27.0 * mu)) * sig_c**2
+
+
 def psisurf(s: dlfx.fem.Function, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
     return psisurf

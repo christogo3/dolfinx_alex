@@ -57,6 +57,32 @@ AlSi10 = Material(
     elongation_at_break=(1, 5)  # %
 )
 
+
+def compute_lame_parameters(youngs_modulus, poisson_ratio):
+    """
+    Compute the Lamé parameters (λ and μ) from Young's modulus (E) and Poisson's ratio (ν).
+
+    Parameters:
+    youngs_modulus (float): Young's modulus (E)
+    poisson_ratio (float): Poisson's ratio (ν)
+
+    Returns:
+    tuple: A tuple containing the first Lamé parameter (λ) and the second Lamé parameter (μ)
+    """
+    # Ensure inputs are valid
+    if youngs_modulus <= 0:
+        raise ValueError("Young's modulus must be positive.")
+    if not (-1.0 < poisson_ratio < 0.5):
+        raise ValueError("Poisson's ratio must be between -1 and 0.5 (exclusive).")
+    
+    # Compute the second Lamé parameter (μ), also known as the shear modulus
+    mue = youngs_modulus / (2 * (1 + poisson_ratio))
+    
+    # Compute the first Lamé parameter (λ)
+    lam = (youngs_modulus * poisson_ratio) / ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
+    
+    return lam, mue
+
 # # Retrieve properties and calculate fracture resistance for AlSi10
 # properties = AlSi10.get_material_properties()
 # Gc_lower, Gc_upper = AlSi10.calculate_fracture_resistance()
