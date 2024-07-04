@@ -27,8 +27,6 @@ size = comm.Get_size()
 if size != 1: # cannot run in parallel
      quit()
 
-# data = meshio.read(os.path.join(alex.os.resources_directory,"mirrored_hypo_test_128.xdmf"))
-# data = meshio.read(os.path.join(script_path,"foam128_corrected_to_box.xdmf"))
 input_file_path = os.path.join(script_path,"fine/fine_pores.xdmf")
 outputfile_xdmf_path = input_file_path
 data = meshio.read(input_file_path)
