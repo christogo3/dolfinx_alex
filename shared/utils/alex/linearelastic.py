@@ -23,6 +23,17 @@ def eps_voigt_3D(u: any) -> any:
     return eps
 
 
+def cmat_voigt_2D(lam: dlfx.fem.Constant, mu: dlfx.fem.Constant) -> any:
+    return ufl.as_matrix([[lam+2*mu, lam, 0.0],
+                      [lam, lam+2*mu,     0.0],
+                      [0.0,  0.0,         mu],
+                      ])
+
+def eps_voigt_2D(u: any) -> any:
+    eps = ufl.as_vector([u[0].dx(0), u[1].dx(1), u[0].dx(1)+u[1].dx(0)])
+    return eps
+
+
 # compute strain energy in Voigt noation
 def psiel_voigt(u: any, eps_funct: Callable, cmat: any) -> any:
     psiel = 0.5*ufl.dot(eps_funct(u), cmat*eps_funct(u))
@@ -64,6 +75,19 @@ def sigma_as_tensor(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.C
         eps = ufl.sym(ufl.grad(u))
         val = lam * ufl.tr(eps) * ufl.Identity(ut.get_dimension_of_function(u)) + 2*mu*eps
         return val
+    
+def sigma_as_voigt(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+    dim = ut.get_dimension_of_function(u)
+    if dim == 3: #3D
+        eps_voigt = eps_voigt_3D(u)
+        sig_voigt = ufl.dot(cmat_voigt_3D(lam,mu),eps_voigt)
+    elif dim == 2: # 2D
+        eps_voigt = eps_voigt_2D(u)
+        sig_voigt = ufl.dot(cmat_voigt_2D(lam,mu),eps_voigt)
+    return sig_voigt
+        
+        
+        
     
 def sigma_as_tensor_from_epsilon(eps_el, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
     return lam * ufl.tr(eps_el) * ufl.Identity(3) + 2 * mu * eps_el
