@@ -78,8 +78,9 @@ segmentation_as_cell_field.name = "segmentation"
 
 def after_last_timestep():
     # write segmented voxel data
-    if comm.Get_rank() == 0:
-        img.write_field_to_voxel_data_leS(domain, fem2voxel_file_path, voxel_number_along_each_dimension, segmentation_as_cell_field)
+    # if comm.Get_rank() == 0:
+    #     img.write_field_to_voxel_data_leS(domain, fem2voxel_file_path, voxel_number_along_each_dimension, segmentation_as_cell_field)
+    return
     
 
 def after_timestep_success(t,dt,iters):
