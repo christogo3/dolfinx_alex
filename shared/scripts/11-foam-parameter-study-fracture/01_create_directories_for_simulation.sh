@@ -10,6 +10,14 @@ LAM_MUE_PAIRS=(
 GC_PARAMS=(0.5 1.0 1.5)
 EPS_FACTOR_PARAMS=(25.0 50.0 100.0)
 
+# LAM_MUE_PAIRS=(
+#     "1.0 1.0" 
+#     "1.5 1.0"
+#     "1.0 1.5"
+# )
+# GC_PARAMS=(0.5 0.75 1.0 1.25)
+# EPS_FACTOR_PARAMS=(25.0 33.0 40.0 50.0)
+
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
 

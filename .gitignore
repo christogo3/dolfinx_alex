@@ -442,7 +442,9 @@ Temporary Items
 *.sif
 simulation_*
 *.dcm
+*.npy
 */pics/*
+*.npy
 
 */resources/*
 
