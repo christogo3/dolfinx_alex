@@ -11,6 +11,9 @@ From: dolfinx/dolfinx:stable
     # Install required Python packages
     pip install numpy pyfiglet uvw tqdm vtk pyvista
 
+    # Create the 'work' directory in /home
+    mkdir -p /home/work
+
     # Set PYTHONPATH to include /home/utils
     echo 'export PYTHONPATH="/home/utils:$PYTHONPATH"' >> $SINGULARITY_ENVIRONMENT
 

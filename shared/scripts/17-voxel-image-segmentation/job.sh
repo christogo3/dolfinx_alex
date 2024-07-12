@@ -9,12 +9,20 @@
 #SBATCH --mail-type=End
 #SBATCH -C i01
 
+# Set the working directory name
+working_folder_name="cv_seg"  # Change this to your desired folder name
+
+# Create the working directory under $HPC_SCRATCH
+working_directory="$HPC_SCRATCH/$working_folder_name"
+mkdir -p "$working_directory"
+
+# Navigate to $HPC_SCRATCH
 cd $HPC_SCRATCH
 
 # Parameters for simulation_script.py (passed as command-line arguments)
-srun -n 48 apptainer exec --bind $HOME/dolfinx_alex/shared:/home $HOME/dolfinx_alex/alex-dolfinx.sif python3 /home/scripts/17-voxel-image-segmentation/chan-veese-segmentation.py
+srun -n 48 apptainer exec --bind $HOME/dolfinx_alex/shared:/home --bind "$working_directory:/home/work" $HOME/dolfinx_alex/alex-dolfinx.sif python3 /home/scripts/17-voxel-image-segmentation/chan-veese-segmentation.py
 
 EXITCODE=$?
 
-# JobScript mit dem Status des wiss. Programms beenden
+# Exit the job script with the status of the scientific program
 exit $EXITCODE

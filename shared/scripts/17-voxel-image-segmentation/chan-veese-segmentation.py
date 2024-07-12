@@ -17,7 +17,7 @@ comm = MPI.COMM_WORLD
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(alex.os.scratch_directory,script_name_without_extension)
 
 
 scan_intensity_as_array = np.load(os.path.join(script_path, "voxel_data.npy"))
