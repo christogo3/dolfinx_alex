@@ -20,8 +20,6 @@ WORKDIR /home
 # Copy the current directory contents into the container at /home
 COPY . .
 
-# Create the 'work' directory in /home
-RUN mkdir /home/work
 
 # Install necessary system packages
 RUN apt-get update && apt-get install -y \
