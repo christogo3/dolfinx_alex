@@ -10,7 +10,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path, script_name_without_extension)
 
 # Step 1: Read the Mesh File
-input_file_path = os.path.join(alex.os.resources_directory, "coarse_pores.xdmf")
+input_file_path = os.path.join(alex.os.resources_directory, "finer", "coarse_pores.xdmf")
 # Save the histogram as a PNG file
 output_histogram_path = os.path.join(script_path, "edge_length_distribution.png")
 data = meshio.read(input_file_path)

@@ -1,28 +1,31 @@
 #!/bin/bash
 
 # Define the possible values for each parameter
-MESH_FILES=("coarse_pores" "medium_pores" "fine_pores")
+MESH_FILES=("coarse_pores")
 LAM_MUE_PAIRS=(
     "1.0 1.0" 
-    "10.0 10.0"
-    "15.0 10.0"
 )
-GC_PARAMS=(0.5 1.0 1.5)
-EPS_FACTOR_PARAMS=(25.0 50.0 100.0)
-
-# LAM_MUE_PAIRS=(
-#     "1.0 1.0" 
-#     "1.5 1.0"
-#     "1.0 1.5"
-# )
-# GC_PARAMS=(0.5 0.75 1.0 1.25)
-# EPS_FACTOR_PARAMS=(25.0 33.33 40.0 50.0)
+GC_PARAMS=(1.0)
+EPS_FACTOR_PARAMS=(50.0)
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
 
 # Get the current directory of the script
 SCRIPT_DIR=$(dirname "$0")
+
+# Get the name of the folder in which the bash script is located
+working_dir=$(basename "$SCRIPT_DIR")
+
+# Ensure HPC_SCRATCH is defined
+if [ -z "$HPC_SCRATCH" ]; then
+    echo "Error: HPC_SCRATCH is not defined."
+    exit 1
+fi
+
+# Create the base working directory if it doesn't exist
+BASE_WORKING_DIR="${HPC_SCRATCH}/${working_dir}"
+mkdir -p "$BASE_WORKING_DIR"
 
 # Function to replicate the template folder for each combination of parameters
 replicate_folder() {
@@ -38,10 +41,10 @@ replicate_folder() {
     folder_name="simulation_${current_time}_${mesh_file}_lam${lam_param}_mue${mue_param}_Gc${gc_param}_eps${eps_factor_param}_order${element_order}"
 
     # Create the new directory
-    mkdir -p "${SCRIPT_DIR}/${folder_name}"
+    mkdir -p "${BASE_WORKING_DIR}/${folder_name}"
     
     # Copy the contents of the template folder to the new directory
-    rsync -av --exclude='000_template' "${SCRIPT_DIR}/${TEMPLATE_FOLDER}/" "${SCRIPT_DIR}/${folder_name}/"
+    rsync -av --exclude='000_template' "${SCRIPT_DIR}/${TEMPLATE_FOLDER}/" "${BASE_WORKING_DIR}/${folder_name}/"
 }
 
 # Iterate over all combinations of parameters
@@ -62,5 +65,6 @@ for mesh_file in "${MESH_FILES[@]}"; do
         done
     done
 done
+
 
 

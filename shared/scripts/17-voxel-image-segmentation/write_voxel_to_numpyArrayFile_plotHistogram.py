@@ -22,7 +22,7 @@ dcm_file_path = os.path.join(script_path,"AluSchaum_AlSi10_P1_1024_1024_512_gray
 ds : pydicom.dataset.FileDataset = dcmread(dcm_file_path)
 scan_intensity_as_array = np.array(ds.pixel_array) # this is 512 x 1024 x 1024
 # only select a subarray TODO currently only works for cubes, TODO does not work in parallel
-dimension = 512
+dimension = 256
 scan_intensity_as_array = scan_intensity_as_array[:dimension,:dimension,:dimension]
 
 min_intensity = scan_intensity_as_array.min()

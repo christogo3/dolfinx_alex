@@ -6,7 +6,7 @@ import math
 import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 
-
+reference_L_global = 1.2720814740168862
 
 def plot_results(results_dict, keys, column_index, save_path, scaling_factors=None):
     """
@@ -251,7 +251,7 @@ def get_sig_c(extract_parameters,keys):
         return 9.0/16.0 * math.sqrt(Gc*2.0*mu/(6.0*epsilon))
     
     def get_epsilon(eps_factor):
-        refernce_L = 1.2720814740168862
+        refernce_L = reference_L_global 
         return refernce_L/eps_factor
     
     sig_c = np.zeros_like(keys,dtype=float)
@@ -265,7 +265,7 @@ def get_sig_c(extract_parameters,keys):
     return sig_c
 
 sig_c = get_sig_c(extract_parameters,keys)  
-scaling_factors = 1.0 / (sig_c *  1.2720814740168862)
+scaling_factors = 1.0 / (sig_c *  reference_L_global)
 
 parameter_names = ['eps']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
@@ -315,6 +315,8 @@ def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, special_keys
     # Marker types based on (lam, mue) values
     marker_types = {
         (1.0, 1.0): 'o',       # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
         (10.0, 10.0): '^',     # Triangle
         (15.0, 10.0): 's'      # Square
     }
@@ -399,13 +401,115 @@ def filter_keys(results_dict, target_Gc=None, target_eps=None, target_lam=None, 
                 filtered_keys.append(key)
     return filtered_keys
 
-# Example usage
+def compute_gc_num(mesh_name, gc, eps_factor, h_all):
+    """
+    Computes the gc_num value.
+
+    :param mesh_name: Name of the mesh type.
+    :param gc: Gc value.
+    :param eps: Epsilon value.
+    :param h_all: Dictionary mapping mesh types to their corresponding h values.
+    :return: Computed gc_num value.
+    """
+    h_value = h_all[mesh_name]
+    eps = reference_L_global / eps_factor
+    return gc * (1.0 + h_value / eps / 4.0)
+
+def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
+    """
+    Plots gc_num vs Gc for a set of keys and saves the plot to disk.
+
+    :param results_dict: Dictionary containing the results data.
+                         The keys are folder names and values are numpy arrays with the data.
+    :param keys: List of keys to plot.
+    :param h_all: Dictionary mapping mesh types to their corresponding h values.
+    :param save_path: File path to save the plot.
+    """
+    plt.figure(figsize=(10, 6))  # Optional: Set the figure size for better readability
+
+    mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+    
+    marker_types = {
+        (1.0, 1.0): 'o',       # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',     # Triangle
+        (15.0, 10.0): 's'      # Square
+    }
+    
+    unique_labels = set()
+    
+    for key in keys:
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_value = params[1]
+            mue_value = params[2]
+            gc_value = params[3]
+            eps_value = params[4]
+            
+            gc_num_value = compute_gc_num(mesh_name=mesh_type, gc=gc_value, eps_factor=eps_value, h_all=h_all)
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get((lam_value, mue_value), 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            plt.scatter(gc_value, gc_num_value, color=color, marker=marker, s=100, label=label)
+            unique_labels.add(mesh_type)
+            
+            # Display gc_num values as text next to the markers
+            plt.text(gc_value, gc_num_value, f"{1.0/eps_value:.2f}", fontsize=9, ha='right', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue}'))
+    
+    plt.xlabel('Gc')
+    plt.ylabel('gc_num')
+    plt.title('gc_num vs Gc')
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()
+
+# available data points
+mesh_all = ["fine_pores","medium_pores", "coarse_pores"]
+h_coarse_mean =  0.024636717648428213 #0.040704583134024946
+h_all = {
+    "coarse_pores": h_coarse_mean,
+    "medium_pores": h_coarse_mean/2.0,
+    "fine_pores": h_coarse_mean/4.0,
+}
+
+# def gc_num(mesh_name,gc,eps):
+#     return gc * (1.0 + h_all(mesh_name)/eps)
+
+gc_all = np.array([0.5, 0.75, 1.0, 1.25, 1.5])
+eps_all = np.array([25.0, 33.0, 40.0, 50.0, 100.0])
+lam_all = np.array([1.0, 1.5, 10.0, 15.0])  
+mue_all = np.array([1.0, 1.5, 10.0]) 
+
 keys_to_plot = keys # ['fine_pores_lam1.0_mue1.0_Gc1.0_eps1.0_order1', 'medium_pores_lam10.0_mue10.0_Gc2.0_eps0.5_order2']
 plot_title = "Max Jx vs sig_c"
 save_path = os.path.join(directory_path, "max_Jx_vs_sig_c.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
-# only medium and coarse at fixed Gc
+# 1. fixed Gc
 target_Gc_values = np.array([1.0])  
 target_eps_values = np.array([25.0, 50.0, 100.0])  
 target_lam_values = np.array([1.0, 10.0, 15.0])  
@@ -426,11 +530,14 @@ save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_medium_coarse.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
 
+# 2. varying stiffness
+result_test = max_Jx_dict["coarse_pores_lam1.5_mue1.0_Gc1.0_eps50.0_order2"]
+
 target_Gc_values = np.array([1.0])  
 target_eps_values = np.array([50.0])  
-target_lam_values = np.array([1.0, 10.0, 15.0])  
-target_mue_values = np.array([1.0, 10.0])  
-target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
+target_lam_values = lam_all  
+target_mue_values = mue_all
+target_mesh_types = mesh_all 
 
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
@@ -445,11 +552,11 @@ plot_title = "Max Jx vs sig_c"
 save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_varying_stiffness.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
-
-target_Gc_values = np.array([0.5,1.0,1.5])  
+# 3. varying Gc
+target_Gc_values = gc_all 
 target_eps_values = np.array([50.0])  
-target_lam_values = np.array([10.0, 15.0])  
-target_mue_values = np.array([10.0])  
+target_lam_values = np.array([1.0])  
+target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
 
 filtered_keys = filter_keys(results_dict,
@@ -465,11 +572,11 @@ plot_title = "Max Jx vs sig_c"
 save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_varying_Gc.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
-
+# 4. varying eps
 target_Gc_values = np.array([1.0])  
-target_eps_values = np.array([25.0, 50.0,100.0])  
-target_lam_values = np.array([10.0, 15.0])  
-target_mue_values = np.array([10.0])  
+target_eps_values = eps_all  
+target_lam_values = np.array([1.0])  
+target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
 
 filtered_keys = filter_keys(results_dict,
@@ -486,12 +593,12 @@ save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_varying_eps.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
 
-
-target_Gc_values = np.array([0.5,1.0,1.5])  
-target_eps_values = np.array([25.0, 50.0,100.0])  
+# 5. varying eps fixed sig_c
+target_Gc_values = gc_all 
+target_eps_values = eps_all 
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
-target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
+target_mesh_types = ["medium_pores"]  
 
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
@@ -508,6 +615,64 @@ plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_
 
 
 
+# 6. plot all gc_num
+target_Gc_values = gc_all 
+target_eps_values = eps_all 
+target_lam_values = np.array([1.0])  
+target_mue_values = np.array([1.0])  
+target_mesh_types = ["coarse_pores"]
+filtered_keys = filter_keys(results_dict,
+                            target_Gc=target_Gc_values,
+                            target_eps=target_eps_values,
+                            target_lam=target_lam_values,
+                            target_mue=target_mue_values,
+                            target_mesh_types=target_mesh_types)
+
+save_path = os.path.join(directory_path, "gc_num_vs_gc.png")
+plot_gc_num_vs_gc(results_dict, filtered_keys, h_all, save_path)
+
+# 7. plot ratio eps / h 
+
+
+
+def plot_eps_h_ratio(keys, output_file):
+    ratios = []
+    epss = []
+    for key in keys:
+        params = extract_parameters(key)
+        eps_factor = params[4]
+        mesh_type = params[0]
+        if eps_factor is not None and mesh_type in h_all:
+            h = h_all[mesh_type]
+            eps = reference_L_global/eps_factor
+            ratio = eps / h
+            ratios.append(ratio)
+            epss.append(eps)
+    
+    plt.figure(figsize=(10, 6))
+    plt.scatter(epss, ratios, c='b', marker='o')
+    plt.xlabel(r'$\epsilon$')
+    plt.ylabel(r'$\epsilon/h$')
+    plt.title(r'Ratio of $\epsilon/h$ vs $\epsilon$')
+    plt.grid(True)
+    plt.savefig(output_file)
+    plt.close()
+    
+    
+target_Gc_values =  np.array([1.0])  
+target_eps_values = eps_all 
+target_lam_values = np.array([1.0])  
+target_mue_values = np.array([1.0])  
+target_mesh_types = ["medium_pores"]
+filtered_keys = filter_keys(results_dict,
+                            target_Gc=target_Gc_values,
+                            target_eps=target_eps_values,
+                            target_lam=target_lam_values,
+                            target_mue=target_mue_values,
+                            target_mesh_types=target_mesh_types)
+
+save_path = os.path.join(directory_path, "eps_h_ratio.png")
+plot_eps_h_ratio(filtered_keys,output_file=save_path)
 
 
 
