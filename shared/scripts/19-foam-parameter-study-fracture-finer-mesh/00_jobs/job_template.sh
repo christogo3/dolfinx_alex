@@ -20,7 +20,7 @@ mkdir -p "$working_directory"
 cd $HPC_SCRATCH
 
 # Parameters for simulation_script.py (passed as command-line arguments)
-srun -n 64 apptainer exec --bind ./shared:/home alex-dolfinx.sif --bind "$working_directory:/work" python3 $working_directory/script.py \
+srun -n 64 apptainer exec --bind $HOME/dolfinx_alex/shared:/home --bind "$working_directory:/work" $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/script.py \
     --mesh_file {MESH_FILE} \
     --lam_param {LAM_PARAM} \
     --mue_param {MUE_PARAM} \
