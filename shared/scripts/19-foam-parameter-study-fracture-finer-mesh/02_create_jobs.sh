@@ -2,7 +2,8 @@
 
 # Define the base directory where the simulation folders are located
 # Get the current directory of the script
-SCRIPT_DIR=$(dirname "$0")
+# Get the current directory of the script
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
 # Get the name of the folder in which the bash script is located
 working_dir=$(basename "$SCRIPT_DIR")

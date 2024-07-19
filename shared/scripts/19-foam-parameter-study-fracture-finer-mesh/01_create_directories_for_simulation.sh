@@ -12,10 +12,11 @@ EPS_FACTOR_PARAMS=(50.0)
 TEMPLATE_FOLDER="000_template"
 
 # Get the current directory of the script
-SCRIPT_DIR=$(dirname "$0")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
 # Get the name of the folder in which the bash script is located
 working_dir=$(basename "$SCRIPT_DIR")
+
 
 # Ensure HPC_SCRATCH is defined
 if [ -z "$HPC_SCRATCH" ]; then
