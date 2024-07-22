@@ -1,7 +1,19 @@
 #!/bin/bash
 
-# Define the base directory where the simulation folders are located
-BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture"
+# Get the current directory of the script
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+
+# Get the name of the folder in which the bash script is located
+working_dir=$(basename "$SCRIPT_DIR")
+
+# Ensure HPC_SCRATCH is defined
+if [ -z "$HPC_SCRATCH" ]; then
+    echo "Error: HPC_SCRATCH is not defined."
+    exit 1
+fi
+
+# Create the base working directory if it doesn't exist
+BASE_DIR="${HPC_SCRATCH}/${working_dir}"
 
 # Define the directory where the job template is located
 JOB_TEMPLATE_DIR="./00_jobs"
@@ -48,19 +60,6 @@ generate_job_script() {
         "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script.sh"
 }
 
-# Iterate over each simulation folder in the base directory
-for folder_path in "${BASE_DIR}"/simulation_*; do
-    if [ -d "${folder_path}" ]; then
-        folder_name=$(basename "${folder_path}")
-
-        # Extract parameters from folder name
-        params=$(extract_parameters "${folder_name}")
-        set -- $params  # set positional parameters
-
-        # Call generate_job_script with extracted parameters
-        generate_job_script "${folder_name}" "$1" "$2" "$3" "$4" "$5" "$6"
-    fi
-done
 
 
 
