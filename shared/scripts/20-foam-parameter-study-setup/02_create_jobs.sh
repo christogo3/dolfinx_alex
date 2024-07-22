@@ -1,5 +1,7 @@
-#!/bin/bash
+!/bin/bash
 
+# Define the base directory where the simulation folders are located
+# Get the current directory of the script
 # Get the current directory of the script
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
@@ -38,15 +40,13 @@ extract_parameters() {
 # Function to generate a job script for a given simulation folder
 generate_job_script() {
     local folder_name=$1
-    local mesh_file=$2
-    local lam_param=$3
-    local mue_param=$4
-    local gc_param=$5
-    local eps_factor_param=$6
-    local element_order=$7
-
-    # Set job_name to only the mesh type name
-    local job_name="${mesh_file}"
+    local job_name=$2
+    local mesh_file=$3
+    local lam_param=$4
+    local mue_param=$5
+    local gc_param=$6
+    local eps_factor_param=$7
+    local element_order=$8
 
     # Read the template and replace placeholders
     sed -e "s|{FOLDER_NAME}|${folder_name}|g" \
@@ -59,6 +59,21 @@ generate_job_script() {
         -e "s|{ELEMENT_ORDER}|${element_order}|g" \
         "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script.sh"
 }
+
+# Iterate over each simulation folder in the base directory
+for folder_path in "${BASE_DIR}"/simulation_*; do
+    if [ -d "${folder_path}" ]; then
+        folder_name=$(basename "${folder_path}")
+        job_name="sim_${folder_name}"
+
+        # Extract parameters from folder name
+        params=$(extract_parameters "${folder_name}")
+        set -- $params  # set positional parameters
+
+        # Call generate_job_script with extracted parameters
+        generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6"
+    fi
+done
 
 
 
