@@ -1,21 +1,7 @@
 #!/bin/bash
 
 # Define the base directory where the simulation folders are located
-# Get the current directory of the script
-# Get the current directory of the script
-SCRIPT_DIR=$(dirname "$(realpath "$0")")
-
-# Get the name of the folder in which the bash script is located
-working_dir=$(basename "$SCRIPT_DIR")
-
-# Ensure HPC_SCRATCH is defined
-if [ -z "$HPC_SCRATCH" ]; then
-    echo "Error: HPC_SCRATCH is not defined."
-    exit 1
-fi
-
-# Create the base working directory if it doesn't exist
-BASE_DIR="${HPC_SCRATCH}/${working_dir}"
+BASE_DIR="/home/as12vapa/dolfinx_alex/shared/scripts/11-foam-parameter-study-fracture"
 
 # Define the directory where the job template is located
 JOB_TEMPLATE_DIR="./00_jobs"
@@ -40,13 +26,15 @@ extract_parameters() {
 # Function to generate a job script for a given simulation folder
 generate_job_script() {
     local folder_name=$1
-    local job_name=$2
-    local mesh_file=$3
-    local lam_param=$4
-    local mue_param=$5
-    local gc_param=$6
-    local eps_factor_param=$7
-    local element_order=$8
+    local mesh_file=$2
+    local lam_param=$3
+    local mue_param=$4
+    local gc_param=$5
+    local eps_factor_param=$6
+    local element_order=$7
+
+    # Set job_name to only the mesh type name
+    local job_name="${mesh_file}"
 
     # Read the template and replace placeholders
     sed -e "s|{FOLDER_NAME}|${folder_name}|g" \
@@ -64,16 +52,16 @@ generate_job_script() {
 for folder_path in "${BASE_DIR}"/simulation_*; do
     if [ -d "${folder_path}" ]; then
         folder_name=$(basename "${folder_path}")
-        job_name="sim_${folder_name}"
 
         # Extract parameters from folder name
         params=$(extract_parameters "${folder_name}")
         set -- $params  # set positional parameters
 
         # Call generate_job_script with extracted parameters
-        generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6"
+        generate_job_script "${folder_name}" "$1" "$2" "$3" "$4" "$5" "$6"
     fi
 done
+
 
 
 
