@@ -1,7 +1,6 @@
-!/bin/bash
+#!/bin/bash
 
 # Define the base directory where the simulation folders are located
-# Get the current directory of the script
 # Get the current directory of the script
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
@@ -64,16 +63,17 @@ generate_job_script() {
 for folder_path in "${BASE_DIR}"/simulation_*; do
     if [ -d "${folder_path}" ]; then
         folder_name=$(basename "${folder_path}")
-        job_name="sim_${folder_name}"
 
         # Extract parameters from folder name
         params=$(extract_parameters "${folder_name}")
         set -- $params  # set positional parameters
+        job_name="$1"  # Set job_name to mesh_file
 
         # Call generate_job_script with extracted parameters
         generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6"
     fi
 done
+
 
 
 
