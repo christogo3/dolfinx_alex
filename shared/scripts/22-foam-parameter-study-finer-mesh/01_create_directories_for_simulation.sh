@@ -17,7 +17,7 @@ EPS_FACTOR_PARAMS=(25.0 33.0 40.0 50.0 100.0)
 #     "1.0 1.0" 
 # )
 # GC_PARAMS=(1.0)
-# EPS_FACTOR_PARAMS=(50.0)
+# EPS_FACTOR_PARAMS=(50.0) #t
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
