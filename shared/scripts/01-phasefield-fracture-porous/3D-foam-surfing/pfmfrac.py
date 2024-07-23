@@ -38,7 +38,7 @@ dt = 0.0001
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),2) # fracture fields
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 
@@ -191,7 +191,6 @@ def after_timestep_restart(t,dt,iters):
 def after_last_timestep():
     # stopwatch stop
     timer.stop()
-
     # report runtime to screen
     if rank == 0:
         runtime = timer.elapsed()
@@ -212,6 +211,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     get_bcs=get_bcs,
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
-    comm=comm
+    comm=comm,
+    print=True
 )
 

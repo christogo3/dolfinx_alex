@@ -3,7 +3,7 @@
 #SBATCH -A project02338
 #SBATCH -t 1200  # "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 #SBATCH --mem-per-cpu=6000
-#SBATCH -n 48
+#SBATCH -n 96
 #SBATCH -e /work/scratch/as12vapa/%x.err.%j
 #SBATCH -o /work/scratch/as12vapa/%x.out.%j
 #SBATCH --mail-type=End

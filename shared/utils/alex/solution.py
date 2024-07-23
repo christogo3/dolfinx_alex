@@ -146,6 +146,14 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         solver.report = True
         solver.max_it = max_iters
         
+        ksp = solver.krylov_solver
+        opts = PETSc.Options()
+        option_prefix = ksp.getOptionsPrefix()
+        opts[f"{option_prefix}ksp_type"] = "preonly"
+        opts[f"{option_prefix}pc_type"] = "lu"
+        opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
+        ksp.setFromOptions()
+        
         # control adaptive time adjustment
         restart_solution = False
         converged = False

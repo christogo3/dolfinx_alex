@@ -57,7 +57,7 @@ N = 16
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-Tend = 1.0
+Tend = 0.5
 dt = 0.2
 
 # elastic constants
@@ -212,7 +212,7 @@ dx_in_cylinder, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_aro
 def after_timestep_success(t,dt,iters):
     
     
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    #pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     
     # write to newton-log-file
     if rank == 0:
@@ -220,38 +220,38 @@ def after_timestep_success(t,dt,iters):
              
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
     
-    divEshelby = ufl.div(eshelby)
-    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
-                            vector_field_names=["Ge"], 
-                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    # divEshelby = ufl.div(eshelby)
+    # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+    #                         vector_field_names=["Ge"], 
+    #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
     J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n, comm=comm)
     
     
-    if rank == 0:
-        print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
+    # if rank == 0:
+    #     print(pp.getJString(J3D_glob_x, J3D_glob_y, J3D_glob_z))
     
-    J_from_nodal_forces = alex.linearelastic.get_J_from_nodal_forces(eshelby,W,ufl.dx,comm)
+    # J_from_nodal_forces = alex.linearelastic.get_J_from_nodal_forces(eshelby,W,ufl.dx,comm)
     
-    J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, ufl.dx,comm)
+    # J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii = alex.linearelastic.get_J_3D_volume_integral(eshelby, ufl.dx,comm)
     
-    if rank == 0:
-        print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
+    # if rank == 0:
+    #     print(pp.getJString(J3D_glob_x_ii, J3D_glob_y_ii, J3D_glob_z_ii))
        
     
-    cohesiveConfStress = alex.phasefield.getCohesiveConfStress(s,Gc,epsilon)
-    G_ad_x_glob, G_ad_y_glob, G_ad_z_glob = alex.phasefield.get_G_ad_3D_volume_integral(cohesiveConfStress, ufl.dx,comm)
+    # cohesiveConfStress = alex.phasefield.getCohesiveConfStress(s,Gc,epsilon)
+    # G_ad_x_glob, G_ad_y_glob, G_ad_z_glob = alex.phasefield.get_G_ad_3D_volume_integral(cohesiveConfStress, ufl.dx,comm)
     
     
-    if rank == 0:
-        print(pp.getJString(G_ad_x_glob, G_ad_y_glob, G_ad_z_glob))
+    # if rank == 0:
+    #     print(pp.getJString(G_ad_x_glob, G_ad_y_glob, G_ad_z_glob))
         
-    dissipativeConfForce = alex.phasefield.getDissipativeConfForce(s,sm1,Mob,dt)
-    G_dis_x_glob, G_dis_y_glob, G_dis_z_glob = alex.phasefield.getDissipativeConfForce_volume_integral(dissipativeConfForce,ufl.dx,comm)
+    # dissipativeConfForce = alex.phasefield.getDissipativeConfForce(s,sm1,Mob,dt)
+    # G_dis_x_glob, G_dis_y_glob, G_dis_z_glob = alex.phasefield.getDissipativeConfForce_volume_integral(dissipativeConfForce,ufl.dx,comm)
         
-    if rank == 0:
-        print(pp.getJString(G_dis_x_glob, G_dis_y_glob, G_dis_z_glob))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t,J3D_glob_x, J3D_glob_x_ii, J_from_nodal_forces[0], G_dis_x_glob, G_ad_x_glob)
+    # if rank == 0:
+    #     print(pp.getJString(G_dis_x_glob, G_dis_y_glob, G_dis_z_glob))
+    #     pp.write_to_graphs_output_file(outputfile_graph_path,t,J3D_glob_x, J3D_glob_x_ii, J_from_nodal_forces[0], G_dis_x_glob, G_ad_x_glob)
 
 
     # update
