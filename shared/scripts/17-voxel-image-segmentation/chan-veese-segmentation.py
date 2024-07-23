@@ -92,6 +92,7 @@ def after_timestep_success(t,dt,iters):
         xdmf_out.write_function(segmentation_as_cell_field,t)
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
         xdmf_out.write_function(I,t)
+        xdmf_out.close()
 # alex.postprocessing.write_scalar_fields(domain,comm,scalar_fields_as_functions=[phase],scalar_field_names=["phase"],outputfile_xdmf_path=outputfile_xdmf_path,t=0.0)
     alex.postprocessing.write_scalar_fields(domain,comm,[u_h],["u"],outputfile_xdmf_path,t)
    

@@ -12,7 +12,7 @@
 # EPS_FACTOR_PARAMS=(25.0 33.0 40.0 50.0 100.0)
 
 # Define the possible values for each parameter
-MESH_FILES=("fine_pores")
+MESH_FILES=("medium_pores")
 LAM_MUE_PAIRS=(
     "1.0 1.0" 
 )
