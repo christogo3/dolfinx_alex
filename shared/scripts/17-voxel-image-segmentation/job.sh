@@ -14,7 +14,7 @@ working_folder_name="cv_seg"  # Change this to your desired folder name
 
 # Create the working directory under $HPC_SCRATCH
 working_directory="$HPC_SCRATCH/$working_folder_name"
-mkdir -p "$working_directory"
+# mkdir -p "$working_directory"
 
 # Navigate to $HPC_SCRATCH
 cd $HPC_SCRATCH
