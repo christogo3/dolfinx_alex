@@ -36,40 +36,6 @@ extract_parameters() {
     echo "${mesh_file} ${lam_param} ${mue_param} ${gc_param} ${eps_factor_param} ${element_order}"
 }
 
-# Function to determine memory, processor, and time settings based on mesh_file
-get_memory_processors_and_time() {
-    local mesh_file=$1
-    local memory_value
-    local processor_number
-    local time
-
-    # Define memory, processor, and time settings based on mesh_file (example logic)
-    case "$mesh_file" in
-        "coarse_pores")
-            memory_value=4000
-            processor_number=64
-            time="6000"
-            ;;
-        "medium_pores")
-            memory_value=6000
-            processor_number=64
-            time="10080"
-            ;;
-        "fine_pores")
-            memory_value=9000
-            processor_number=192
-            time="10080"
-            ;;
-        *)
-            memory_value=6000
-            processor_number=96
-            time="10080"
-            ;;
-    esac
-
-    echo "${memory_value} ${processor_number} ${time}"
-}
-
 # Function to generate a job script for a given simulation folder
 generate_job_script() {
     local folder_name=$1
@@ -80,9 +46,6 @@ generate_job_script() {
     local gc_param=$6
     local eps_factor_param=$7
     local element_order=$8
-    local memory_value=$9
-    local processor_number=${10}
-    local time=${11}
 
     # Read the template and replace placeholders
     sed -e "s|{FOLDER_NAME}|${folder_name}|g" \
@@ -93,10 +56,30 @@ generate_job_script() {
         -e "s|{GC_PARAM}|${gc_param}|g" \
         -e "s|{EPS_FACTOR_PARAM}|${eps_factor_param}|g" \
         -e "s|{ELEMENT_ORDER}|${element_order}|g" \
-        -e "s|{MEMORY_VALUE}|${memory_value}|g" \
-        -e "s|{PROCESSOR_NUMBER}|${processor_number}|g" \
-        -e "s|{TIME}|${time}|g" \
         "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script.sh"
+}
+
+# Function to set job name based on mesh file
+set_job_name() {
+    local mesh_file=$1
+    local job_name
+
+    case "$mesh_file" in
+        "coarse_pores")
+            job_name="coarse"
+            ;;
+        "medium_pores")
+            job_name="medium"
+            ;;
+        "fine_pores")
+            job_name="fine"
+            ;;
+        *)
+            job_name="unknown"
+            ;;
+    esac
+
+    echo "$job_name"
 }
 
 # Iterate over each simulation folder in the base directory
@@ -107,33 +90,14 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         # Extract parameters from folder name
         params=$(extract_parameters "${folder_name}")
         set -- $params  # set positional parameters
-        job_name="$1"  # Set job_name to mesh_file
 
-        # Debugging: Print extracted parameters
-        echo "Extracted parameters: $params"
+        # Set job name based on mesh file
+        job_name=$(set_job_name "$1")
 
-        # Get memory, processor, and time settings based on mesh_file
-        mem_proc_time=$(get_memory_processors_and_time "$1")
-        set -- $mem_proc_time  # set positional parameters for memory, processor, and time settings
-        memory_value=$1
-        processor_number=$2
-        time=$3
-
-        # Debugging: Print memory, processor, and time settings
-        echo "Memory: $memory_value, Processors: $processor_number, Time: $time"
-
-        # Call generate_job_script with extracted parameters and memory/processor/time settings
-        generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6" "${memory_value}" "${processor_number}" "${time}"
+        # Call generate_job_script with extracted parameters
+        generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6"
     fi
 done
-
-
-
-
-
-
-
-
 
 
 

@@ -1,23 +1,57 @@
 #!/bin/bash
 
+# global length scale
+L=1.2720814740168862
+
+# Define the h_coarse_mean
+h_coarse_mean=0.024636717648428213
+
+# Define the pore_size_coarse
+pore_size_coarse=0.183
+
+# Constants for calculation
+epsilon_to_h_min_ratio=2.0
+pore_size_to_eps_min_ratio=2.0
+
+# Compute epsilon_min and epsilon_max
+epsilon_min=$(echo "$epsilon_to_h_min_ratio * $h_coarse_mean" | bc -l)
+epsilon_max=$(echo "$pore_size_coarse / $pore_size_to_eps_min_ratio" | bc -l)
+
+# Compute inv_epsilon_max and inv_epsilon_min
+inv_epsilon_max=$(echo "1.0 / $epsilon_min * $L" | bc -l)
+inv_epsilon_min=$(echo "1.0 / $epsilon_max * $L" | bc -l)
+
+# Number of EPS values to compute
+number_of_eps_values_to_compute=4
+
+# Compute step value
+step=$(echo "($inv_epsilon_max - $inv_epsilon_min) / ($number_of_eps_values_to_compute - 1)" | bc -l)
+
+# Function to format floating-point numbers
+format_number() {
+    printf "%.4f" "$1"
+}
+
+# Compute EPS_FACTOR_PARAMS with formatted output
+EPS_FACTOR_PARAMS=()
+for ((i=0; i<number_of_eps_values_to_compute; i++)); do
+    value=$(echo "$inv_epsilon_min + $i * $step" | bc -l)
+    formatted_value=$(format_number "$value")
+    EPS_FACTOR_PARAMS+=($formatted_value)
+done
+
+# Print EPS_FACTOR_PARAMS for verification
+echo "EPS_FACTOR_PARAMS: ${EPS_FACTOR_PARAMS[@]}"
+
 # Define the possible values for each parameter
-MESH_FILES=("medium_pores")
+MESH_FILES=("coarse_pores" "medium_pores")
 LAM_MUE_PAIRS=(
     "1.0 1.0" 
     "1.5 1.0" 
     "1.0 1.5"
     "10.0 10.0" 
 )
-GC_PARAMS=(0.5 0.75 1.0 1.25 1.5)
-EPS_FACTOR_PARAMS=(25.0 33.33 40.0 50.0 100.0)
-
-# Define the possible values for each parameter
-# MESH_FILES=("medium_pores")
-# LAM_MUE_PAIRS=(
-#     "1.0 1.0" 
-# )
-# GC_PARAMS=(1.0)
-# EPS_FACTOR_PARAMS=(50.0) #t
+GC_FACTORS=(25.0 50.0)  # Factors to compute Gc
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
@@ -49,7 +83,7 @@ replicate_folder() {
 
     # Create a unique folder name
     current_time=$(date +%Y%m%d_%H%M%S)
-    folder_name="simulation_${current_time}_${mesh_file}_lam${lam_param}_mue${mue_param}_Gc${gc_param}_eps${eps_factor_param}_order${element_order}"
+    folder_name="simulation_${current_time}_${mesh_file}_lam$(format_number "$lam_param")_mue$(format_number "$mue_param")_Gc$(format_number "$gc_param")_eps$(format_number "$eps_factor_param")_order${element_order}"
 
     # Create the new directory
     mkdir -p "${BASE_WORKING_DIR}/${folder_name}"
@@ -63,15 +97,35 @@ for mesh_file in "${MESH_FILES[@]}"; do
     for lam_mue_pair in "${LAM_MUE_PAIRS[@]}"; do
         lam_param=$(echo $lam_mue_pair | cut -d ' ' -f 1)
         mue_param=$(echo $lam_mue_pair | cut -d ' ' -f 2)
-        for gc_param in "${GC_PARAMS[@]}"; do
+        for factor in "${GC_FACTORS[@]}"; do
             for eps_factor_param in "${EPS_FACTOR_PARAMS[@]}"; do
+                # Scale EPS_FACTOR_PARAMS based on mesh_file
+                if [ "$mesh_file" == "medium_pores" ]; then
+                    scaled_eps_factor_param=$(echo "$eps_factor_param * 2" | bc -l)
+                elif [ "$mesh_file" == "fine_pores" ]; then
+                    scaled_eps_factor_param=$(echo "$eps_factor_param * 4" | bc -l)
+                else
+                    scaled_eps_factor_param=$eps_factor_param
+                fi
+                
+                # Compute gc_param
+                gc_param=$(echo "$factor / $scaled_eps_factor_param" | bc -l)
+                
+                # Format gc_param and scaled_eps_factor_param
+                formatted_gc_param=$(format_number "$gc_param")
+                formatted_scaled_eps_factor_param=$(format_number "$scaled_eps_factor_param")
+                
                 # Set element order to 1
                 element_order=1
-                replicate_folder "$mesh_file" "$lam_param" "$mue_param" "$gc_param" "$eps_factor_param" "$element_order"
+                replicate_folder "$mesh_file" "$lam_param" "$mue_param" "$formatted_gc_param" "$formatted_scaled_eps_factor_param" "$element_order"
             done
         done
     done
 done
+
+
+
+
 
 
 
