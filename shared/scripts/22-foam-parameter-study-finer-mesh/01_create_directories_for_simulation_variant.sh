@@ -13,8 +13,8 @@ pore_size_to_eps_min_ratio=2.0
 epsilon_min=epsilon_to_h_min_ratio*h_coarse_mean
 epsilon_max=pore_size_coarse/pore_size_to_eps_min_ratio
 
-inv_epsilon_max=1.0/epsilon_min
-inv_epsilon_min=1.0/epsilon_max
+inv_epsilon_max=1.0/epsilon_min*L
+inv_epsilon_min=1.0/epsilon_max*L
 
 number_of_eps_values_to_compute=4
 
