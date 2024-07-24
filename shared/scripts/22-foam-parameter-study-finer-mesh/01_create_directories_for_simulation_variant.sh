@@ -2,49 +2,46 @@
 
 # global length scale
 L=1.2720814740168862
+
 # Define the h_coarse_mean
 h_coarse_mean=0.024636717648428213
+
 # Define the pore_size_coarse
 pore_size_coarse=0.183
 
+# Constants for calculation
 epsilon_to_h_min_ratio=2.0
 pore_size_to_eps_min_ratio=2.0
 
-epsilon_min=epsilon_to_h_min_ratio*h_coarse_mean
-epsilon_max=pore_size_coarse/pore_size_to_eps_min_ratio
+# Compute epsilon_min and epsilon_max
+epsilon_min=$(echo "$epsilon_to_h_min_ratio * $h_coarse_mean" | bc -l)
+epsilon_max=$(echo "$pore_size_coarse / $pore_size_to_eps_min_ratio" | bc -l)
 
-inv_epsilon_max=1.0/epsilon_min*L
-inv_epsilon_min=1.0/epsilon_max*L
+# Compute inv_epsilon_max and inv_epsilon_min
+inv_epsilon_max=$(echo "1.0 / $epsilon_min * $L" | bc -l)
+inv_epsilon_min=$(echo "1.0 / $epsilon_max * $L" | bc -l)
 
+# Number of EPS values to compute
 number_of_eps_values_to_compute=4
 
-# Compute EPS_FACTOR_PARAMS
-EPS_FACTOR_PARAMS=()
+# Compute step value
 step=$(echo "($inv_epsilon_max - $inv_epsilon_min) / ($number_of_eps_values_to_compute - 1)" | bc -l)
 
+# Function to format floating-point numbers
+format_number() {
+    printf "%.4f" "$1"
+}
+
+# Compute EPS_FACTOR_PARAMS with formatted output
+EPS_FACTOR_PARAMS=()
 for ((i=0; i<number_of_eps_values_to_compute; i++)); do
     value=$(echo "$inv_epsilon_min + $i * $step" | bc -l)
-    EPS_FACTOR_PARAMS+=($value)
+    formatted_value=$(format_number "$value")
+    EPS_FACTOR_PARAMS+=($formatted_value)
 done
 
 # Print EPS_FACTOR_PARAMS for verification
 echo "EPS_FACTOR_PARAMS: ${EPS_FACTOR_PARAMS[@]}"
-
-# Initialize the h_all associative array
-# declare -A h_all
-# h_all=(
-#     ["coarse_pores"]=$h_coarse_mean
-#     ["medium_pores"]=$(echo "$h_coarse_mean / 2.0" | bc -l)
-#     ["fine_pores"]=$(echo "$h_coarse_mean / 4.0" | bc -l)
-# )
-
-# # Initialize the pore_size_all associative array
-# declare -A pore_size_all
-# pore_size_all=(
-#     ["coarse_pores"]=$pore_size_coarse
-#     ["medium_pores"]=$(echo "$pore_size_coarse / 2.0" | bc -l)
-#     ["fine_pores"]=$(echo "$pore_size_coarse / 4.0" | bc -l)
-# )
 
 # Define the possible values for each parameter
 MESH_FILES=("coarse_pores" "medium_pores")
@@ -86,7 +83,7 @@ replicate_folder() {
 
     # Create a unique folder name
     current_time=$(date +%Y%m%d_%H%M%S)
-    folder_name="simulation_${current_time}_${mesh_file}_lam${lam_param}_mue${mue_param}_Gc${gc_param}_eps${eps_factor_param}_order${element_order}"
+    folder_name="simulation_${current_time}_${mesh_file}_lam$(format_number "$lam_param")_mue$(format_number "$mue_param")_Gc$(format_number "$gc_param")_eps$(format_number "$eps_factor_param")_order${element_order}"
 
     # Create the new directory
     mkdir -p "${BASE_WORKING_DIR}/${folder_name}"
@@ -114,13 +111,18 @@ for mesh_file in "${MESH_FILES[@]}"; do
                 # Compute gc_param
                 gc_param=$(echo "$factor / $scaled_eps_factor_param" | bc -l)
                 
+                # Format gc_param and scaled_eps_factor_param
+                formatted_gc_param=$(format_number "$gc_param")
+                formatted_scaled_eps_factor_param=$(format_number "$scaled_eps_factor_param")
+                
                 # Set element order to 1
                 element_order=1
-                replicate_folder "$mesh_file" "$lam_param" "$mue_param" "$gc_param" "$scaled_eps_factor_param" "$element_order"
+                replicate_folder "$mesh_file" "$lam_param" "$mue_param" "$formatted_gc_param" "$formatted_scaled_eps_factor_param" "$element_order"
             done
         done
     done
 done
+
 
 
 
