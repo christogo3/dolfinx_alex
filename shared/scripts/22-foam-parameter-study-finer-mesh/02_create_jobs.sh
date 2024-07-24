@@ -48,7 +48,7 @@ get_memory_processors_and_time() {
         "coarse_pores")
             memory_value=4000
             processor_number=64
-            time="6000"  
+            time="6000"
             ;;
         "medium_pores")
             memory_value=6000
@@ -58,12 +58,12 @@ get_memory_processors_and_time() {
         "fine_pores")
             memory_value=9000
             processor_number=192
-            time="10080"  
+            time="10080"
             ;;
         *)
-            memory_value=6000  
-            processor_number=96  
-            time="10080"  
+            memory_value=6000
+            processor_number=96
+            time="10080"
             ;;
     esac
 
@@ -109,6 +109,9 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         set -- $params  # set positional parameters
         job_name="$1"  # Set job_name to mesh_file
 
+        # Debugging: Print extracted parameters
+        echo "Extracted parameters: $params"
+
         # Get memory, processor, and time settings based on mesh_file
         mem_proc_time=$(get_memory_processors_and_time "$1")
         set -- $mem_proc_time  # set positional parameters for memory, processor, and time settings
@@ -116,10 +119,14 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         processor_number=$2
         time=$3
 
+        # Debugging: Print memory, processor, and time settings
+        echo "Memory: $memory_value, Processors: $processor_number, Time: $time"
+
         # Call generate_job_script with extracted parameters and memory/processor/time settings
         generate_job_script "${folder_name}" "${job_name}" "$1" "$2" "$3" "$4" "$5" "$6" "${memory_value}" "${processor_number}" "${time}"
     fi
 done
+
 
 
 
