@@ -415,6 +415,12 @@ def compute_gc_num(mesh_name, gc, eps_factor, h_all):
     eps = reference_L_global / eps_factor
     return gc * (1.0 + h_value / eps / 4.0)
 
+mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+
 def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
     """
     Plots gc_num vs Gc for a set of keys and saves the plot to disk.
@@ -427,11 +433,11 @@ def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
     """
     plt.figure(figsize=(10, 6))  # Optional: Set the figure size for better readability
 
-    mesh_colors = {
-        "fine_pores": mcolors.to_rgba('darkred'),
-        "medium_pores": mcolors.to_rgba('red'),
-        "coarse_pores": mcolors.to_rgba('lightcoral')
-    }
+    # mesh_colors = {
+    #     "fine_pores": mcolors.to_rgba('darkred'),
+    #     "medium_pores": mcolors.to_rgba('red'),
+    #     "coarse_pores": mcolors.to_rgba('lightcoral')
+    # }
     
     marker_types = {
         (1.0, 1.0): 'o',       # Circle
@@ -487,8 +493,8 @@ def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
     plt.savefig(save_path)
     plt.close()
 
-# available data points
-mesh_all = ["fine_pores","medium_pores", "coarse_pores"]
+# MESH SIZES
+
 h_coarse_mean =  0.024636717648428213 #0.040704583134024946
 h_all = {
     "coarse_pores": h_coarse_mean,
@@ -496,9 +502,18 @@ h_all = {
     "fine_pores": h_coarse_mean/4.0,
 }
 
+# PORE SIZES
+pore_size_coarse =  0.183
+pore_size_all = {
+    "coarse_pores": pore_size_coarse,
+    "medium_pores": pore_size_coarse/2.0,
+    "fine_pores": pore_size_coarse/4.0,
+}
+
 # def gc_num(mesh_name,gc,eps):
 #     return gc * (1.0 + h_all(mesh_name)/eps)
 
+mesh_all = ["fine_pores","medium_pores", "coarse_pores"]
 gc_all = np.array([0.5, 0.75, 1.0, 1.25, 1.5])
 eps_all = np.array([25.0, 33.0, 40.0, 50.0, 100.0])
 lam_all = np.array([1.0, 1.5, 10.0, 15.0])  
@@ -633,28 +648,47 @@ plot_gc_num_vs_gc(results_dict, filtered_keys, h_all, save_path)
 
 # 7. plot ratio eps / h 
 
-
-
-def plot_eps_h_ratio(keys, output_file):
+def plot_eps_h_ratio(keys, h_all, reference_L_global, mesh_colors, output_file, lower_limit_eps_h=0.0, lower_limit_pore_size_eps=0.0):
     ratios = []
     epss = []
+    colors = []
+    outlines = []
+    
     for key in keys:
         params = extract_parameters(key)
-        eps_factor = params[4]
+        eps_factor = float(params[4])
         mesh_type = params[0]
         if eps_factor is not None and mesh_type in h_all:
             h = h_all[mesh_type]
-            eps = reference_L_global/eps_factor
+            eps = reference_L_global / eps_factor
             ratio = eps / h
             ratios.append(ratio)
             epss.append(eps)
+            colors.append(mesh_colors[mesh_type])
+            
+            # Determine if the point meets the criteria
+            pore_size = pore_size_all[mesh_type]
+            ratio_pore_size_eps = pore_size / eps
+            if ratio >= lower_limit_eps_h and ratio_pore_size_eps >= lower_limit_pore_size_eps:
+                outlines.append('green')
+            else:
+                outlines.append('none')
     
     plt.figure(figsize=(10, 6))
-    plt.scatter(epss, ratios, c='b', marker='o')
+    
+    for eps, ratio, color, outline in zip(epss, ratios, colors, outlines):
+        plt.scatter(eps, ratio, c=[color], edgecolors=outline, marker='o', linewidths=1.5)
+    
     plt.xlabel(r'$\epsilon$')
     plt.ylabel(r'$\epsilon/h$')
     plt.title(r'Ratio of $\epsilon/h$ vs $\epsilon$')
+    
+    # Create custom legend
+    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=mesh_colors[mesh], markersize=10, label=mesh) for mesh in mesh_colors]
+    plt.legend(handles=handles, title="Mesh Types")
+    
     plt.grid(True)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
     plt.savefig(output_file)
     plt.close()
     
@@ -663,7 +697,7 @@ target_Gc_values =  np.array([1.0])
 target_eps_values = eps_all 
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
-target_mesh_types = ["medium_pores"]
+target_mesh_types = ["coarse_pores", "medium_pores", "fine_pores"]
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
@@ -672,7 +706,64 @@ filtered_keys = filter_keys(results_dict,
                             target_mesh_types=target_mesh_types)
 
 save_path = os.path.join(directory_path, "eps_h_ratio.png")
-plot_eps_h_ratio(filtered_keys,output_file=save_path)
+plot_eps_h_ratio(filtered_keys, h_all, reference_L_global, mesh_colors, output_file=save_path, lower_limit_eps_h=2.0, lower_limit_pore_size_eps=2.0)
+# plot_eps_h_ratio(filtered_keys,output_file=save_path)
+
+
+# 8. plot ratio pore size vs eps and pore size vs h
+def plot_ratio_pore_size_eps(results_dict, save_path):
+    plt.figure(figsize=(10, 6))
+    
+    for key in results_dict.keys():
+        params = extract_parameters(key)
+        mesh_name = params[0]
+        eps_factor = float(params[4])
+        eps_value = reference_L_global / eps_factor
+        pore_size = pore_size_all[mesh_name]
+        ratio = pore_size / eps_value
+        plt.scatter(eps_value, ratio, color=mesh_colors[mesh_name], label=mesh_name)
+        
+    plt.xlabel('eps')
+    plt.ylabel('pore_size/eps')
+    plt.title('Ratio of Pore Size to Eps for All Mesh Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid(True)
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
+
+def plot_ratio_pore_size_h(results_dict, save_path):
+    plt.figure(figsize=(10, 6))
+    
+    for key in results_dict.keys():
+        params = extract_parameters(key)
+        mesh_name = params[0]
+        h_value = h_all[mesh_name]
+        pore_size = pore_size_all[mesh_name]
+        ratio = pore_size / h_value
+        plt.scatter(h_value, ratio, color=mesh_colors[mesh_name], label=mesh_name)
+        
+    plt.xlabel('h')
+    plt.ylabel('pore_size/h')
+    plt.title('Ratio of Pore Size to h for All Mesh Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid(True)
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
+    
+# Assuming results_dict is already defined and populated
+save_path_ratio_eps = os.path.join(directory_path, "ratio_pore_size_eps.png")
+plot_ratio_pore_size_eps(results_dict, save_path_ratio_eps)
+
+save_path_ratio_h = os.path.join(directory_path, "ratio_pore_size_h.png")
+plot_ratio_pore_size_h(results_dict, save_path_ratio_h)
 
 
 
