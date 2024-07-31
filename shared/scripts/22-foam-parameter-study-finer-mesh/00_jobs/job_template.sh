@@ -19,7 +19,7 @@ working_directory="$HPC_SCRATCH/22-foam-parameter-study-finer-mesh/$working_fold
 cd $HPC_SCRATCH
 
 # Parameters for simulation_script.py (passed as command-line arguments)
-srun -n {PROCESSOR_NUMBER} apptainer exec --bind $HOME/dolfinx_alex/shared:/home --bind "$working_directory:/work" $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/script.py \
+srun -n {PROCESSOR_NUMBER} apptainer exec --bind $HOME/dolfinx_alex/shared:/home --bind "$working_directory:/work" $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/script_combined.py \
     --mesh_file {MESH_FILE} \
     --lam_param {LAM_PARAM} \
     --mue_param {MUE_PARAM} \

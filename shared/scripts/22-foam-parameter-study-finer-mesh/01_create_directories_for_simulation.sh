@@ -22,7 +22,7 @@ inv_epsilon_max=$(echo "1.0 / $epsilon_min * $L" | bc -l)
 inv_epsilon_min=$(echo "1.0 / $epsilon_max * $L" | bc -l)
 
 # Number of EPS values to compute
-number_of_eps_values_to_compute=4
+number_of_eps_values_to_compute=1
 
 # Compute step value
 step=$(echo "($inv_epsilon_max - $inv_epsilon_min) / ($number_of_eps_values_to_compute - 1)" | bc -l)
@@ -44,14 +44,11 @@ done
 echo "EPS_FACTOR_PARAMS: ${EPS_FACTOR_PARAMS[@]}"
 
 # Define the possible values for each parameter
-MESH_FILES=("coarse_pores" "medium_pores")
+MESH_FILES=("coarse_pores")
 LAM_MUE_PAIRS=(
     "1.0 1.0" 
-    "1.5 1.0" 
-    "1.0 1.5"
-    "10.0 10.0" 
 )
-GC_FACTORS=(25.0 50.0)  # Factors to compute Gc
+GC_FACTORS=(25.0)  # Factors to compute Gc
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
