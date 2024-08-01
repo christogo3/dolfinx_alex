@@ -92,12 +92,17 @@ def write_field(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
-                                    comm: MPI.Intercomm) :
+                                    comm: MPI.Intercomm,
+                                    S: dlfx.fem.FunctionSpace = None,
+                                    field_interp: dlfx.fem.Function = None) :
     
     # Se = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=2, quad_scheme="default")
-    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
-    S = dlfx.fem.FunctionSpace(domain, Se)
-    field_interp = dlfx.fem.Function(S)
+    if S is None:
+        Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
+        S = dlfx.fem.FunctionSpace(domain, Se)
+        
+    if field_interp is None:
+        field_interp = dlfx.fem.Function(S)
     
     interpolate_to_vertices_for_output(field, S, field_interp)
     
@@ -164,7 +169,7 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
             xdmf_out.write_function(out_tensor_field,t)
 
 def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str, t: float):
-    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)
+    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1) # TODO not every time step?
     V = dlfx.fem.FunctionSpace(domain, Ve) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(vector_fields_as_functions)):

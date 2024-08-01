@@ -116,7 +116,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              after_timestep_success_hook: Callable = default_hook_all,
                                              after_timestep_restart_hook: Callable = default_hook_all,
                                              comm: MPI.Intercomm = MPI.COMM_WORLD,
-                                             print = False):
+                                             print = False,
+                                             solver : NewtonSolver = None):
     rank = comm.Get_rank()
     
     # time stepping
@@ -135,24 +136,13 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         delta_t.value = dt
 
         before_each_timestep_hook(t,dt)
-            
-        [Res, dResdw] = get_residuum_and_gateaux(delta_t)
         
         bcs = get_bcs(t)
         
+        if solver is None: # done in every time step
+            [Res, dResdw] = get_residuum_and_gateaux(delta_t)
         # define nonlinear problem and solver
-        problem = NonlinearProblem(Res, w, bcs, dResdw)
-        solver = NewtonSolver(comm, problem)
-        solver.report = True
-        solver.max_it = max_iters
-        
-        ksp = solver.krylov_solver
-        opts = PETSc.Options()
-        option_prefix = ksp.getOptionsPrefix()
-        opts[f"{option_prefix}ksp_type"] = "preonly"
-        opts[f"{option_prefix}pc_type"] = "lu"
-        opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
-        ksp.setFromOptions()
+            solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
         
         # control adaptive time adjustment
         restart_solution = False
@@ -192,6 +182,21 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
             t = trestart+dt
             after_timestep_restart_hook(t,dt,iters)
     after_last_timestep_hook()
+
+def get_solver(w, comm, max_iters, Res, dResdw, bcs):
+    problem = NonlinearProblem(Res, w, bcs, dResdw)
+    solver = NewtonSolver(comm, problem)
+    solver.report = True
+    solver.max_it = max_iters
+        
+    ksp = solver.krylov_solver
+    opts = PETSc.Options()
+    option_prefix = ksp.getOptionsPrefix()
+    opts[f"{option_prefix}ksp_type"] = "preonly"
+    opts[f"{option_prefix}pc_type"] = "lu"
+    opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
+    ksp.setFromOptions()
+    return solver
     
     
     

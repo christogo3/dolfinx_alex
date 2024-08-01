@@ -13,12 +13,12 @@ get_memory_processors_and_time() {
     # Define memory, processor, and time settings based on mesh_file (example logic)
     case "$mesh_file" in
         "coarse_pores")
-            memory_value=4000
-            processor_number=64
+            memory_value=6000
+            processor_number=96
             time="6000"
             ;;
         "medium_pores")
-            memory_value=6000
+            memory_value=9000
             processor_number=96
             time="10080"
             ;;

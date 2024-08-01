@@ -58,9 +58,10 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-logfile_path = alex.os.logfile_full_path(alex.os.scratch_directory,script_name_without_extension)
-outputfile_graph_path = alex.os.outputfile_graph_full_path(alex.os.scratch_directory,script_name_without_extension)
-outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(alex.os.scratch_directory,script_name_without_extension)
+working_folder = script_path
+logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
+outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
+outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
 
 
     # set FEniCSX log level
@@ -83,13 +84,11 @@ sys.stdout.flush()
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
-    domain = mesh_inp.read_mesh(name="Grid")
+with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="mesh")
 
 dt = 0.0001
 Tend = 10.0 * dt
-
-
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
@@ -175,7 +174,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
 
 
-# setupt tracking
+# setup tracking
 Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
 S = dlfx.fem.FunctionSpace(domain,Se)
 s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
@@ -185,6 +184,15 @@ s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
 
 xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
+xK1 = dlfx.fem.Constant(domain, xtip)
+
+[Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
+w_D = dlfx.fem.Function(W) # for dirichlet BCs
+bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
+                                                     functionSpace=W,subspace_idx=0,
+                                                     K1=K1,xK1=xK1,lam=lam,mu=mu,
+                                                     epsilon=0.0*epsilon.value,w_D=w_D)
+solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
 
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
@@ -202,9 +210,12 @@ def get_bcs(t):
     xtip[0] = crack_tip_start_location_x + v_crack * t
     xtip[1] = crack_tip_start_location_y
     # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
-    xK1 = dlfx.fem.Constant(domain, xtip)
+    xK1.value = xtip
+    
+    # Only update the displacement field w_D
+    bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
 
-    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
+    # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
     
     # irreversibility
@@ -317,7 +328,8 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
-    print=True
+    print=True,
+    solver=solver
 )
 
 #################### END DOLFINX
