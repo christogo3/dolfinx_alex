@@ -56,9 +56,9 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #                    comm)
 
 #################### START DOLFINX
-script_path = os.path.dirname(__file__)
+# script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = script_path
+working_folder = alex.os.scratch_directory
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
