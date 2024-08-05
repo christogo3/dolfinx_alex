@@ -58,7 +58,7 @@ N = 16
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
 Tend = 0.5
-dt = 0.2
+dt = dlfx.fem.Constant(domain,0.2)
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
