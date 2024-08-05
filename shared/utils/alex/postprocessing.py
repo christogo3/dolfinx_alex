@@ -65,26 +65,23 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     write_vector_field(domain,outputfile_path,u,t,comm)
     
     s.name = "s"
-    write_field(domain,outputfile_path,s,t,comm)  
-    # Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
-    # Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
+    write_field(domain,outputfile_path,s,t,comm)
     
-    # U = dlfx.fem.FunctionSpace(domain, Ue)
-    # S = dlfx.fem.FunctionSpace(domain, Se)
-    # s_interp = dlfx.fem.Function(S)
-    # u_interp = dlfx.fem.Function(U)
+def write_phasefield_mixed_solution_laggrange(domain: dlfx.mesh.Mesh,
+                                    outputfile_path: str,
+                                    w: dlfx.fem.Function,
+                                    t: dlfx.fem.Constant,
+                                    comm: MPI.Intercomm) :
     
-    # s_interp.interpolate(s)
-    # u_interp.interpolate(u)
-    # s_interp.name = 's'
-    # u_interp.name = 'u'
     
-    # # append xdmf-file
-    # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    # xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
-    # xdmfout.write_function(s_interp, t)
-    # xdmfout.close()
-    # return xdmfout
+    # split solution to displacement and crack field
+    u, s, _, _ = w.split() 
+    
+    u.name = "u"
+    write_vector_field(domain,outputfile_path,u,t,comm)
+    
+    s.name = "s"
+    write_field(domain,outputfile_path,s,t,comm)   
     
 
 

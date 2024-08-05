@@ -58,7 +58,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory
+working_folder = script_path #  alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -114,9 +114,12 @@ Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 
-sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
+E_mod = le.get_emod(lam=lam,mu=mu)
+
+# sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
 L = (y_max_all-y_min_all)
-K1 = dlfx.fem.Constant(domain, 1.0 * sig_c * math.sqrt(L))
+epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
+K1 = dlfx.fem.Constant(domain, 2.0 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc.value * E_mod))
 
 
 # define crack by boundary
