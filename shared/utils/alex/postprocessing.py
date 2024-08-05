@@ -65,26 +65,23 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     write_vector_field(domain,outputfile_path,u,t,comm)
     
     s.name = "s"
-    write_field(domain,outputfile_path,s,t,comm)  
-    # Ue = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
-    # Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
+    write_field(domain,outputfile_path,s,t,comm)
     
-    # U = dlfx.fem.FunctionSpace(domain, Ue)
-    # S = dlfx.fem.FunctionSpace(domain, Se)
-    # s_interp = dlfx.fem.Function(S)
-    # u_interp = dlfx.fem.Function(U)
+def write_phasefield_mixed_solution_laggrange(domain: dlfx.mesh.Mesh,
+                                    outputfile_path: str,
+                                    w: dlfx.fem.Function,
+                                    t: dlfx.fem.Constant,
+                                    comm: MPI.Intercomm) :
     
-    # s_interp.interpolate(s)
-    # u_interp.interpolate(u)
-    # s_interp.name = 's'
-    # u_interp.name = 'u'
     
-    # # append xdmf-file
-    # xdmfout = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
-    # xdmfout.write_function(u_interp, t) # collapse reduces to subspace so one can work only in subspace https://fenicsproject.discourse.group/t/meaning-of-collapse/10641/2, only one component?
-    # xdmfout.write_function(s_interp, t)
-    # xdmfout.close()
-    # return xdmfout
+    # split solution to displacement and crack field
+    u, s, _, _ = w.split() 
+    
+    u.name = "u"
+    write_vector_field(domain,outputfile_path,u,t,comm)
+    
+    s.name = "s"
+    write_field(domain,outputfile_path,s,t,comm)   
     
 
 
@@ -92,12 +89,17 @@ def write_field(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
-                                    comm: MPI.Intercomm) :
+                                    comm: MPI.Intercomm,
+                                    S: dlfx.fem.FunctionSpace = None,
+                                    field_interp: dlfx.fem.Function = None) :
     
     # Se = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=2, quad_scheme="default")
-    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
-    S = dlfx.fem.FunctionSpace(domain, Se)
-    field_interp = dlfx.fem.Function(S)
+    if S is None:
+        Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
+        S = dlfx.fem.FunctionSpace(domain, Se)
+        
+    if field_interp is None:
+        field_interp = dlfx.fem.Function(S)
     
     interpolate_to_vertices_for_output(field, S, field_interp)
     
@@ -164,7 +166,7 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
             xdmf_out.write_function(out_tensor_field,t)
 
 def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str, t: float):
-    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)
+    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1) # TODO not every time step?
     V = dlfx.fem.FunctionSpace(domain, Ve) 
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(vector_fields_as_functions)):

@@ -182,7 +182,7 @@ def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.
     return boundary
     
 
-def surfing_boundary_conditions(functionSpace: dlfx.fem.FunctionSpace, K1: dlfx.fem.Constant, xK1: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, subspace_index: int =0) -> dlfx.fem.Function:
+def surfing_boundary_conditions(w_D: dlfx.fem.Function, K1: dlfx.fem.Constant, xK1: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, subspace_index: int =0) -> dlfx.fem.Function:
     def get_polar_coordinates(x):
         delta_x = x[0] - xK1.value[0]
         delta_y = x[1] - xK1.value[1]
@@ -206,22 +206,21 @@ def surfing_boundary_conditions(functionSpace: dlfx.fem.FunctionSpace, K1: dlfx.
         return 0.0 * x[2]
     
     if subspace_index >= 0:      
-        w_D = dlfx.fem.Function(functionSpace)
+        # w_D = dlfx.fem.Function(functionSpace) # TODO do not create a fem.Function in every time step
         w_D.sub(subspace_index).sub(0).interpolate(u_x)
         w_D.sub(subspace_index).x.scatter_forward()
         w_D.sub(subspace_index).sub(1).interpolate(u_y)
         w_D.sub(subspace_index).x.scatter_forward()
-        if functionSpace.mesh.geometry.dim == 3: # only in 3D
+        if w_D.function_space.mesh.geometry.dim == 3: # only in 3D
             w_D.sub(subspace_index).sub(2).interpolate(u_z)
             w_D.sub(subspace_index).x.scatter_forward()
         return w_D 
     else:
-        w_D = dlfx.fem.Function(functionSpace)
         w_D.sub(0).interpolate(u_x)
         w_D.x.scatter_forward()
         w_D.sub(1).interpolate(u_y)
         w_D.x.scatter_forward()
-        if functionSpace.mesh.geometry.dim == 3: # only in 3D
+        if w_D.function_space.mesh.geometry.dim == 3: # only in 3D
             w_D.sub(2).interpolate(u_z)
             w_D.x.scatter_forward()
         return w_D 
@@ -236,8 +235,12 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
                                                                lam: dlfx.fem.Constant,
                                                                mu: dlfx.fem.Constant,
                                                                epsilon: float,
-                                                               atol = None):
-    w_D = surfing_boundary_conditions(functionSpace,K1,xK1,lam,mu,subspace_index=subspace_idx)
+                                                               atol = None,
+                                                               w_D: dlfx.fem.Function = None):
+    
+    if w_D is None:
+        w_D = dlfx.fem.Function(functionSpace)
+    w_D = surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=subspace_idx)
     
     '''
         only if crack extends in x direction and starts at xmin at y = (y_max-y_min)/2

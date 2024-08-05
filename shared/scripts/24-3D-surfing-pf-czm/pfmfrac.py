@@ -57,8 +57,8 @@ N = 16
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-Tend = 0.5
-dt = dlfx.fem.Constant(domain,0.2)
+Tend = 1.0
+dt = 0.2
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
@@ -70,6 +70,7 @@ eta = dlfx.fem.Constant(domain, 0.001)
 # phase field parameters
 Gc = dlfx.fem.Constant(domain, 1.0)
 epsilon = dlfx.fem.Constant(domain, 0.05)
+l_ch = dlfx.fem.Constant(domain, epsilon.value)
 Mob = dlfx.fem.Constant(domain, 1.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
@@ -80,7 +81,7 @@ Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
 # Ve = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
 # Te = basix.ufl.element("Lagrange", domain.basix_cell(), 1, shape=(1,))
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
-W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
+W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te, Te, Te]))
 # W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Te]))
 
 # define crack by boundary
@@ -136,10 +137,10 @@ bcs.append(bccrack)
 
 # define solution, restart, trial and test space
 w =  dlfx.fem.Function(W)
-u,s = w.split()
+u,s,lam_1, lam_2 = w.split()
 wrestart =  dlfx.fem.Function(W)
 wm1 =  dlfx.fem.Function(W) # trial space
-um1, sm1 = ufl.split(wm1)
+um1, sm1, _ , _ = ufl.split(wm1)
 dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
@@ -165,14 +166,13 @@ def before_each_time_step(t,dt):
         sol.print_time_and_dt(t,dt)
 
         
-phaseFieldProblem = pf.StaticPhaseFieldProblem3D(degradationFunction=pf.degrad_quadratic,
-                                                   psisurf=pf.psisurf)
+phaseFieldProblem = pf.StaticPhaseFieldProblem3D_CZM()
 
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = phaseFieldProblem.prep_newton(
         w=w,wm1=wm1,dw=dw,ddw=ddw,lam=lam, mu = mu,
         Gc=Gc,epsilon=epsilon, eta=eta,
-        iMob=iMob, delta_t=delta_t)
+        iMob=iMob, delta_t=delta_t, l_ch=l_ch)
     return [Res, dResdw]
 
 
@@ -224,20 +224,20 @@ dx_in_cylinder, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_aro
 def after_timestep_success(t,dt,iters):
     
     
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution_laggrange(domain,outputfile_xdmf_path, w, t, comm)
     
     # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
              
-    eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
+    # eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
     
-    # divEshelby = ufl.div(eshelby)
-    # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
-    #                         vector_field_names=["Ge"], 
-    #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    # # divEshelby = ufl.div(eshelby)
+    # # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+    # #                         vector_field_names=["Ge"], 
+    # #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
-    J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n, comm=comm)
+    # J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n, comm=comm)
     
     
     # if rank == 0:

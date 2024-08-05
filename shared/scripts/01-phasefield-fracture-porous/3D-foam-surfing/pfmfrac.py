@@ -114,6 +114,8 @@ def before_each_time_step(t,dt):
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem3D(degradationFunction=pf.degrad_quadratic,
                                                    psisurf=pf.psisurf)
+
+
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = phaseFieldProblem.prep_newton(
         w=w,wm1=wm1,dw=dw,ddw=ddw,lam=lam, mu = mu,
@@ -127,14 +129,29 @@ s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
 c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
-    
+
+[Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
+
+w_D = dlfx.fem.Function(W) # for dirichlet BCs
+xtip = np.array([50 , 200],dtype=dlfx.default_scalar_type)
+xK1 = dlfx.fem.Constant(domain, xtip)
+bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
+                                                     functionSpace=W,subspace_idx=0,
+                                                     K1=K1,xK1=xK1,lam=lam,mu=mu,
+                                                     epsilon=0.0*epsilon.value,w_D=w_D)
+
+solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
+
 def get_bcs(t):
     v_crack = 700/Tend
     # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
     xtip = np.array([50 + v_crack * t, 200],dtype=dlfx.default_scalar_type)
     xK1 = dlfx.fem.Constant(domain, xtip)
 
-    bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
+    # Only update the displacement field w_D
+    bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
+    
+    # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value) # fix boundary everywhere? -> epsilon = 0.0
     # bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, W,eps_mac,0)
     
     # irreversibility
@@ -212,6 +229,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
-    print=True
+    print=True,
+    solver=solver
 )
 
