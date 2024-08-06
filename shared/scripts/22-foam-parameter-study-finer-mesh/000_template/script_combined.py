@@ -62,8 +62,6 @@ working_folder = alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
-
-
     # set FEniCSX log level
     # dlfx.log.set_log_level(log.LogLevel.INFO)
     # dlfx.log.set_output_file('xxx.log')
@@ -205,6 +203,41 @@ bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
                                                      K1=K1,xK1=xK1,lam=lam,mu=mu,
                                                      epsilon=0.0*epsilon.value,w_D=w_D)
 solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
+
+from petsc4py import PETSc
+ksp = solver.krylov_solver
+if comm.Get_rank()==0:
+    print("Default KSP Type:", ksp.getType())
+    print("Default PC Type:", ksp.getPC().getType())
+
+# opts = PETSc.Options()
+
+# option_prefix = ksp.getOptionsPrefix()
+# opts[f"{option_prefix}ksp_type"] = "cg" # is direct solver
+# opts[f"{option_prefix}pc_type"] = "jacobi"
+# opts[f"{option_prefix}ksp_rtol"] = 1e-6
+# opts[f"{option_prefix}ksp_atol"] = 1e-10
+# opts[f"{option_prefix}ksp_max_it"] = 1000
+# ksp.setFromOptions()
+
+# option_prefix = ksp.getOptionsPrefix()
+# opts[f"{option_prefix}ksp_type"] = "preonly" # is direct solver
+# opts[f"{option_prefix}pc_type"] = "lu"
+# opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
+# ksp.setFromOptions()
+
+# opts["ksp_type"] = "cg"
+# opts["ksp_rtol"] = 1.0e-8
+# opts["pc_type"] = "gamg"
+
+# # Use Chebyshev smoothing for multigrid
+# opts["mg_levels_ksp_type"] = "chebyshev"
+# opts["mg_levels_pc_type"] = "jacobi"
+
+# # Improve estimate of eigenvalues for Chebyshev smoothing
+# opts["mg_levels_ksp_chebyshev_esteig_steps"] = 10
+# ksp.setFromOptions()
+
 
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
