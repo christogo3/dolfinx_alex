@@ -141,9 +141,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         
         bcs = get_bcs(t)
         
-        if solver is None: # done in every time step
-            [Res, dResdw] = get_residuum_and_gateaux(delta_t)
-        # define nonlinear problem and solver
+        if solver is None:
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
         
         # control adaptive time adjustment

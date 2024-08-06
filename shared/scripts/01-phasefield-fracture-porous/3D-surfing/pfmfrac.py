@@ -57,7 +57,7 @@ N = 16
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-Tend = 0.5
+Tend = 1.0
 dt = dlfx.fem.Constant(domain,0.2)
 
 # elastic constants
@@ -232,10 +232,10 @@ def after_timestep_success(t,dt,iters):
              
     eshelby = phaseFieldProblem.getEshelby(w,eta,lam,mu)
     
-    # divEshelby = ufl.div(eshelby)
-    # pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
-    #                         vector_field_names=["Ge"], 
-    #                         outputfile_xdmf_path=outputfile_xdmf_path,t=t)
+    divEshelby = ufl.div(eshelby)
+    pp.write_vector_fields(domain=domain,comm=comm,vector_fields_as_functions=[divEshelby],
+                            vector_field_names=["Ge"], 
+                            outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
     J3D_glob_x, J3D_glob_y, J3D_glob_z = alex.linearelastic.get_J_3D(eshelby, ds=ds(5), n=n, comm=comm)
     

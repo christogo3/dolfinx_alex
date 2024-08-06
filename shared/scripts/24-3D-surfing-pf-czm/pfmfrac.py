@@ -224,7 +224,7 @@ dx_in_cylinder, cell_tags = pp.ufl_integration_subdomain(domain, in_cylinder_aro
 def after_timestep_success(t,dt,iters):
     
     
-    pp.write_phasefield_mixed_solution_laggrange(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution_lagrange(domain,outputfile_xdmf_path, w, t, comm)
     
     # write to newton-log-file
     if rank == 0:

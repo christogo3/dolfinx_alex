@@ -67,7 +67,7 @@ def write_phasefield_mixed_solution(domain: dlfx.mesh.Mesh,
     s.name = "s"
     write_field(domain,outputfile_path,s,t,comm)
     
-def write_phasefield_mixed_solution_laggrange(domain: dlfx.mesh.Mesh,
+def write_phasefield_mixed_solution_lagrange(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
                                     w: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
@@ -94,7 +94,7 @@ def write_field(domain: dlfx.mesh.Mesh,
                                     field_interp: dlfx.fem.Function = None) :
     
     # Se = ufl.FiniteElement("Quadrature", domain.ufl_cell(), degree=2, quad_scheme="default")
-    if S is None:
+    if S is None and field_interp is None:
         Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)  
         S = dlfx.fem.FunctionSpace(domain, Se)
         
@@ -136,14 +136,23 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
                                     field: dlfx.fem.Function,
                                     t: dlfx.fem.Constant,
-                                    comm: MPI.Intercomm) :
+                                    comm: MPI.Intercomm,
+                                    V: dlfx.fem.FunctionSpace = None,
+                                    field_interp: dlfx.fem.Function = None) :
+    
+    if V is None and field_interp is None:
+        Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)  
+        V = dlfx.fem.FunctionSpace(domain, Ve)
         
-    Se = ufl.VectorElement('CG', domain.ufl_cell(), 1)
-    S = dlfx.fem.FunctionSpace(domain, Se)
+    if field_interp is None:
+        field_interp = dlfx.fem.Function(V)
+        
+    # Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)
+    # V = dlfx.fem.FunctionSpace(domain, Ve)
     
-    field_interp = dlfx.fem.Function(S)
+    # field_interp = dlfx.fem.Function(V)
     
-    interpolate_to_vertices_for_output(field, S, field_interp)
+    interpolate_to_vertices_for_output(field, V, field_interp)
 
     # field_interp.name = field.name
     write_to_output_file(outputfile_path, t, comm, field_interp)

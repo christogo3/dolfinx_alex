@@ -58,7 +58,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = script_path #  alex.os.scratch_directory # or script_path if local
+working_folder = alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -87,8 +87,8 @@ sys.stdout.flush()
 with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="mesh")
 
-dt = 0.0001
-Tend = 10.0 * dt
+dt = dlfx.fem.Constant(domain,0.0001)
+Tend = 10.0 * dt.value
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
@@ -99,7 +99,8 @@ dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
 
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
-pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
+if comm.Get_rank() == 0:
+    pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, args.lam_param)
@@ -117,9 +118,19 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 E_mod = le.get_emod(lam=lam,mu=mu)
 
 # sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
-L = (y_max_all-y_min_all)
+# L = (y_max_all-y_min_all)
+
+# setting K1 so it always breaks
 epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
-K1 = dlfx.fem.Constant(domain, 2.0 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc.value * E_mod))
+h_coarse_mean=0.024636717648428213 # TODO needs to be adapted to actual mesh
+if args.mesh_file == "coarse_pores":
+    hh = h_coarse_mean
+elif args.mesh_file == "medium_pores":
+    hh = h_coarse_mean/2.0
+elif args.mesh_file == "fine_pores": 
+    hh = h_coarse_mean/4.0
+Gc_num = (1.0 + hh / epsilon.value ) * Gc.value
+K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
 
 # define crack by boundary
@@ -128,8 +139,6 @@ crack_tip_start_location_y = (y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=(0.02*((y_max_all-y_min_all))))
-    # x_log = x[0]< 50
-    # y_log = np.isclose(x[1],200,atol=(0.02*(200)))
     return np.logical_and(y_log,x_log)
 
 
@@ -350,7 +359,7 @@ if comm.Get_rank() == 0:
     if not os.path.exists(os.path.join(script_path, folder_name)):
         os.makedirs(os.path.join(script_path, folder_name))
 
-    files_to_move = ["pfmfrac_function.xdmf", "pfmfrac_function.h5", "pfmfrac_function_graphs.txt", "pfmfrac_function_log.txt"]  # Replace with actual files
+    files_to_move = ["script_combined.xdmf", "script_combined.h5", "script_combined_graphs.txt", "script_combined_log.txt"]  # Replace with actual files
 
     for file in files_to_move:
         file_path = os.path.join(script_path, file)

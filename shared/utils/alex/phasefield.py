@@ -124,8 +124,10 @@ def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: d
     wm1.x.scatter_forward()
     # dofmap : dlfx.cpp.common.IndexMap = W.dofmap.index_map
     
-    all_entities = dlfx.mesh.locate_entities(domain,domain.topology.dim-1,all)
-    all_dofs_s_local = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,all_entities)
+    # all_entities = dlfx.mesh.locate_entities(domain,domain.topology.dim-1,all)
+    # all_dofs_s_local = dlfx.fem.locate_dofs_topological(W.sub(1),domain.topology.dim-1,all_entities)
+    all_entities = dlfx.mesh.locate_entities(domain,0,all)
+    all_dofs_s_local = dlfx.fem.locate_dofs_topological(W.sub(1),0,all_entities)
     
     # all_dofs_s_global = np.array(dofmap.local_to_global(all_dofs_s_local),dtype=np.int32)
     
