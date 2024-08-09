@@ -1,0 +1,17 @@
+{
+  "cpu in mhz":"2591",
+  "threads":[
+    {
+      "id":"65078",
+      "regions":[
+        {
+          "computation":{
+            "region_count":"1",
+            "cycles":"8462437750506",
+            "perf::TASK-CLOCK":"3183678858920"
+          }
+        }
+      ]
+    }
+  ]
+}
