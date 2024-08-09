@@ -15,6 +15,7 @@ working_folder_name="n32"  # Change this to your desired folder name
 # Create the working directory under $HPC_SCRATCH
 working_directory="$HPC_SCRATCH/25-antrag-scaling-study/$working_folder_name"
 
+mkdir -p $working_directory
 # Navigate to $HPC_SCRATCH
 cd $HPC_SCRATCH
 
