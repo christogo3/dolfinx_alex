@@ -9,7 +9,7 @@ From: dolfinx/dolfinx:v0.7.3
         && rm -rf /var/lib/apt/lists/*
 
     # Install required Python packages
-    pip install numpy pyfiglet uvw tqdm vtk pyvista
+    pip install numpy pyfiglet uvw tqdm vtk pyvista python_papi
 
     # Set PYTHONPATH to include /home/utils
     echo 'export PYTHONPATH="/home/utils:$PYTHONPATH"' >> $SINGULARITY_ENVIRONMENT

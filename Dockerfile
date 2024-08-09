@@ -28,7 +28,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages
-RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio h5py
+RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio h5py python_papi
 
 # Set PYTHONPATH to include /home/utils
 ENV PYTHONPATH="/home/utils:${PYTHONPATH}"
