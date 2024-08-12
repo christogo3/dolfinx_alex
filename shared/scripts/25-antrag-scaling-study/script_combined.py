@@ -3,6 +3,7 @@ import os
 import shutil
 from datetime import datetime
 from mpi4py import MPI
+import papi.serve
 import pfmfrac_function as sim
 
 import alex.linearelastic
@@ -361,11 +362,17 @@ def after_last_timestep():
         # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
 
+from pypapi import papi_low as papi
+from pypapi.events import PAPI_FP_OPS
 
-from pypapi import papi_high
-os.environ["PAPI_EVENTS"] = "PAPI_TOT_INS,PAPI_TOT_CYC,PAPI_FP_OPS"
-os.environ["PAPI_OUTPUT_DIRECTORY"] = "."
-papi_high.hl_region_begin("computation")
+
+
+papi.library_init()
+evs = papi.create_eventset()
+papi.add_event(evs, PAPI_FP_OPS)
+# papi.add_event(evs, events.PAPI_END)
+
+papi.start(evs)
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
@@ -384,7 +391,11 @@ sol.solve_with_newton_adaptive_time_stepping(
     solver=solver
 )
 
-papi_high.hl_region_end("computation")
+result = papi.stop(evs)
+print(result)
+
+papi.cleanup_eventset(evs)
+papi.destroy_eventset(evs)
 
 
 #################### END DOLFINX

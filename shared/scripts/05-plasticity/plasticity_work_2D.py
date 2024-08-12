@@ -214,7 +214,7 @@ def after_iteration():
     return dGamma_expr
 
 i_arr = np.array([0])
-def after_time_step_success(t, iters, parameter_after_last_iteration):
+def after_time_step_success(t, nnn,iters, parameter_after_last_iteration):
         if rank == 0:
             sol.write_to_newton_logfile(logfile_path,t,1./Nincr,iters)
     
