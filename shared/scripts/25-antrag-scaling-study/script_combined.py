@@ -59,7 +59,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path # alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -361,18 +361,17 @@ def after_last_timestep():
         # results_folder_path = alex.os.create_results_folder(script_path)
         # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
+# report on system
+num_dofs = np.shape(w.x.array[:])[0]
+comm.Barrier()
+num_dofs_all = comm.allreduce(num_dofs, op=MPI.SUM)
+comm.Barrier()
+if rank == 0:
+    print('solving fem problem with', num_dofs_all,'dofs ...')
+    sys.stdout.flush()
 
-from pypapi import papi_low as papi
-from pypapi.events import PAPI_FP_OPS
-
-
-
-papi.library_init()
-evs = papi.create_eventset()
-papi.add_event(evs, PAPI_FP_OPS)
-# papi.add_event(evs, events.PAPI_END)
-
-papi.start(evs)
+from pypapi import papi_high
+papi_high.hl_region_begin("computation")
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
@@ -391,12 +390,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     solver=solver
 )
 
-result = papi.stop(evs)
-print(result)
-
-papi.cleanup_eventset(evs)
-papi.destroy_eventset(evs)
-
+papi_high.hl_region_end("computation")
 
 #################### END DOLFINX
 
