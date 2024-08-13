@@ -4,8 +4,8 @@
 #SBATCH -t 600  # "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 #SBATCH --mem-per-cpu=8000
 #SBATCH -n 1
-#SBATCH -e /home/as12vapa/dolfinx_alex/shared/scripts/25-antrag-scaling-study/%x.err.%j
-#SBATCH -o /home/as12vapa/dolfinx_alex/shared/scripts/25-antrag-scaling-study/%x.out.%j
+#SBATCH -e /home/as12vapa/dolfinx_alex/shared/scripts/26-compile/%x.err.%j
+#SBATCH -o /home/as12vapa/dolfinx_alex/shared/scripts/26-compile/%x.out.%j
 #SBATCH --mail-type=End
 #SBATCH -C i02
 
