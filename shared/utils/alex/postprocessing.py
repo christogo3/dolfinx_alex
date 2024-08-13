@@ -142,7 +142,7 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
     
     if V is None and field_interp is None:
         Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
-        V = dlfx.fem.functionspace(domain, Se)
+        V = dlfx.fem.functionspace(domain, Ve)
         # Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1)  
         # V = dlfx.fem.FunctionSpace(domain, Ve)
         
