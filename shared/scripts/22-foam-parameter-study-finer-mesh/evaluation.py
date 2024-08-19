@@ -160,32 +160,38 @@ for folder_name in os.listdir(directory_path):
         Gc_value = float(outer_match.group("Gc_value"))
         eps_value = float(outer_match.group("eps_value"))
         order_value = int(outer_match.group("order_value"))
-        
+
         # Get the path of the outer folder
         outer_folder_path = os.path.join(directory_path, folder_name)
-        
-        # Check for the data file at the first level
-        data_file_path = os.path.join(outer_folder_path, "pfmfrac_function_graphs.txt")
-        
+
+        # Initialize variables
+        data_file_path = None
         first_level_found = False
-        if not os.path.isfile(data_file_path):
-            # List the contents of the outer folder to find the inner folder
+
+        # Check for any file ending with *_graphs.txt at the first level
+        for item in os.listdir(outer_folder_path):
+            if item.endswith("_graphs.txt") and os.path.isfile(os.path.join(outer_folder_path, item)):
+                data_file_path = os.path.join(outer_folder_path, item)
+                first_level_found = True
+                break
+
+        # If not found at the first level, check within the inner folder
+        if not first_level_found:
             inner_folder_name = None
             for item in os.listdir(outer_folder_path):
                 if item.startswith("simulation_") and os.path.isdir(os.path.join(outer_folder_path, item)):
                     inner_folder_name = item
                     break
-            
+
             if inner_folder_name:
-                # Construct the inner folder path
                 inner_folder_path = os.path.join(outer_folder_path, inner_folder_name)
-                
-                # Path to the data file
-                data_file_path = os.path.join(inner_folder_path, "pfmfrac_function_graphs.txt")
-        else:
-            first_level_found = True
-        
-        if os.path.isfile(data_file_path):
+                for item in os.listdir(inner_folder_path):
+                    if item.endswith("_graphs.txt") and os.path.isfile(os.path.join(inner_folder_path, item)):
+                        data_file_path = os.path.join(inner_folder_path, item)
+                        break
+
+        # If a data file was found, process it
+        if data_file_path and os.path.isfile(data_file_path):
             # Read the data from the file
             data = []
             with open(data_file_path, 'r') as file:
@@ -195,10 +201,12 @@ for folder_name in os.listdir(directory_path):
                         continue
                     # Split the line into columns and convert to float
                     data.append(list(map(float, line.split())))
-            
+
             # Store the data in the dictionary
             key = f"{mesh_name}_lam{lam_value}_mue{mue_value}_Gc{Gc_value}_eps{eps_value}_order{order_value}"
             results_dict[key] = np.array(data)
+
+            # If the file was found at the first level, add the key to first_level_keys
             if first_level_found:
                 first_level_keys.add(key)
             
@@ -276,16 +284,21 @@ def remove_parameter(param_string, param_names):
 
 # 0.
 
-keys = [ "medium_pores_lam1.0_mue1.0_Gc1.0_eps50.0_order2" ]
+keys = [ "medium_pores_lam1.0_mue1.0_Gc0.4842_eps51.6336_order1" ]
 # parameter_names = ['Gc']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"TEST" + ".png")
 plot_results_2yaxis(results_dict, keys, [1,4], save_path,y_labels=["Jx","crack length"],show_legend=False)
 
 # 1. Gc
-keys = ["coarse_pores_lam10.0_mue10.0_Gc0.5_eps50.0_order2", 
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps50.0_order2",
-        "coarse_pores_lam10.0_mue10.0_Gc1.5_eps50.0_order2"]
+keys = ["coarse_pores_lam1.0_mue1.0_Gc0.9684_eps25.8168_order1", 
+        "coarse_pores_lam1.0_mue1.0_Gc1.1444_eps21.8454_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc1.3987_eps17.8739_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc1.7982_eps13.9025_order1", 
+        "coarse_pores_lam1.0_mue1.0_Gc1.9367_eps25.8168_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc2.2888_eps21.8454_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc3.5965_eps13.9025_order1", 
+        "coarse_pores_lam1.0_mue1.0_Gc2.7974_eps17.8739_order1"]
 parameter_names = ['Gc']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
@@ -293,9 +306,9 @@ save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remov
 plot_results(results_dict, keys, column_index, save_path)
 
 # 2. Stiffness
-keys = ["coarse_pores_lam10.0_mue10.0_Gc1.0_eps50.0_order2", 
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps50.0_order2",
-        "coarse_pores_lam15.0_mue10.0_Gc1.0_eps50.0_order2"]
+keys = ["coarse_pores_lam1.0_mue1.0_Gc1.7982_eps13.9025_order1", 
+         "coarse_pores_lam1.5_mue1.0_Gc1.7982_eps13.9025_order1",
+         "coarse_pores_lam1.0_mue1.5_Gc1.7982_eps13.9025_order1"]
 parameter_names = ['lam','mue']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
@@ -304,9 +317,9 @@ plot_results(results_dict, keys, column_index, save_path)
 
 
 # 3. Mesh
-keys = ["coarse_pores_lam1.0_mue1.0_Gc0.5_eps25.0_order2", 
-        "medium_pores_lam1.0_mue1.0_Gc0.5_eps25.0_order2",
-        "fine_pores_lam1.0_mue1.0_Gc0.5_eps25.0_order1"]
+keys = ["coarse_pores_lam1.0_mue1.0_Gc1.7982_eps13.9025_order1", 
+        "medium_pores_lam1.0_mue1.0_Gc1.7982_eps27.805_order1",
+        "fine_pores_lam1.0_mue1.0_Gc0.8991_eps55.61_order1"] 
 parameter_names = ['mesh_name']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
@@ -319,9 +332,10 @@ plot_results(results_dict, keys, column_index=4, save_path=save_path)
 # 4. Epsilon
 # TODO: try to show that maximum energy release rate is the same if results are normalized by effective stress in phase field model
 
-keys = ["coarse_pores_lam10.0_mue10.0_Gc1.0_eps25.0_order2", 
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps50.0_order2",
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps100.0_order2"]
+keys = ["coarse_pores_lam1.0_mue1.0_Gc1.9367_eps25.8168_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc2.2888_eps21.8454_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc3.5965_eps13.9025_order1", 
+        "coarse_pores_lam1.0_mue1.0_Gc2.7974_eps17.8739_order1"]
 parameter_names = ['eps']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
@@ -331,9 +345,10 @@ plot_results(results_dict, keys, column_index, save_path)
 
 # 4a. Epsilon
 # With normalization w.r.t effective stress, SCALE BY NUMERIC Gc
-keys = ["coarse_pores_lam10.0_mue10.0_Gc1.0_eps25.0_order2", 
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps50.0_order2",
-        "coarse_pores_lam10.0_mue10.0_Gc1.0_eps100.0_order2"]
+keys = ["coarse_pores_lam1.0_mue1.0_Gc1.9367_eps25.8168_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc2.2888_eps21.8454_order1",
+        "coarse_pores_lam1.0_mue1.0_Gc3.5965_eps13.9025_order1", 
+        "coarse_pores_lam1.0_mue1.0_Gc2.7974_eps17.8739_order1"]
 
 i = 0
 def get_sig_c(extract_parameters,keys):
@@ -636,7 +651,7 @@ plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_
 
 
 # 2. varying stiffness
-result_test = max_Jx_dict["coarse_pores_lam1.5_mue1.0_Gc1.0_eps50.0_order2"]
+result_test = max_Jx_dict["coarse_pores_lam1.5_mue1.0_Gc2.2888_eps21.8454_order1"]
 
 target_Gc_values = np.array([1.0])  
 target_eps_values = np.array([50.0])  

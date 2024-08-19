@@ -176,8 +176,8 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
             xdmf_out.write_function(out_tensor_field,t)
 
 def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fields_as_functions, vector_field_names, outputfile_xdmf_path: str, t: float):
-    Ve = ufl.VectorElement('CG', domain.ufl_cell(), 1) # TODO not every time step?
-    V = dlfx.fem.FunctionSpace(domain, Ve) 
+    Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
+    V = dlfx.fem.functionspace(domain, Ve)
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(vector_fields_as_functions)):
             vector_field_function = vector_fields_as_functions[n]
@@ -192,8 +192,8 @@ def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fiel
     xdmf_out.close()
             
 def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str, t: float):
-    Se = ufl.FiniteElement('CG', domain.ufl_cell(), 1)
-    S = dlfx.fem.FunctionSpace(domain, Se) 
+    Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())
+    S = dlfx.fem.functionspace(domain, Se)
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(scalar_fields_as_functions)):
             scalar_field_function = scalar_fields_as_functions[n]
@@ -208,14 +208,13 @@ def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fiel
     xdmf_out.close()
     
 def get_extreme_values_of_scalar_field(domain: dlfx.mesh.Mesh, scalar_field_function: any, comm: MPI.Intercomm):
-    Se = ufl.FiniteElement('DG', domain.ufl_cell(), 0)
-    S = dlfx.fem.FunctionSpace(domain, Se)
+    S= dlfx.fem.functionspace(domain, ("DP", 0, ()))
     scalar_field_expression = dlfx.fem.Expression(scalar_field_function, 
                                                         S.element.interpolation_points())
     scalar_field = dlfx.fem.Function(S) 
     scalar_field.interpolate(scalar_field_expression)
     return comm.reduce(np.max(scalar_field.x.array), MPI.MAX), comm.reduce(np.min(scalar_field.x.array), MPI.MIN)
-    scalar_field.x.array
+    # scalar_field.x.array
 
 
 def tag_part_of_boundary(domain: dlfx.mesh.Mesh, where: Callable, tag: int) -> any:

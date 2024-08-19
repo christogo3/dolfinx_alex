@@ -58,7 +58,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path # alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -241,6 +241,9 @@ if comm.Get_rank()==0:
 
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
+    if rank == 0:
+        print(f"Computing BCs for t={t}\n")
+    
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
     # def left(x):
@@ -282,6 +285,8 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
+    
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
