@@ -88,6 +88,8 @@ with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,arg
 dt = dlfx.fem.Constant(domain,0.0001)
 Tend = 10.0 * dt.value
 
+
+
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
 Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), args.element_order) # fracture fields
@@ -286,7 +288,7 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
     
-    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
@@ -352,7 +354,7 @@ def after_last_timestep():
     timer.stop()
 
     # only write final crack pattern
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
 
     # report runtime to screen
     if rank == 0:
