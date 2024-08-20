@@ -126,21 +126,22 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     dt_scale_down = 0.5
     dt_scale_up = 2.0
     
-    t = 0
+    # t = 0
+    t = dlfx.fem.Constant(domain, 0.0)
     trestart = 0
     # delta_t = dlfx.fem.Constant(domain, dt)
     dtt = dt.value 
 
     before_first_timestep_hook()
 
-    while t < Tend:
+    while t.value < Tend:
         dt.value = dtt
 
-        before_each_timestep_hook(t,dtt)
+        before_each_timestep_hook(t.value,dtt)
             
         [Res, dResdw] = get_residuum_and_gateaux(dt)
         
-        bcs = get_bcs(t)
+        bcs = get_bcs(t.value)
         
         if solver is None:
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
@@ -157,7 +158,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
             if rank == 0 and print:
                 print_no_convergence(dtt)
         
-        if converged and iters < min_iters and t > np.finfo(float).eps:
+        if converged and iters < min_iters and t.value > np.finfo(float).eps:
             dtt = dt_scale_up*dtt
             if rank == 0 and print:
                 print_increasing_dt(dtt)
@@ -176,12 +177,12 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
       
 
         if not(restart_solution): # TODO and converged? 
-            after_timestep_success_hook(t,dtt,iters)
-            trestart = t
-            t = t+dtt
+            after_timestep_success_hook(t.value,dtt,iters)
+            trestart = t.value
+            t.value = t+dtt
         else:
-            t = trestart+dtt
-            after_timestep_restart_hook(t,dtt,iters)
+            t.value = trestart+dtt
+            after_timestep_restart_hook(t.value,dtt,iters)
     after_last_timestep_hook()
 
 def get_solver(w, comm, max_iters, Res, dResdw, bcs):
