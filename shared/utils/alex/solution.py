@@ -116,8 +116,9 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              after_timestep_success_hook: Callable = default_hook_all,
                                              after_timestep_restart_hook: Callable = default_hook_all,
                                              comm: MPI.Intercomm = MPI.COMM_WORLD,
-                                             print = False,
-                                             solver : NewtonSolver = None):
+                                             print_bool = False,
+                                             solver : NewtonSolver = None,
+                                             t: dlfx.fem.Constant = None):
     rank = comm.Get_rank()
     
     # time stepping
@@ -127,7 +128,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     dt_scale_up = 2.0
     
     # t = 0
-    t = dlfx.fem.Constant(domain, 0.0)
+    if t is None:
+        t = dlfx.fem.Constant(domain, 0.0)
     trestart = 0
     # delta_t = dlfx.fem.Constant(domain, dt)
     dtt = dt.value 
@@ -144,6 +146,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         bcs = get_bcs(t.value)
         
         if solver is None:
+            if comm.Get_rank() == 0:
+                print_bool(f"No solver provided. Default solver chosen")
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
         
         # control adaptive time adjustment
@@ -155,23 +159,23 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         except RuntimeError:
             dtt = dt_scale_down*dtt
             restart_solution = True
-            if rank == 0 and print:
+            if rank == 0 and print_bool:
                 print_no_convergence(dtt)
         
         if converged and iters < min_iters and t.value > np.finfo(float).eps:
             dtt = dt_scale_up*dtt
-            if rank == 0 and print:
+            if rank == 0 and print_bool:
                 print_increasing_dt(dtt)
         if iters >= max_iters:
             dtt = dt_scale_down*dtt
             restart_solution = True
-            if rank == 0 and print:
+            if rank == 0 and print_bool:
                 print_decreasing_dt(dtt)
                 
         if not converged:
             restart_solution = True
 
-        if rank == 0 and print:    
+        if rank == 0 and print_bool:    
             print_timestep_overview(iters, converged, restart_solution)
             
       

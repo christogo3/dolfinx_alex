@@ -200,7 +200,7 @@ def run_simulation(scal,eps_mac_param, comm: MPI.Intercomm):
         after_timestep_restart_hook=after_timestep_restart,
         after_timestep_success_hook=after_timestep_success,
         comm=comm,
-        print=False
+        print_bool=False
     )
     return comm.allreduce(simulation_result,MPI.MAX)
 

@@ -213,6 +213,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
-    print=True
+    print_bool=True
 )
 

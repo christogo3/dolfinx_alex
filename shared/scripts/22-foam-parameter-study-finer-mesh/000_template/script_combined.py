@@ -86,6 +86,8 @@ with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,arg
     domain = mesh_inp.read_mesh(name="mesh")
 
 dt = dlfx.fem.Constant(domain,0.0001)
+# t = dlfx.fem.Constant(domain,0.0)
+t_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt.value
 
 
@@ -194,16 +196,76 @@ c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
+atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 
-xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
+
+
+
+xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
+v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
+crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
-bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
-                                                     functionSpace=W,subspace_idx=0,
-                                                     K1=K1,xK1=xK1,lam=lam,mu=mu,
-                                                     epsilon=0.0*epsilon.value,w_D=w_D)
+# bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
+#                                                      functionSpace=W,subspace_idx=0,
+#                                                      K1=K1,xK1=xK1,lam=lam,mu=mu,
+#                                                      epsilon=0.0*epsilon.value,w_D=w_D)
+
+# bc 
+top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+fdim = domain.topology.dim-1
+facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
+dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
+
+
+top = bc.get_top_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
+top_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, top)
+top_dofs_y = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+
+
+bcs = [bc_surf]
+
+def compute_surf_displacement():
+    x = ufl.SpatialCoordinate(domain)
+    xxK1 = crack_start + vcrack_const * t_global 
+    dx = x[0] - xxK1[0]
+    dy = x[1] - xxK1[1]
+    
+    nu = le.get_nu(lam=lam.value, mu=mu.value)
+    r = ufl.sqrt(ufl.inner(dx,dx) + ufl.inner(dy,dy))
+    theta = ufl.atan2(dy, dx)
+    
+    u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
+    u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
+    u_z = ufl.as_ufl(0.0)
+    return ufl.as_vector([u_x, u_y, u_z])
+  
+bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
+
+
+# def compute_surf_displacement(x):
+#     xxK1 = crack_start + vcrack_const * t_global 
+#     dx = x[0] - xxK1[0]
+#     dy = x[1] - xxK1[1]
+    
+#     nu = le.get_nu(lam=lam.value, mu=mu.value)
+#     r = np.hypot(dx, dy)
+#     theta = np.arctan2(d, delta_x)
+    
+#     u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
+#     u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
+#     u_z = ufl.as_ufl(0.0)
+#     s_D = ufl.as_ufl(1.0)
+    
+#     return ufl.as_vector([u_x, u_y, u_z])
+  
+# bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
+
+
 solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
 
 from petsc4py import PETSc
@@ -241,12 +303,13 @@ if comm.Get_rank()==0:
 # ksp.setFromOptions()
 
 
-atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
+# atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
     if rank == 0:
         print(f"Computing BCs for t={t}\n")
+    w_D.sub(0).interpolate(bc_expression)
     
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
+    # x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
     # def left(x):
     #     return np.isclose(x[0], x_min_all,atol=0.01)
@@ -255,18 +318,18 @@ def get_bcs(t):
     # leftdofs_x = dlfx.fem.locate_dofs_topological(V.sub(0), fdim, leftfacets)
     # bcleft_x = dlfx.fem.dirichletbc(1.0, leftdofs_x, V.sub(0))
     
-    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
-    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
-    xtip[0] = crack_tip_start_location_x + v_crack * t
-    xtip[1] = crack_tip_start_location_y
-    # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
-    xK1.value = xtip
+    # v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+    # # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    # xtip[0] = crack_tip_start_location_x + v_crack * t
+    # xtip[1] = crack_tip_start_location_y
+    # # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
+    # xK1.value = xtip
     
-    if rank == 0:
-        print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
+    # if rank == 0:
+    #     print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
     
-    # Only update the displacement field w_D
-    bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
+    # # Only update the displacement field w_D
+    # bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
 
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
@@ -383,8 +446,9 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_restart_hook=after_timestep_restart,
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
-    print=True,
-    solver=solver
+    print_bool=True,
+    solver=solver,
+    t=t_global
 )
 
 #################### END DOLFINX

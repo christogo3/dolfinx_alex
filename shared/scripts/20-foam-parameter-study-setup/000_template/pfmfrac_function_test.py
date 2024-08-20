@@ -284,6 +284,6 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
         after_timestep_restart_hook=after_timestep_restart,
         after_timestep_success_hook=after_timestep_success,
         comm=comm,
-        print=True
+        print_bool=True
     )
 

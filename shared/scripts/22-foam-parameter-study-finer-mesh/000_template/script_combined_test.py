@@ -3,7 +3,6 @@ import os
 import shutil
 from datetime import datetime
 from mpi4py import MPI
-# import papi.serve
 import pfmfrac_function as sim
 
 import alex.linearelastic
@@ -31,17 +30,17 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 size = comm.Get_size()
 
-# Define argument parser
-parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
-parser.add_argument("--mesh_file", type=str, required=True, help="Name of the mesh file")
-parser.add_argument("--lam_param", type=float, required=True, help="Lambda parameter")
-parser.add_argument("--mue_param", type=float, required=True, help="Mu parameter")
-parser.add_argument("--Gc_param", type=float, required=True, help="Gc parameter")
-parser.add_argument("--eps_factor_param", type=float, required=True, help="Epsilon factor parameter")
-parser.add_argument("--element_order", type=int, required=True, help="Element order")
+# # Define argument parser
+# parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
+# parser.add_argument("--mesh_file", type=str, required=True, help="Name of the mesh file")
+# parser.add_argument("--lam_param", type=float, required=True, help="Lambda parameter")
+# parser.add_argument("--mue_param", type=float, required=True, help="Mu parameter")
+# parser.add_argument("--Gc_param", type=float, required=True, help="Gc parameter")
+# parser.add_argument("--eps_factor_param", type=float, required=True, help="Epsilon factor parameter")
+# parser.add_argument("--element_order", type=int, required=True, help="Element order")
 
-# Parse arguments
-args = parser.parse_args()
+# # Parse arguments
+# args = parser.parse_args()
 
 # Extract script path and name
 script_path = os.path.dirname(__file__)
@@ -59,7 +58,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path # alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -83,15 +82,18 @@ sys.stdout.flush()
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
+with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,"coarse_pores.xdmf"), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="mesh")
 
 dt = dlfx.fem.Constant(domain,0.0001)
+t_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt.value
 
+
+
 # function space using mesh and degree
-Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), args.element_order) # fracture fields
+Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
+Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), 1) # fracture fields
 W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
 dim = domain.topology.dim
@@ -102,13 +104,13 @@ if comm.Get_rank() == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
 
 # elastic constants
-lam = dlfx.fem.Constant(domain, args.lam_param)
-mu = dlfx.fem.Constant(domain, args.mue_param)
+lam = dlfx.fem.Constant(domain, 1.0)
+mu = dlfx.fem.Constant(domain, 1.0)
 
 # residual stiffness
 eta = dlfx.fem.Constant(domain, 0.001)
-Gc = dlfx.fem.Constant(domain, args.Gc_param)
-epsilon = dlfx.fem.Constant(domain, (y_max_all-y_min_all)/args.eps_factor_param)
+Gc = dlfx.fem.Constant(domain, 1.0)
+epsilon = dlfx.fem.Constant(domain, (y_max_all-y_min_all)/25.0)
 
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
@@ -122,12 +124,7 @@ E_mod = le.get_emod(lam=lam,mu=mu)
 # setting K1 so it always breaks
 epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 h_coarse_mean=0.024636717648428213 # TODO needs to be adapted to actual mesh
-if args.mesh_file == "coarse_pores":
-    hh = h_coarse_mean
-elif args.mesh_file == "medium_pores":
-    hh = h_coarse_mean/2.0
-elif args.mesh_file == "fine_pores": 
-    hh = h_coarse_mean/4.0
+hh = h_coarse_mean
 Gc_num = (1.0 + hh / epsilon.value ) * Gc.value
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
@@ -193,16 +190,77 @@ c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
+atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 
-xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
+
+
+
+xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
+v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
+crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
-bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
-                                                     functionSpace=W,subspace_idx=0,
-                                                     K1=K1,xK1=xK1,lam=lam,mu=mu,
-                                                     epsilon=0.0*epsilon.value,w_D=w_D)
+# bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
+#                                                      functionSpace=W,subspace_idx=0,
+#                                                      K1=K1,xK1=xK1,lam=lam,mu=mu,
+#                                                      epsilon=0.0*epsilon.value,w_D=w_D)
+
+# bc 
+top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+fdim = domain.topology.dim-1
+facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
+dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
+
+
+top = bc.get_top_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
+top_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, top)
+top_dofs_y = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+
+
+bcs = [bc_surf]
+
+def compute_surf_displacement():
+    x = ufl.SpatialCoordinate(domain)
+    xxK1 = crack_start + vcrack_const * t_global 
+    dx = x[0] - xxK1[0]
+    dy = x[1] - xxK1[1]
+    
+    nu = le.get_nu(lam=lam.value, mu=mu.value)
+    r = ufl.sqrt(ufl.inner(dx,dx) + ufl.inner(dy,dy))
+    theta = ufl.atan2(dy, dx)
+    
+    u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
+    u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
+    u_z = ufl.as_ufl(0.0)
+    return ufl.as_vector([u_x, u_y, u_z])
+  
+bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
+
+
+# def compute_surf_displacement(x):
+#     xxK1 = crack_start + vcrack_const * t_global 
+#     dx = x[0] - xxK1[0]
+#     dy = x[1] - xxK1[1]
+    
+#     nu = le.get_nu(lam=lam.value, mu=mu.value)
+#     r = np.hypot(dx, dy)
+#     theta = np.arctan2(d, delta_x)
+    
+#     u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
+#     u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
+#     u_z = ufl.as_ufl(0.0)
+#     s_D = ufl.as_ufl(1.0)
+    
+#     return ufl.as_vector([u_x, u_y, u_z])
+  
+# bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
+
+
+
 solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
 
 from petsc4py import PETSc
@@ -240,8 +298,14 @@ if comm.Get_rank()==0:
 # ksp.setFromOptions()
 
 
-atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
+# atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
+    if rank == 0:
+        print(f"Computing BCs for t={t}\n")
+        
+    
+    # t_global.value = t
+    
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
     # def left(x):
@@ -251,16 +315,21 @@ def get_bcs(t):
     # leftdofs_x = dlfx.fem.locate_dofs_topological(V.sub(0), fdim, leftfacets)
     # bcleft_x = dlfx.fem.dirichletbc(1.0, leftdofs_x, V.sub(0))
     
-    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
-    # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
-    xtip[0] = crack_tip_start_location_x + v_crack * t
-    xtip[1] = crack_tip_start_location_y
-    # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
-    xK1.value = xtip
+    # v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+    # # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
+    # xtip[0] = crack_tip_start_location_x + v_crack * t
+    # xtip[1] = crack_tip_start_location_y
+    # # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
+    # xK1.value = xtip
     
-    # Only update the displacement field w_D
-    bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
+    if rank == 0:
+        print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
+    
+    # # Only update the displacement field w_D
+    # bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
 
+
+    w_D.sub(0).interpolate(bc_expression)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
     
@@ -283,6 +352,8 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
+    
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
@@ -348,7 +419,7 @@ def after_last_timestep():
     timer.stop()
 
     # only write final crack pattern
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
 
     # report runtime to screen
     if rank == 0:
@@ -360,18 +431,6 @@ def after_last_timestep():
         # cleanup only necessary on cluster
         # results_folder_path = alex.os.create_results_folder(script_path)
         # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
-
-# report on system
-num_dofs = np.shape(w.x.array[:])[0]
-comm.Barrier()
-num_dofs_all = comm.allreduce(num_dofs, op=MPI.SUM)
-comm.Barrier()
-if rank == 0:
-    print('solving fem problem with', num_dofs_all,'dofs ...')
-    sys.stdout.flush()
-
-from pypapi import papi_high
-papi_high.hl_region_begin("computation")
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
@@ -387,31 +446,30 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
-    solver=solver
+    solver=solver,
+    t=t_global
 )
-
-papi_high.hl_region_end("computation")
 
 #################### END DOLFINX
 
 
 # Put files in folders
-current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-# Create a folder name based on the parameters, current time, and mesh file name
-folder_name = (f"simulation_{current_time}_"
-               f"{args.mesh_file}_"
-               f"lam{args.lam_param}_mue{args.mue_param}_Gc{args.Gc_param}_eps{args.eps_factor_param}_order{args.element_order}")
-comm.barrier()
-if comm.Get_rank() == 0:
-    # Create the directory if it doesn't exist
-    if not os.path.exists(os.path.join(script_path, folder_name)):
-        os.makedirs(os.path.join(script_path, folder_name))
+# current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+# # Create a folder name based on the parameters, current time, and mesh file name
+# folder_name = (f"simulation_{current_time}_"
+#                f"{args.mesh_file}_"
+#                f"lam{args.lam_param}_mue{args.mue_param}_Gc{args.Gc_param}_eps{args.eps_factor_param}_order{args.element_order}")
+# comm.barrier()
+# if comm.Get_rank() == 0:
+#     # Create the directory if it doesn't exist
+#     if not os.path.exists(os.path.join(script_path, folder_name)):
+#         os.makedirs(os.path.join(script_path, folder_name))
 
-    files_to_move = ["script_combined.xdmf", "script_combined.h5", "script_combined_graphs.txt", "script_combined_log.txt"]  # Replace with actual files
+#     files_to_move = ["script_combined.xdmf", "script_combined.h5", "script_combined_graphs.txt", "script_combined_log.txt"]  # Replace with actual files
 
-    for file in files_to_move:
-        file_path = os.path.join(script_path, file)
-        if os.path.exists(file_path):
-            shutil.move(file_path, os.path.join(script_path, folder_name, os.path.basename(file)))
-        else:
-            print(f"File {file_path} does not exist and cannot be moved.")
+#     for file in files_to_move:
+#         file_path = os.path.join(script_path, file)
+#         if os.path.exists(file_path):
+#             shutil.move(file_path, os.path.join(script_path, folder_name, os.path.basename(file)))
+#         else:
+#             print(f"File {file_path} does not exist and cannot be moved.")

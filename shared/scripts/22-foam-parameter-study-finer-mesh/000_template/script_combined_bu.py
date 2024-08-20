@@ -3,7 +3,6 @@ import os
 import shutil
 from datetime import datetime
 from mpi4py import MPI
-# import papi.serve
 import pfmfrac_function as sim
 
 import alex.linearelastic
@@ -59,7 +58,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path # alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -87,7 +86,10 @@ with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,arg
     domain = mesh_inp.read_mesh(name="mesh")
 
 dt = dlfx.fem.Constant(domain,0.0001)
+t = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt.value
+
+
 
 # function space using mesh and degree
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
@@ -193,6 +195,12 @@ c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
+atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
+
+# bc 
+top_bottom = bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol)
+fdim = domain.topology.dim-1
+facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
 
 xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
@@ -240,8 +248,11 @@ if comm.Get_rank()==0:
 # ksp.setFromOptions()
 
 
-atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
+# atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
+    if rank == 0:
+        print(f"Computing BCs for t={t}\n")
+    
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
     # def left(x):
@@ -257,6 +268,9 @@ def get_bcs(t):
     xtip[1] = crack_tip_start_location_y
     # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
     xK1.value = xtip
+    
+    if rank == 0:
+        print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
     
     # Only update the displacement field w_D
     bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
@@ -283,6 +297,8 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
+    
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
@@ -348,7 +364,7 @@ def after_last_timestep():
     timer.stop()
 
     # only write final crack pattern
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
 
     # report runtime to screen
     if rank == 0:
@@ -360,18 +376,6 @@ def after_last_timestep():
         # cleanup only necessary on cluster
         # results_folder_path = alex.os.create_results_folder(script_path)
         # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
-
-# report on system
-num_dofs = np.shape(w.x.array[:])[0]
-comm.Barrier()
-num_dofs_all = comm.allreduce(num_dofs, op=MPI.SUM)
-comm.Barrier()
-if rank == 0:
-    print('solving fem problem with', num_dofs_all,'dofs ...')
-    sys.stdout.flush()
-
-from pypapi import papi_high
-papi_high.hl_region_begin("computation")
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
@@ -389,8 +393,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     print_bool=True,
     solver=solver
 )
-
-papi_high.hl_region_end("computation")
 
 #################### END DOLFINX
 
