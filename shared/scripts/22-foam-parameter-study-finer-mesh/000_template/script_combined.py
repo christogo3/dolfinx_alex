@@ -262,6 +262,9 @@ def get_bcs(t):
     # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
     xK1.value = xtip
     
+    if rank == 0:
+        print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
+    
     # Only update the displacement field w_D
     bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
 

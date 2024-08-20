@@ -129,13 +129,14 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     t = 0
     trestart = 0
     # delta_t = dlfx.fem.Constant(domain, dt)
+    dtt = dt.value 
 
     before_first_timestep_hook()
 
     while t < Tend:
-        # delta_t.value = dt
+        dt.value = dtt
 
-        before_each_timestep_hook(t,dt.value)
+        before_each_timestep_hook(t,dtt)
             
         [Res, dResdw] = get_residuum_and_gateaux(dt)
         
@@ -151,20 +152,20 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         try:
             (iters, converged) = solver.solve(w)
         except RuntimeError:
-            dt.value = dt_scale_down*dt.value
+            dtt = dt_scale_down*dtt
             restart_solution = True
             if rank == 0 and print:
-                print_no_convergence(dt.value)
+                print_no_convergence(dtt)
         
         if converged and iters < min_iters and t > np.finfo(float).eps:
-            dt.value = dt_scale_up*dt.value
+            dtt = dt_scale_up*dtt
             if rank == 0 and print:
-                print_increasing_dt(dt.value)
+                print_increasing_dt(dtt)
         if iters >= max_iters:
-            dt.value = dt_scale_down*dt.value
+            dtt = dt_scale_down*dtt
             restart_solution = True
             if rank == 0 and print:
-                print_decreasing_dt(dt.value)
+                print_decreasing_dt(dtt)
                 
         if not converged:
             restart_solution = True
@@ -175,12 +176,12 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
       
 
         if not(restart_solution): # TODO and converged? 
-            after_timestep_success_hook(t,dt.value,iters)
+            after_timestep_success_hook(t,dtt,iters)
             trestart = t
-            t = t+dt.value
+            t = t+dtt
         else:
-            t = trestart+dt.value
-            after_timestep_restart_hook(t,dt.value,iters)
+            t = trestart+dtt
+            after_timestep_restart_hook(t,dtt,iters)
     after_last_timestep_hook()
 
 def get_solver(w, comm, max_iters, Res, dResdw, bcs):

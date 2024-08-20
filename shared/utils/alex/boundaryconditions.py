@@ -58,7 +58,7 @@ def define_dirichlet_bc_from_interpolated_function(domain: dlfx.mesh.Mesh,
         dofs_at_boundary = dlfx.fem.locate_dofs_topological(functionSpace, fdim, facets_at_boundary)
     else:
         dofs_at_boundary = dlfx.fem.locate_dofs_topological(functionSpace.sub(subspace_idx), fdim, facets_at_boundary)
-    bc = dlfx.fem.dirichletbc(desired_value_at_boundary_function,dofs_at_boundary)
+    bc : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(desired_value_at_boundary_function,dofs_at_boundary)
     return bc
 
 def define_dirichlet_bc_from_value(domain: dlfx.mesh.Mesh,
