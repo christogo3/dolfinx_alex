@@ -179,7 +179,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         if not(restart_solution): # TODO and converged? 
             after_timestep_success_hook(t.value,dtt,iters)
             trestart = t.value
-            t.value = t+dtt
+            t.value = t.value+dtt
         else:
             t.value = trestart+dtt
             after_timestep_restart_hook(t.value,dtt,iters)
