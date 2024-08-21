@@ -93,6 +93,8 @@ sys.stdout.flush()
 with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,"coarse_pores.xdmf"), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="mesh")
 
+cell = domain.basix_cell()
+
 dt = dlfx.fem.Constant(domain,0.0001)
 t_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt.value

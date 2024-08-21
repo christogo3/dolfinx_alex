@@ -27,7 +27,7 @@ size = comm.Get_size()
 if size != 1: # cannot run in parallel
      quit()
 
-input_file_path = os.path.join(script_path,"fine/fine_pores.xdmf")
+input_file_path = os.path.join(script_path,"coarse/coarse_pores.xdmf")
 outputfile_xdmf_path = input_file_path
 data = meshio.read(input_file_path)
 points = data.points
@@ -65,9 +65,12 @@ max_points = len(points)
 # false_at = np.where(contained==False)
     
 
+import basix
 # setup dolfinx mesh
-cell = ufl.Cell('tetrahedron', 3) # 3D
-element = ufl.VectorElement('Lagrange', cell, 1)
+# cell = ufl.Cell('tetrahedron', 3) # 3D
+# element = ufl.VectorElement('Lagrange', cell, 1)
+
+element = basix.ufl.element("Lagrange", basix._basixcpp.CellType.tetrahedron, 1, shape=(3,))
 mesh = ufl.Mesh(element)
 domain = dlfx.mesh.create_mesh(comm, cells, points, mesh)
 
