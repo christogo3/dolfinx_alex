@@ -327,9 +327,20 @@ def get_bcs(t):
     
     # # Only update the displacement field w_D
     # bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
-
+    
+    w_D_old = np.full_like(w_D.x.array[:],0.0)
+    w_D_old[:] = w_D.x.array[:]
+    
+    if rank == 0:
+        print(f"BC arrays are equal before: {np.array_equal(w_D_old,w_D.x.array[:])}")
 
     w_D.sub(0).interpolate(bc_expression)
+    w_D.x.scatter_forward()
+    
+    if rank == 0:
+        print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
+    
+    
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
     
@@ -412,6 +423,7 @@ def after_timestep_success(t,dt,iters):
     
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
+    w.x.scatter_forward()
     
     
 def after_last_timestep():

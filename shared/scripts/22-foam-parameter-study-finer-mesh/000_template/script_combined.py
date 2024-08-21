@@ -307,7 +307,18 @@ if comm.Get_rank()==0:
 def get_bcs(t):
     if rank == 0:
         print(f"Computing BCs for t={t}\n")
+    
+    w_D_old = np.full_like(w_D.x.array[:],0.0)
+    w_D_old[:] = w_D.x.array[:]
+    
+    if rank == 0:
+        print(f"BC arrays are equal before: {np.array_equal(w_D_old,w_D.x.array[:])}")
+
     w_D.sub(0).interpolate(bc_expression)
+    w_D.x.scatter_forward()
+    
+    if rank == 0:
+        print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
     
     # x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
@@ -320,8 +331,8 @@ def get_bcs(t):
     
     # v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
     # # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
-    # xtip[0] = crack_tip_start_location_x + v_crack * t
-    # xtip[1] = crack_tip_start_location_y
+    xtip[0] = crack_tip_start_location_x + v_crack * t
+    xtip[1] = crack_tip_start_location_y
     # # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
     # xK1.value = xtip
     
@@ -413,6 +424,7 @@ def after_timestep_success(t,dt,iters):
     
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
+    w.x.scatter_forward()
     
     
 def after_last_timestep():

@@ -103,7 +103,9 @@ def default_hook_t(t):
 
 def default_hook_all(t,dt,iters):
     return
-    
+
+
+
 def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              w: dlfx.fem.Function, 
                                              Tend: float,
@@ -130,16 +132,18 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     # t = 0
     if t is None:
         t = dlfx.fem.Constant(domain, 0.0)
-    trestart = 0
+    trestart = dlfx.fem.Constant(domain, 0.0)
     # delta_t = dlfx.fem.Constant(domain, dt)
-    dtt = dt.value 
+    # dtt = dt.value 
 
     before_first_timestep_hook()
 
+    # nn = 0
+    
     while t.value < Tend:
-        dt.value = dtt
+        # dt.value = dtt
 
-        before_each_timestep_hook(t.value,dtt)
+        before_each_timestep_hook(t.value,dt.value)
             
         [Res, dResdw] = get_residuum_and_gateaux(dt)
         
@@ -151,43 +155,133 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
         
         # control adaptive time adjustment
-        restart_solution = False
+        # restart_solution = False
         converged = False
-        iters = max_iters + 1 # iters always needs to be defined
+        iters = 0 # iters always needs to be defined
         try:
             (iters, converged) = solver.solve(w)
         except RuntimeError:
-            dtt = dt_scale_down*dtt
-            restart_solution = True
+            dt.value = dt_scale_down*dt.value
+            # restart_solution = True
             if rank == 0 and print_bool:
-                print_no_convergence(dtt)
+                print_no_convergence(dt.value)
+                
         
         if converged and iters < min_iters and t.value > np.finfo(float).eps:
-            dtt = dt_scale_up*dtt
+            dt.value = dt_scale_up*dt.value
             if rank == 0 and print_bool:
-                print_increasing_dt(dtt)
-        if iters >= max_iters:
-            dtt = dt_scale_down*dtt
-            restart_solution = True
-            if rank == 0 and print_bool:
-                print_decreasing_dt(dtt)
-                
-        if not converged:
-            restart_solution = True
-
-        if rank == 0 and print_bool:    
-            print_timestep_overview(iters, converged, restart_solution)
-            
-      
-
-        if not(restart_solution): # TODO and converged? 
-            after_timestep_success_hook(t.value,dtt,iters)
-            trestart = t.value
-            t.value = t.value+dtt
+                print_increasing_dt(dt.value)
+        
+        restart_solution = False
+        if converged:
+            after_timestep_success_hook(t.value,dt.value,iters)
+            trestart.value = t.value
+            t.value = t.value+dt.value
         else:
-            t.value = trestart+dtt
-            after_timestep_restart_hook(t.value,dtt,iters)
+            restart_solution = True
+            after_timestep_restart_hook(t.value,dt.value,iters)
+            t.value = trestart.value+dt.value
+        if rank == 0 and print_bool:    
+            print('-----------------------------')
+            print(' No. of iterations: ', iters)
+            print(' Converged:         ', converged)
+            print(' Restarting:        ', restart_solution)
+            print('-----------------------------')
+            sys.stdout.flush()  
     after_last_timestep_hook()
+
+# def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
+#                                              w: dlfx.fem.Function, 
+#                                              Tend: float,
+#                                              dt: dlfx.fem.Constant,
+#                                              before_first_timestep_hook: Callable = default_hook,
+#                                              after_last_timestep_hook: Callable = default_hook,
+#                                              before_each_timestep_hook: Callable = default_hook_tdt, 
+#                                              get_residuum_and_gateaux: Callable = default_hook_dt,
+#                                              get_bcs: Callable = default_hook_t,
+#                                              after_timestep_success_hook: Callable = default_hook_all,
+#                                              after_timestep_restart_hook: Callable = default_hook_all,
+#                                              comm: MPI.Intercomm = MPI.COMM_WORLD,
+#                                              print_bool = False,
+#                                              solver : NewtonSolver = None,
+#                                              t: dlfx.fem.Constant = None):
+#     rank = comm.Get_rank()
+    
+#     # time stepping
+#     max_iters = 8
+#     min_iters = 4
+#     dt_scale_down = 0.5
+#     dt_scale_up = 2.0
+    
+#     # t = 0
+#     if t is None:
+#         t = dlfx.fem.Constant(domain, 0.0)
+#     trestart = dlfx.fem.Constant(domain, 0.0)
+#     # delta_t = dlfx.fem.Constant(domain, dt)
+#     dtt = dt.value 
+
+#     before_first_timestep_hook()
+
+#     # nn = 0
+    
+#     while t.value < Tend:
+#         dt.value = dtt
+
+#         before_each_timestep_hook(t.value,dtt)
+            
+#         [Res, dResdw] = get_residuum_and_gateaux(dt)
+        
+#         bcs = get_bcs(t.value)
+        
+#         if solver is None:
+#             if comm.Get_rank() == 0:
+#                 print_bool(f"No solver provided. Default solver chosen")
+#             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
+        
+#         # control adaptive time adjustment
+#         restart_solution = False
+#         converged = False
+#         iters = max_iters + 1 # iters always needs to be defined
+#         try:
+#             (iters, converged) = solver.solve(w)
+#             # if nn < 3:
+#             #     iters = 9
+#             #     converged = False
+#             #     nn = nn +1
+#             #     raise RuntimeError()
+#             # else:
+#             #     a = 1
+#         except RuntimeError:
+#             dtt = dt_scale_down*dtt
+#             restart_solution = True
+#             if rank == 0 and print_bool:
+#                 print_no_convergence(dtt)
+        
+#         if converged and iters < min_iters and t.value > np.finfo(float).eps:
+#             dtt = dt_scale_up*dtt
+#             if rank == 0 and print_bool:
+#                 print_increasing_dt(dtt)
+                
+#         if iters > max_iters:
+#             dtt = dt_scale_down*dtt
+#             restart_solution = True
+#             if rank == 0 and print_bool:
+#                 print_decreasing_dt(dtt)
+                
+#         if not converged:
+#             restart_solution = True
+
+#         if rank == 0 and print_bool:    
+#             print_timestep_overview(iters, converged, restart_solution)
+            
+#         if not(restart_solution): 
+#             after_timestep_success_hook(t.value,dtt,iters)
+#             trestart.value = t.value
+#             t.value = t.value+dtt
+#         else:
+#             after_timestep_restart_hook(t.value,dtt,iters)
+#             t.value = trestart.value+dtt    
+#     after_last_timestep_hook()
 
 def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     problem = NonlinearProblem(Res, w, bcs, dResdw)
