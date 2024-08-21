@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: dolfinx/dolfinx:v0.7.3
+From: dolfinx/dolfinx:v0.9.0
 
 %post
     # Install necessary system packages
