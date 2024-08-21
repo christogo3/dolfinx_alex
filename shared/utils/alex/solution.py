@@ -151,7 +151,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         
         if solver is None:
             if comm.Get_rank() == 0:
-                print_bool(f"No solver provided. Default solver chosen")
+                print_bool(f"NO SOLVER PROVIDED. Default solver chosen")
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
         
         # control adaptive time adjustment
@@ -167,13 +167,13 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                 print_no_convergence(dt.value)
                 
         
-        if converged and iters < min_iters and t.value > np.finfo(float).eps:
+        if converged and iters < min_iters and t.value > np.finfo(float).eps and iters > 0:
             dt.value = dt_scale_up*dt.value
             if rank == 0 and print_bool:
                 print_increasing_dt(dt.value)
         
         restart_solution = False
-        if converged:
+        if converged and iters > 0:
             after_timestep_success_hook(t.value,dt.value,iters)
             trestart.value = t.value
             t.value = t.value+dt.value
@@ -182,12 +182,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
             after_timestep_restart_hook(t.value,dt.value,iters)
             t.value = trestart.value+dt.value
         if rank == 0 and print_bool:    
-            print('-----------------------------')
-            print(' No. of iterations: ', iters)
-            print(' Converged:         ', converged)
-            print(' Restarting:        ', restart_solution)
-            print('-----------------------------')
-            sys.stdout.flush()  
+            print_timestep_overview(iters,converged,restart_solution) 
     after_last_timestep_hook()
 
 # def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
