@@ -104,7 +104,94 @@ def default_hook_t(t):
 def default_hook_all(t,dt,iters):
     return
 
-# import gc 
+def solve_with_newton_adaptive_time_stepping_old(domain: dlfx.mesh.Mesh,
+                                             w: dlfx.fem.Function, 
+                                             Tend: float,
+                                             dt: float,
+                                             before_first_timestep_hook: Callable = default_hook,
+                                             after_last_timestep_hook: Callable = default_hook,
+                                             before_each_timestep_hook: Callable = default_hook_tdt, 
+                                             get_residuum_and_gateaux: Callable = default_hook_dt,
+                                             get_bcs: Callable = default_hook_t,
+                                             after_timestep_success_hook: Callable = default_hook_all,
+                                             after_timestep_restart_hook: Callable = default_hook_all,
+                                             comm: MPI.Intercomm = MPI.COMM_WORLD,
+                                             print = False):
+    rank = comm.Get_rank()
+    
+    # time stepping
+    max_iters = 8
+    min_iters = 4
+    dt_scale_down = 0.5
+    dt_scale_up = 2.0
+    
+    t = 0
+    trestart = 0
+    delta_t = dlfx.fem.Constant(domain, dt)
+
+    before_first_timestep_hook()
+
+    while t < Tend:
+        delta_t.value = dt
+
+        before_each_timestep_hook(t,dt)
+            
+        [Res, dResdw] = get_residuum_and_gateaux(delta_t)
+        
+        bcs = get_bcs(t)
+        
+        # define nonlinear problem and solver
+        problem = NonlinearProblem(Res, w, bcs, dResdw)
+        solver = NewtonSolver(comm, problem)
+        solver.report = True
+        solver.max_it = max_iters
+        
+        ksp = solver.krylov_solver
+        opts = PETSc.Options()
+        option_prefix = ksp.getOptionsPrefix()
+        opts[f"{option_prefix}ksp_type"] = "preonly"
+        opts[f"{option_prefix}pc_type"] = "lu"
+        opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
+        ksp.setFromOptions()
+        
+        # control adaptive time adjustment
+        restart_solution = False
+        converged = False
+        iters = max_iters + 1 # iters always needs to be defined
+        try:
+            (iters, converged) = solver.solve(w)
+        except RuntimeError:
+            dt = dt_scale_down*dt
+            restart_solution = True
+            if rank == 0 and print:
+                print_no_convergence(dt)
+        
+        if converged and iters < min_iters and t > np.finfo(float).eps:
+            dt = dt_scale_up*dt
+            if rank == 0 and print:
+                print_increasing_dt(dt)
+        if iters >= max_iters:
+            dt = dt_scale_down*dt
+            restart_solution = True
+            if rank == 0 and print:
+                print_decreasing_dt(dt)
+                
+        if not converged:
+            restart_solution = True
+
+        if rank == 0 and print:    
+            print_timestep_overview(iters, converged, restart_solution)
+            
+      
+
+        if not(restart_solution): # TODO and converged? 
+            after_timestep_success_hook(t,dt,iters)
+            trestart = t
+            t = t+dt
+        else:
+            t = trestart+dt
+            after_timestep_restart_hook(t,dt,iters)
+    after_last_timestep_hook()
 
 def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              w: dlfx.fem.Function, 

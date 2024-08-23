@@ -1,7 +1,7 @@
 # Use the dolfinx/dolfinx:stable image as base
 # FROM dolfinx/dolfinx:stable
 # FROM dolfinx/dolfinx:v0.7.3
-FROM dolfinx/dolfinx:v0.8.0
+FROM dolfinx/dolfinx:v0.7.3
 #FROM dolfiny/dolfiny
 
 RUN apt clean

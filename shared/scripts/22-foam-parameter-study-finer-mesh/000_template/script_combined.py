@@ -82,16 +82,10 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
-
-# generate domain
-#domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
-# domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
-
 with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="mesh")
 
 dt = dlfx.fem.Constant(domain,0.0001)
-# t = dlfx.fem.Constant(domain,0.0)
 t_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt.value
 
@@ -126,9 +120,6 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 
 E_mod = le.get_emod(lam=lam,mu=mu)
-
-# sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
-# L = (y_max_all-y_min_all)
 
 # setting K1 so it always breaks
 epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
@@ -199,7 +190,6 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
 
 
 # setup tracking
-# Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
 S = dlfx.fem.functionspace(domain,Se)
 s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
 c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
@@ -219,17 +209,12 @@ crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,cra
 
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
-# bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,
-#                                                      functionSpace=W,subspace_idx=0,
-#                                                      K1=K1,xK1=xK1,lam=lam,mu=mu,
-#                                                      epsilon=0.0*epsilon.value,w_D=w_D)
 
 # bc 
-top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
-fdim = domain.topology.dim-1
-facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
-dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
-bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
+# top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+# facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
+# dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+# bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
 
 
 front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
@@ -256,67 +241,22 @@ def compute_surf_displacement():
   
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
 
-
-# def compute_surf_displacement(x):
-#     xxK1 = crack_start + vcrack_const * t_global 
-#     dx = x[0] - xxK1[0]
-#     dy = x[1] - xxK1[1]
-    
-#     nu = le.get_nu(lam=lam.value, mu=mu.value)
-#     r = np.hypot(dx, dy)
-#     theta = np.arctan2(d, delta_x)
-    
-#     u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
-#     u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
-#     u_z = ufl.as_ufl(0.0)
-#     s_D = ufl.as_ufl(1.0)
-    
-#     return ufl.as_vector([u_x, u_y, u_z])
-  
-# bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
-
+# bcs = [bc_surf, bc_front_back]
 
 # solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
 
-# from petsc4py import PETSc
-# ksp = solver.krylov_solver
-# if comm.Get_rank()==0:
-#     print("Default KSP Type:", ksp.getType())
-#     print("Default PC Type:", ksp.getPC().getType())
+top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
+dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
 
-# opts = PETSc.Options()
-
-# option_prefix = ksp.getOptionsPrefix()
-# opts[f"{option_prefix}ksp_type"] = "cg" # is direct solver
-# opts[f"{option_prefix}pc_type"] = "jacobi"
-# opts[f"{option_prefix}ksp_rtol"] = 1e-6
-# opts[f"{option_prefix}ksp_atol"] = 1e-10
-# opts[f"{option_prefix}ksp_max_it"] = 1000
-# ksp.setFromOptions()
-
-# option_prefix = ksp.getOptionsPrefix()
-# opts[f"{option_prefix}ksp_type"] = "preonly" # is direct solver
-# opts[f"{option_prefix}pc_type"] = "lu"
-# opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
-# ksp.setFromOptions()
-
-# opts["ksp_type"] = "cg"
-# opts["ksp_rtol"] = 1.0e-8
-# opts["pc_type"] = "gamg"
-
-# # Use Chebyshev smoothing for multigrid
-# opts["mg_levels_ksp_type"] = "chebyshev"
-# opts["mg_levels_pc_type"] = "jacobi"
-
-# # Improve estimate of eigenvalues for Chebyshev smoothing
-# opts["mg_levels_ksp_chebyshev_esteig_steps"] = 10
-# ksp.setFromOptions()
-
-
-# atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
-    bcs = [bc_surf, bc_front_back]
+    bcs = []
+    # t_global.value = t
     
+    
+
+    
+        
     
     if rank == 0:
         print(f"Computing BCs for t={t}\n")
@@ -332,6 +272,8 @@ def get_bcs(t):
     
     if rank == 0:
         print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
+        
+    bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
     
     # x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
     
@@ -358,10 +300,13 @@ def get_bcs(t):
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
     # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
     
+    
     # irreversibility
     if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step
         bcs.append(pf.irreversibility_bc(domain,W,wm1))
     bcs.append(bccrack)
+    bcs.append(bc_surf)
+    bcs.append(bc_front_back)
     
     return bcs
 
@@ -460,6 +405,22 @@ def after_last_timestep():
         # results_folder_path = alex.os.create_results_folder(script_path)
         # alex.os.copy_contents_to_results_folder(script_path,results_folder_path)
 
+# sol.solve_with_newton_adaptive_time_stepping_old(
+#     domain,
+#     w,
+#     Tend,
+#     dt,
+#     before_first_timestep_hook=before_first_time_step,
+#     after_last_timestep_hook=after_last_timestep,
+#     before_each_timestep_hook=before_each_time_step,
+#     get_residuum_and_gateaux=get_residuum_and_gateaux,
+#     get_bcs=get_bcs,
+#     after_timestep_restart_hook=after_timestep_restart,
+#     after_timestep_success_hook=after_timestep_success,
+#     comm=comm,
+#     print=True
+# )
+
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
     w,
@@ -474,6 +435,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
+    solver=None,
     t=t_global
 )
 
