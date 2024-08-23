@@ -104,7 +104,7 @@ def default_hook_t(t):
 def default_hook_all(t,dt,iters):
     return
 
-
+# import gc 
 
 def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              w: dlfx.fem.Function, 
@@ -139,8 +139,19 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     before_first_timestep_hook()
 
     # nn = 0
+    choose_default_solver_each_time_step = False
+    if solver is None:
+            choose_default_solver_each_time_step = True
     
+    # gc.set_debug(gc.DEBUG_LEAK)
     while t.value < Tend:
+        # if comm.Get_rank() == 0:
+        #     print(f"time: {t.value} Tend: {Tend}")
+        # if choose_default_solver_each_time_step and solver is not None:
+        #     comm.Barrier()
+        #     del solver
+        #     gc.collect()
+        #     comm.Barrier()
         # dt.value = dtt
 
         before_each_timestep_hook(t.value,dt.value)
@@ -149,10 +160,11 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         
         bcs = get_bcs(t.value)
         
-        if solver is None:
+        if choose_default_solver_each_time_step:
             if comm.Get_rank() == 0:
-                print_bool(f"NO SOLVER PROVIDED. Default solver chosen")
+                print(f"NO SOLVER PROVIDED. Default solver created each time step")
             solver = get_solver(w, comm, max_iters, Res, dResdw, bcs)
+            
         
         # control adaptive time adjustment
         # restart_solution = False
@@ -283,6 +295,10 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     solver = NewtonSolver(comm, problem)
     solver.report = True
     solver.max_it = max_iters
+    if comm.Get_rank()==0:
+        ksp = solver.krylov_solver
+        print("Default KSP Type:", ksp.getType())
+        print("Default PC Type:", ksp.getPC().getType())
         
     # ksp = solver.krylov_solver
     # opts = PETSc.Options()

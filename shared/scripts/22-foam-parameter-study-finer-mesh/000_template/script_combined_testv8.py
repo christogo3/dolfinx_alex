@@ -19,7 +19,7 @@ import os
 import sys
 import math
 import basix
-import dolfiny
+# import dolfiny
 import io 
 
 import alex.os
@@ -487,7 +487,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
-    solver=solver,
     t=t_global
 )
 

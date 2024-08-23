@@ -163,6 +163,14 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
     xtip = np.array([0.0,0.0],dtype=dlfx.default_scalar_type)
 
     atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
+    
+    
+    xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
+    xK1 = dlfx.fem.Constant(domain, xtip)
+    v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
+    vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
+    crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
+    
     def get_bcs(t):
         x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
         

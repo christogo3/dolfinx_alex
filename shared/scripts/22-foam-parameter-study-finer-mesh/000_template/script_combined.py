@@ -232,12 +232,12 @@ dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_bo
 bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
 
 
-top = bc.get_top_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
-top_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, top)
-top_dofs_y = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
+front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
+# front_back_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, front_back)
+# top_dofs_z = dlfx.fem.locate_dofs_topological(W.sub(0).sub(2), fdim, front_back_facets)
+bc_front_back = bc.define_dirichlet_bc_from_value(domain,0.0,2,front_back,W,0)
 
 
-bcs = [bc_surf]
 
 def compute_surf_displacement():
     x = ufl.SpatialCoordinate(domain)
@@ -276,13 +276,13 @@ bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element
 # bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
 
 
-solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
+# solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
 
-from petsc4py import PETSc
-ksp = solver.krylov_solver
-if comm.Get_rank()==0:
-    print("Default KSP Type:", ksp.getType())
-    print("Default PC Type:", ksp.getPC().getType())
+# from petsc4py import PETSc
+# ksp = solver.krylov_solver
+# if comm.Get_rank()==0:
+#     print("Default KSP Type:", ksp.getType())
+#     print("Default PC Type:", ksp.getPC().getType())
 
 # opts = PETSc.Options()
 
@@ -315,6 +315,9 @@ if comm.Get_rank()==0:
 
 # atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
+    bcs = [bc_surf, bc_front_back]
+    
+    
     if rank == 0:
         print(f"Computing BCs for t={t}\n")
     
@@ -325,7 +328,7 @@ def get_bcs(t):
         print(f"BC arrays are equal before: {np.array_equal(w_D_old,w_D.x.array[:])}")
 
     w_D.sub(0).interpolate(bc_expression)
-    w_D.x.scatter_forward()
+    # w_D.x.scatter_forward()
     
     if rank == 0:
         print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
@@ -420,6 +423,8 @@ def after_timestep_success(t,dt,iters):
     # update
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
+    # wrestart.x.scatter_forward()
+    # wm1.x.scatter_forward()
     
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
@@ -434,7 +439,7 @@ def after_timestep_success(t,dt,iters):
     
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
-    w.x.scatter_forward()
+    # w.x.scatter_forward()
     
     
 def after_last_timestep():
@@ -469,7 +474,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
-    solver=solver,
     t=t_global
 )
 

@@ -10,7 +10,6 @@ import numpy as np
 import os 
 import sys
 import math
-import basix
 
 import alex.os
 import alex.boundaryconditions as bc
@@ -24,11 +23,10 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
 
     script_path = os.path.dirname(__file__)
     script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-    working_folder = script_path #alex.os.scratch_directory
-    logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
-    outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
-    outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
-
+    logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
+    outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
+    outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+    outputfile_vtk_path = alex.os.outputfile_vtk_full_path(script_path,script_name_without_extension)
 
     # set FEniCSX log level
     # dlfx.log.set_log_level(log.LogLevel.INFO)
@@ -50,25 +48,18 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
     #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
     # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-    with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,"finer",mesh_file+".xdmf"), 'r') as mesh_inp: 
-        domain = mesh_inp.read_mesh(name="Grid")
+    with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,mesh_file+".xdmf"), 'r') as mesh_inp: 
+        domain = mesh_inp.read_mesh()
 
-    # dt = 0.0001
-    # Tend = 10.0 * dt
+    dt = 0.0001
+    Tend = 10.0 * dt
 
-    dt = dlfx.fem.Constant(domain,0.0001)
-    # t = dlfx.fem.Constant(domain,0.0)
-    t_global = dlfx.fem.Constant(domain,0.0)
-    Tend = 10.0 * dt.value
 
 
     # function space using mesh and degree
-    # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), element_order) # displacements
-    # Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), element_order) # fracture fields
-    # W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
-    Ve = basix.ufl.element("P", domain.basix_cell(), element_order, shape=(domain.geometry.dim,)) #displacements
-    Se = basix.ufl.element("P", domain.basix_cell(), element_order, shape=())# fracture fields
-    W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
+    Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), element_order) # displacements
+    Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), element_order) # fracture fields
+    W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
 
     dim = domain.topology.dim
     alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
@@ -91,6 +82,8 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
     
     sig_c = pf.sig_c_quadr_deg(Gc.value,mu.value,epsilon.value)
     L = (y_max_all-y_min_all)
+    # E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
+    # K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
     K1 = dlfx.fem.Constant(domain, 1.0 * sig_c * math.sqrt(L))
 
 
@@ -106,9 +99,7 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
 
 
     # define boundary condition on top and bottom
-    tdim = domain.topology.dim
-    fdim = tdim - 1
-    domain.topology.create_connectivity(fdim, tdim)
+    fdim = domain.topology.dim -1
 
     crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
     crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
@@ -152,8 +143,8 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
 
 
     # setupt tracking
-    # Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
-    S = dlfx.fem.functionspace(domain,Se)
+    Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
+    S = dlfx.fem.FunctionSpace(domain,Se)
     s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
     c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
     sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
@@ -248,14 +239,14 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
         wrestart.x.array[:] = w.x.array[:]
         
         # break out of loop if no postprocessing required
-        success_timestep_counter.value = success_timestep_counter.value + 1.0
-        # break out of loop if no postprocessing required
-        if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
-            return 
+        # success_timestep_counter.value = success_timestep_counter.value + 1.0
+        # # break out of loop if no postprocessing required
+        # if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
+        #     return 
         
-        # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
-        # pp.write_phasefield_mixed_solution(domain,outputfile_vtk_path, w, t, comm)
-        # write to newton-log-file
+        # 
+        pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+        
         
         
     def after_timestep_restart(t,dt,iters):
@@ -267,7 +258,7 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
         timer.stop()
 
         # only write final crack pattern
-        pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
+        # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
 
         # report runtime to screen
         if rank == 0:
@@ -293,7 +284,6 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
         after_timestep_restart_hook=after_timestep_restart,
         after_timestep_success_hook=after_timestep_success,
         comm=comm,
-        print_bool=True,
-        t=t_global
+        print_bool=True
     )
 

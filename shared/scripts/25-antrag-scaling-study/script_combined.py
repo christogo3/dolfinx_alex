@@ -12,7 +12,7 @@ import dolfinx as dlfx
 from mpi4py import MPI
 from petsc4py import PETSc as petsc
 
-
+import basix
 import ufl 
 import numpy as np
 import os 
@@ -59,7 +59,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path #alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -90,9 +90,9 @@ dt = dlfx.fem.Constant(domain,0.0001)
 Tend = 10.0 * dt.value
 
 # function space using mesh and degree
-Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), args.element_order) # displacements
-Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(), args.element_order) # fracture fields
-W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
+Ve = basix.ufl.element("P", domain.basix_cell(), args.element_order, shape=(domain.geometry.dim,)) #displacements
+Se = basix.ufl.element("P", domain.basix_cell(), args.element_order, shape=())# fracture fields
+W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
@@ -142,7 +142,9 @@ def crack(x):
 
 
 # define boundary condition on top and bottom
-fdim = domain.topology.dim -1
+tdim = domain.topology.dim
+fdim = tdim - 1
+domain.topology.create_connectivity(fdim, tdim)
 
 crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
@@ -186,8 +188,8 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
 
 
 # setup tracking
-Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
-S = dlfx.fem.FunctionSpace(domain,Se)
+# Se = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) 
+S = dlfx.fem.functionspace(domain,Se)
 s_zero_for_tracking_at_nodes = dlfx.fem.Function(S)
 c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
