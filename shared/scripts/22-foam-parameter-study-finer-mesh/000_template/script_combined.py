@@ -323,7 +323,7 @@ postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 Work = dlfx.fem.Constant(domain,0.0)
 def after_timestep_success(t,dt,iters):
     
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)

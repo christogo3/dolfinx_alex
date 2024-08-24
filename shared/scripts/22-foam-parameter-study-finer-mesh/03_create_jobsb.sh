@@ -18,12 +18,12 @@ get_memory_processors_and_time() {
             time="300"
             ;;
         "medium_pores")
-            memory_value=6000
+            memory_value=4000
             processor_number=96
             time="7000"
             ;;
         "fine_pores")
-            memory_value=8000
+            memory_value=4000
             processor_number=128
             time="10080"
             ;;
