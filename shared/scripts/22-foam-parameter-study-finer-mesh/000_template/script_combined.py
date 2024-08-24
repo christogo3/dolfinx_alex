@@ -63,7 +63,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = script_path # alex.os.scratch_directory # or script_path if local
+working_folder = alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -199,8 +199,6 @@ s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 
 
-
-
 xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
 v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
@@ -210,19 +208,8 @@ crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,cra
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
 
-# bc 
-# top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
-# facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
-# dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
-# bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
-
-
 front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
-# front_back_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, front_back)
-# top_dofs_z = dlfx.fem.locate_dofs_topological(W.sub(0).sub(2), fdim, front_back_facets)
 bc_front_back = bc.define_dirichlet_bc_from_value(domain,0.0,2,front_back,W,0)
-
-
 
 def compute_surf_displacement():
     x = ufl.SpatialCoordinate(domain)
@@ -241,65 +228,22 @@ def compute_surf_displacement():
   
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
 
-# bcs = [bc_surf, bc_front_back]
-
-# solver = sol.get_solver(w,comm,8,Res,dResdw=dResdw,bcs=bcs)
-
 top_bottom = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary)
 
 def get_bcs(t):
     bcs = []
-    # t_global.value = t
-    
-    
-
-    
-        
-    
-    if rank == 0:
-        print(f"Computing BCs for t={t}\n")
-    
-    w_D_old = np.full_like(w_D.x.array[:],0.0)
-    w_D_old[:] = w_D.x.array[:]
-    
-    if rank == 0:
-        print(f"BC arrays are equal before: {np.array_equal(w_D_old,w_D.x.array[:])}")
-
     w_D.sub(0).interpolate(bc_expression)
     # w_D.x.scatter_forward()
     
-    if rank == 0:
-        print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
+    # if rank == 0:
+    #     print(f"BC arrays are equal after: {np.array_equal(w_D_old,w_D.x.array[:])}")
         
     bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
     
-    # x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
-    
-    # def left(x):
-    #     return np.isclose(x[0], x_min_all,atol=0.01)
-    
-    # leftfacets = dlfx.mesh.locate_entities_boundary(domain, fdim, left)
-    # leftdofs_x = dlfx.fem.locate_dofs_topological(V.sub(0), fdim, leftfacets)
-    # bcleft_x = dlfx.fem.dirichletbc(1.0, leftdofs_x, V.sub(0))
-    
-    # v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
-    # # xtip = np.array([crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y])
     xtip[0] = crack_tip_start_location_x + v_crack * t
     xtip[1] = crack_tip_start_location_y
-    # # xtip = np.array([ crack_tip_start_location_x + v_crack * t, crack_tip_start_location_y],dtype=dlfx.default_scalar_type)
-    # xK1.value = xtip
-    
-    # if rank == 0:
-    #     print(f"Crack tip at x={xK1.value[0]} y={xK1.value[1]}\n")
-    
-    # # Only update the displacement field w_D
-    # bc.surfing_boundary_conditions(w_D,K1,xK1,lam,mu,subspace_index=0) 
-
-    # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=W,subspace_idx=0,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0*epsilon.value, atol=atol)
-    # bcs = bc.get_total_surfing_boundary_condition_at_box(domain=domain,comm=comm,functionSpace=V,subspace_idx=-1,K1=K1,xK1=xK1,lam=lam,mu=mu,epsilon=0.0, atol=0.01)
-    
     
     # irreversibility
     if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step
@@ -325,7 +269,6 @@ def after_timestep_success(t,dt,iters):
     
     # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
-    # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
     Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
     
@@ -392,7 +335,7 @@ def after_last_timestep():
     timer.stop()
 
     # only write final crack pattern
-    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, 0.0, comm)
 
     # report runtime to screen
     if rank == 0:
