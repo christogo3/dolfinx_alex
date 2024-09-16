@@ -116,7 +116,7 @@ def get_bcs(t):
     return []
 
 
-sol.solve_with_newton_adaptive_time_stepping(domain,w=u_h, Tend=Tend,dt=dt.value,
+sol.solve_with_newton_adaptive_time_stepping(domain,w=u_h, Tend=Tend,dt=dt,
                                              before_first_timestep_hook=before_first_timestep,
                                              after_last_timestep_hook=after_last_timestep,
                                              get_residuum_and_gateaux=get_residuum_and_gateaux,

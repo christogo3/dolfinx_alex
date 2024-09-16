@@ -382,10 +382,7 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     solver = NewtonSolver(comm, problem)
     solver.report = True
     solver.max_it = max_iters
-    if comm.Get_rank()==0:
-        ksp = solver.krylov_solver
-        print("Default KSP Type:", ksp.getType())
-        print("Default PC Type:", ksp.getPC().getType())
+
         
     ksp = solver.krylov_solver
     opts = PETSc.Options()
@@ -394,6 +391,11 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     opts[f"{option_prefix}pc_type"] = "lu"
     opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
     ksp.setFromOptions()
+    
+    if comm.Get_rank()==0:
+        ksp = solver.krylov_solver
+        print("Default KSP Type:", ksp.getType())
+        print("Default PC Type:", ksp.getPC().getType())
     return solver
     
     
