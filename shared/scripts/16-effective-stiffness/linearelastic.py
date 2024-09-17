@@ -37,8 +37,8 @@ sys.stdout.flush()
 with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'coarse_pores.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh()
 
-dt = 0.05
-Tend = 128.0 * dt
+dt = dlfx.fem.Constant(domain,0.05)
+Tend = 128.0 * dt.value
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)

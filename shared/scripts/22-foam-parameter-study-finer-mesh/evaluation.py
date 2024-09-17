@@ -6,130 +6,36 @@ import math
 import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 
+import alex.evaluation as ev
+
+
+### PROBLEM DEFINITION
+# height / width of domain
 reference_L_global = 1.2720814740168862
 
-def plot_results_2yaxis(results_dict, keys, column_indices, save_path, scaling_factors=None, y_labels=None, show_legend=True, label_fontsize=16, tick_fontsize=12):
-    """
-    Plots up to two result columns vs time for a set of keys and saves the plot to disk.
-    The first column is plotted on the left y-axis and the second on the right y-axis.
-
-    :param results_dict: Dictionary containing the results data.
-                         The keys are folder names and values are numpy arrays with the data.
-    :param keys: List of keys to plot.
-    :param column_indices: List or tuple of up to two column indices to plot against time.
-    :param save_path: File path to save the plot.
-    :param scaling_factors: List of scaling factors for each key. If None, no scaling is applied.
-    :param y_labels: List or tuple of y-axis labels. The first label is for the left y-axis, 
-                     the second (if any) is for the right y-axis. If None, defaults are used.
-    :param show_legend: Boolean to determine whether to show the legend. Default is True.
-    :param label_fontsize: Font size for the axis labels. Default is 12.
-    :param tick_fontsize: Font size for the axis tick numbers. Default is 10.
-    """
-    if scaling_factors is None:
-        scaling_factors = [1.0] * len(keys)
-    
-    if len(keys) != len(scaling_factors):
-        raise ValueError("The length of keys and scaling_factors must be the same.")
-    
-    if len(column_indices) > 2:
-        raise ValueError("column_indices must contain one or two indices.")
-
-    if y_labels is None:
-        y_labels = [f'Column {col_index}' for col_index in column_indices]
-    elif len(y_labels) != len(column_indices):
-        raise ValueError("The length of y_labels must match the length of column_indices.")
-    
-    fig, ax1 = plt.subplots(figsize=(10, 6))  # Set the figure size for better readability
-
-    ax2 = None
-    if len(column_indices) > 1:
-        ax2 = ax1.twinx()  # Create a secondary y-axis
-
-    for key, scaling_factor in zip(keys, scaling_factors):
-        if key in results_dict:
-            data = results_dict[key]
-            time = data[:, 0]
-
-            # Plot the first column on the left y-axis
-            result_column1 = data[:, column_indices[0]] * scaling_factor
-            ax1.plot(time, result_column1, label=f"{key} (scaled by {scaling_factor})")
-
-            if len(column_indices) > 1:
-                # Plot the second column on the right y-axis
-                result_column2 = data[:, column_indices[1]] * scaling_factor
-                ax2.plot(time, result_column2, linestyle='--', label=f"{key} (scaled by {scaling_factor}, secondary)")
-                
-        else:
-            print(f"Key '{key}' not found in the results dictionary.")
-
-    ax1.set_xlabel('Time', fontsize=label_fontsize)
-    ax1.set_ylabel(y_labels[0], fontsize=label_fontsize)  # Left y-axis label
-    ax1.tick_params(axis='both', labelsize=tick_fontsize)  # Set font size for ticks on left y-axis
-
-    if len(column_indices) > 1 and ax2 is not None:
-        ax2.set_ylabel(y_labels[1], fontsize=label_fontsize)  # Right y-axis label
-        ax2.tick_params(axis='both', labelsize=tick_fontsize)  # Set font size for ticks on right y-axis
-
-    # Combine legends from both axes if show_legend is True
-    if show_legend:
-        if ax2 is not None:
-            lines, labels = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
-        else:
-            ax1.legend(loc='upper left')
-    
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    
-    # Save the plot to disk
-    plt.savefig(save_path)
-    plt.close()  # Close the plot to free up memory
+# MESH SIZES
+h_coarse_mean =  0.024636717648428213 #0.040704583134024946
+h_all = {
+    "coarse_pores": h_coarse_mean,
+    "medium_pores": h_coarse_mean/2.0,
+    "fine_pores": h_coarse_mean/4.0,
+}
+# PORE SIZES
+pore_size_coarse =  0.183
+pore_size_all = {
+    "coarse_pores": pore_size_coarse,
+    "medium_pores": pore_size_coarse/2.0,
+    "fine_pores": pore_size_coarse/4.0,
+}
 
 
 
 
 
-def plot_results(results_dict, keys, column_index, save_path, scaling_factors=None):
-    """
-    Plots a given result column vs time for a set of keys and saves the plot to disk.
 
-    :param results_dict: Dictionary containing the results data.
-                         The keys are folder names and values are numpy arrays with the data.
-    :param keys: List of keys to plot.
-    :param column_index: Index of the result column to plot against time.
-    :param save_path: File path to save the plot.
-    :param scaling_factors: List of scaling factors for each key. If None, no scaling is applied.
-    """
-    if scaling_factors is None:
-        scaling_factors = [1.0] * len(keys)
-    
-    if len(keys) != len(scaling_factors):
-        raise ValueError("The length of keys and scaling_factors must be the same.")
-    
-    plt.figure(figsize=(10, 6))  # Optional: Set the figure size for better readability
 
-    for key, scaling_factor in zip(keys, scaling_factors):
-        if key in results_dict:
-            data = results_dict[key]
-            time = data[:, 0]
-            result_column = data[:, column_index] * scaling_factor  # Apply scaling
-            
-            plt.plot(time, result_column, label=f"{key} (scaled by {scaling_factor})")
-        else:
-            print(f"Key '{key}' not found in the results dictionary.")
 
-    plt.xlabel('Time')
-    plt.ylabel(f'Column {column_index}')
-    # plt.title(f'Results for Column {column_index} vs Time')
-    plt.legend()
-    
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    
-    # Save the plot to disk
-    plt.savefig(save_path)
-    plt.close()  # Close the plot to free up memory
+
 
 
 # Extract script path and name
@@ -288,7 +194,7 @@ keys = [ "medium_pores_lam1.0_mue1.0_Gc0.4842_eps51.6336_order1" ]
 # parameter_names = ['Gc']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"TEST" + ".png")
-plot_results_2yaxis(results_dict, keys, [1,4], save_path,y_labels=["Jx","crack length"],show_legend=False)
+ev.plot_results_2yaxis(results_dict, keys, [1,4], save_path,y_labels=["Jx","crack length"],show_legend=False)
 
 # 1. Gc
 keys = ["coarse_pores_lam1.0_mue1.0_Gc0.9684_eps25.8168_order1", 
@@ -303,7 +209,7 @@ parameter_names = ['Gc']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + ".png")
-plot_results(results_dict, keys, column_index, save_path)
+ev.plot_results(results_dict, keys, column_index, save_path)
 
 # 2. Stiffness
 keys = ["coarse_pores_lam1.0_mue1.0_Gc1.7982_eps13.9025_order1", 
@@ -313,7 +219,7 @@ parameter_names = ['lam','mue']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + ".png")
-plot_results(results_dict, keys, column_index, save_path)
+ev.plot_results(results_dict, keys, column_index, save_path)
 
 
 # 3. Mesh
@@ -324,10 +230,10 @@ parameter_names = ['mesh_name']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + ".png")
-plot_results(results_dict, keys, column_index, save_path)
+ev.plot_results(results_dict, keys, column_index, save_path)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + "_crack_tip_position.png")
-plot_results(results_dict, keys, column_index=4, save_path=save_path)
+ev.plot_results(results_dict, keys, column_index=4, save_path=save_path)
 
 # 4. Epsilon
 # TODO: try to show that maximum energy release rate is the same if results are normalized by effective stress in phase field model
@@ -340,11 +246,11 @@ parameter_names = ['eps']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + ".png")
-plot_results(results_dict, keys, column_index, save_path)
+ev.plot_results(results_dict, keys, column_index, save_path)
 
 
 # 4a. Epsilon
-# With normalization w.r.t effective stress, SCALE BY NUMERIC Gc
+# With normalization w.r.t effective stress, 
 keys = ["coarse_pores_lam1.0_mue1.0_Gc1.9367_eps25.8168_order1",
         "coarse_pores_lam1.0_mue1.0_Gc2.2888_eps21.8454_order1",
         "coarse_pores_lam1.0_mue1.0_Gc3.5965_eps13.9025_order1", 
@@ -376,7 +282,7 @@ parameter_names = ['eps']
 column_index = 1  # Column index to plot (e.g., the second column in the results)
 save_path = os.path.join(directory_path,"_".join(parameter_names) + "_" +  remove_parameter(keys[0],
                         param_names=[parameter_names]) + "_TEST.png")
-plot_results(results_dict, keys, column_index, save_path, scaling_factors=scaling_factors)
+ev.plot_results(results_dict, keys, column_index, save_path, scaling_factors=scaling_factors)
 
 
 
@@ -453,7 +359,9 @@ def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, special_keys
             unique_labels.add(mesh_type)
             
             # Display Gc and inverse of eps values as tuples to the right of the markers
-            plt.text(sig_c, max_Jx_dict[key], f"({params[3]}, {1.0/params[4]})", fontsize=9, ha='left', va='bottom')
+            eps_value = ev.get_eps(reference_L_global,params[4])
+            eps_pore_size_ratio = ev.get_eps_pore_size_ratio(mesh_type,eps_value, pore_size_all)
+            plt.text(sig_c, max_Jx_dict[key], f"({params[3]}, {eps_pore_size_ratio})", fontsize=9, ha='left', va='bottom')
     
     # Create custom legend handles
     handles = []
@@ -478,6 +386,92 @@ def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, special_keys
     # Save the plot
     plt.savefig(save_path)
     plt.close()
+    
+def plot_max_Jx_vs_eps_pore_size_ratio(results_dict, keys, plot_title, save_path, pore_size_all, special_keys=None):
+    # Create the max dictionary
+    max_Jx_dict = create_max_dict(results_dict, column_index=1)
+    
+    # Initialize the eps_pore_size_ratio values for each key
+    eps_pore_size_ratio_values = []
+
+    # Compute eps_pore_size_ratio for all keys in max_Jx_dict
+    for key in keys:
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            eps_value = ev.get_eps(reference_L_global, params[4])
+            eps_pore_size_ratio = ev.get_eps_pore_size_ratio(mesh_type, eps_value, pore_size_all)
+            eps_pore_size_ratio_values.append(eps_pore_size_ratio)
+    
+    # Create a colormap for the mesh types
+    mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+    
+    # Marker types based on (lam, mue) values
+    marker_types = {
+        (1.0, 1.0): 'o',       # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',     # Triangle
+        (15.0, 10.0): 's'      # Square
+    }
+    
+    # Plot max_Jx_dict values vs eps_pore_size_ratio_values with colors and markers based on mesh type and (lam, mue)
+    plt.figure(figsize=(10, 20))
+    
+    unique_labels = set()
+    
+    for key, eps_pore_size_ratio in zip(keys, eps_pore_size_ratio_values):
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_mue = (params[1], params[2])
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get(lam_mue, 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            # Check if the current key is in the special_keys set
+            if special_keys and key in special_keys:
+                edge_color = 'black'
+                linewidth = 2.0
+            else:
+                edge_color = 'none'
+                linewidth = 0
+            
+            plt.scatter(eps_pore_size_ratio, max_Jx_dict[key], color=color, marker=marker, s=100, label=label, edgecolor=edge_color, linewidth=linewidth)
+            unique_labels.add(mesh_type)
+            
+            # Display Gc and inverse of eps values as tuples to the right of the markers
+            plt.text(eps_pore_size_ratio, max_Jx_dict[key], f"({params[3]}, {eps_pore_size_ratio})", fontsize=9, ha='left', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        nu = poisson_ratio(lam, mue)
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue} (nu={nu:.2f})'))
+    
+    plt.xlabel('Eps_pore_size_ratio')
+    plt.ylabel('Max Jx')
+    plt.title(plot_title)
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()
+
 
 
 
@@ -506,19 +500,7 @@ def filter_keys(results_dict, target_Gc=None, target_eps=None, target_lam=None, 
                 filtered_keys.append(key)
     return filtered_keys
 
-def compute_gc_num(mesh_name, gc, eps_factor, h_all):
-    """
-    Computes the gc_num value.
 
-    :param mesh_name: Name of the mesh type.
-    :param gc: Gc value.
-    :param eps: Epsilon value.
-    :param h_all: Dictionary mapping mesh types to their corresponding h values.
-    :return: Computed gc_num value.
-    """
-    h_value = h_all[mesh_name]
-    eps = reference_L_global / eps_factor
-    return gc * (1.0 + h_value / eps / 4.0)
 
 mesh_colors = {
         "fine_pores": mcolors.to_rgba('darkred'),
@@ -563,7 +545,7 @@ def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
             gc_value = params[3]
             eps_value = params[4]
             
-            gc_num_value = compute_gc_num(mesh_name=mesh_type, gc=gc_value, eps_factor=eps_value, h_all=h_all)
+            gc_num_value = ev.compute_gc_num(mesh_name=mesh_type, gc=gc_value, eps_factor=eps_value, h_all=h_all, reference_L_global=reference_L_global)
             
             color = mesh_colors.get(mesh_type, 'black')
             marker = marker_types.get((lam_value, mue_value), 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
@@ -598,31 +580,26 @@ def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path):
     plt.savefig(save_path)
     plt.close()
 
-# MESH SIZES
 
-h_coarse_mean =  0.024636717648428213 #0.040704583134024946
-h_all = {
-    "coarse_pores": h_coarse_mean,
-    "medium_pores": h_coarse_mean/2.0,
-    "fine_pores": h_coarse_mean/4.0,
-}
-
-# PORE SIZES
-pore_size_coarse =  0.183
-pore_size_all = {
-    "coarse_pores": pore_size_coarse,
-    "medium_pores": pore_size_coarse/2.0,
-    "fine_pores": pore_size_coarse/4.0,
-}
 
 # def gc_num(mesh_name,gc,eps):
 #     return gc * (1.0 + h_all(mesh_name)/eps)
 
 mesh_all = ["fine_pores","medium_pores", "coarse_pores"]
-gc_all = np.array([0.5, 0.75, 1.0, 1.25, 1.5])
-eps_all = np.array([25.0, 33.0, 40.0, 50.0, 100.0])
-lam_all = np.array([1.0, 1.5, 10.0, 15.0])  
-mue_all = np.array([1.0, 1.5, 10.0]) 
+
+
+values_of_params_coarse_mesh = ev.get_values_for_prefix(keys, "coarse_pores")
+values_of_params_medium_mesh = ev.get_values_for_prefix(keys, "medium_pores")
+values_of_params_fine_mesh = ev.get_values_for_prefix(keys, "fine_pores")
+
+values_of_params_all = ev.merge_dicts([values_of_params_coarse_mesh, values_of_params_medium_mesh, values_of_params_fine_mesh])
+
+
+
+gc_all = np.array(values_of_params_all["Gc"])
+eps_all = np.array(values_of_params_all["eps"])
+lam_all = np.array(values_of_params_all["lam"])
+mue_all = np.array(values_of_params_all["mue"])
 
 keys_to_plot = keys # ['fine_pores_lam1.0_mue1.0_Gc1.0_eps1.0_order1', 'medium_pores_lam10.0_mue10.0_Gc2.0_eps0.5_order2']
 plot_title = "Max Jx vs sig_c"
@@ -630,11 +607,11 @@ save_path = os.path.join(directory_path, "max_Jx_vs_sig_c.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
 # 1. fixed Gc
-target_Gc_values = np.array([1.0])  
-target_eps_values = np.array([25.0, 50.0, 100.0])  
-target_lam_values = np.array([1.0, 10.0, 15.0])  
-target_mue_values = np.array([1.0, 10.0])  
-target_mesh_types = ["medium_pores", "coarse_pores"]  
+target_Gc_values = np.array([1.3987])  
+target_eps_values = np.array(np.array([values_of_params_all["eps"]])  )  
+target_lam_values = np.array([1.0, 1.5])  
+target_mue_values = np.array([1.0, 1.5])   
+target_mesh_types = ["fine_pores", "medium_pores", "coarse_pores"]  
 
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
@@ -646,18 +623,16 @@ filtered_keys = filter_keys(results_dict,
 
 keys_to_plot = filtered_keys 
 plot_title = "Max Jx vs sig_c"
-save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_medium_coarse.png")
+save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_Gc_fixed.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
 
 # 2. varying stiffness
-result_test = max_Jx_dict["coarse_pores_lam1.5_mue1.0_Gc2.2888_eps21.8454_order1"]
-
-target_Gc_values = np.array([1.0])  
-target_eps_values = np.array([50.0])  
+target_Gc_values = np.array([0.9684])  
+target_eps_values = np.array(values_of_params_medium_mesh["eps"])  
 target_lam_values = lam_all  
 target_mue_values = mue_all
-target_mesh_types = mesh_all 
+target_mesh_types = ["medium_pores"] 
 
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
@@ -674,10 +649,10 @@ plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_
 
 # 3. varying Gc
 target_Gc_values = gc_all 
-target_eps_values = np.array([50.0])  
+target_eps_values = [21.8454, 43.6908, 87.3816]  
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
-target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
+target_mesh_types = ["coarse_pores", "medium_pores", "fine_pores" ]  
 
 filtered_keys = filter_keys(results_dict,
                             target_Gc=target_Gc_values,
@@ -693,7 +668,11 @@ save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_varying_Gc.png")
 plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
 
 # 4. varying eps
-target_Gc_values = np.array([1.0])  
+intersect_medium_coarse = ev.intersect_dicts(values_of_params_coarse_mesh,values_of_params_medium_mesh)
+intersect_medium_fine = ev.intersect_dicts(values_of_params_fine_mesh,values_of_params_medium_mesh)
+merged_data = ev.merge_dicts([intersect_medium_coarse,intersect_medium_fine])
+
+target_Gc_values = np.array(merged_data["Gc"])  
 target_eps_values = eps_all  
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
@@ -710,7 +689,8 @@ filtered_keys = filter_keys(results_dict,
 keys_to_plot = filtered_keys 
 plot_title = "Max Jx vs sig_c"
 save_path = os.path.join(directory_path, "max_Jx_vs_sig_c_varying_eps.png")
-plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
+# plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path, special_keys=first_level_keys)
+plot_max_Jx_vs_eps_pore_size_ratio(results_dict,keys_to_plot,plot_title,save_path, pore_size_all, special_keys=first_level_keys)
 
 
 # 5. varying eps fixed sig_c
@@ -765,7 +745,7 @@ def plot_eps_h_ratio(keys, h_all, reference_L_global, mesh_colors, output_file, 
         mesh_type = params[0]
         if eps_factor is not None and mesh_type in h_all:
             h = h_all[mesh_type]
-            eps = reference_L_global / eps_factor
+            eps = ev.get_eps(reference_L_global, eps_factor)
             ratio = eps / h
             ratios.append(ratio)
             epss.append(eps)
@@ -796,6 +776,8 @@ def plot_eps_h_ratio(keys, h_all, reference_L_global, mesh_colors, output_file, 
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     plt.savefig(output_file)
     plt.close()
+
+
     
     
 target_Gc_values =  np.array([1.0])  
@@ -823,9 +805,8 @@ def plot_ratio_pore_size_eps(results_dict, save_path):
         params = extract_parameters(key)
         mesh_name = params[0]
         eps_factor = float(params[4])
-        eps_value = reference_L_global / eps_factor
-        pore_size = pore_size_all[mesh_name]
-        ratio = pore_size / eps_value
+        eps_value = ev.get_eps(reference_L_global,eps_factor=eps_factor)
+        ratio = ev.get_eps_pore_size_ratio(mesh_name, eps_value, pore_size_all=pore_size_all)
         plt.scatter(eps_value, ratio, color=mesh_colors[mesh_name], label=mesh_name)
         
     plt.xlabel('eps')
@@ -839,6 +820,8 @@ def plot_ratio_pore_size_eps(results_dict, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
     plt.close()
+
+
 
 def plot_ratio_pore_size_h(results_dict, save_path):
     plt.figure(figsize=(10, 6))
