@@ -1,7 +1,10 @@
 import re
 import matplotlib.colors as mcolors
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import os
+import math
+import numpy as np
 
 
 ### AUXILIARY 
@@ -23,10 +26,120 @@ def get_eps(reference_L_global, eps_factor):
     eps = reference_L_global / eps_factor
     return eps
 
-def get_eps_pore_size_ratio(mesh_name, eps_value, pore_size_all):
+def get_pore_size_eps_ratio(mesh_name, eps_value, pore_size_all):
     pore_size = pore_size_all[mesh_name]
     ratio = pore_size / eps_value
     return ratio
+
+def sig_c_quadr_deg(Gc, mu, epsilon):
+        return 9.0/16.0 * math.sqrt(Gc*2.0*mu/(6.0*epsilon))
+
+def get_sig_c(extract_parameters,keys, reference_L_global):
+
+    
+    def get_epsilon(eps_factor):
+        refernce_L = reference_L_global 
+        return refernce_L/eps_factor
+    
+    sig_c = np.zeros_like(keys,dtype=float)
+    
+    for i in range(0,len(keys)):
+        key = keys[i]
+        mue = extract_parameters(key)[2]
+        gc = extract_parameters(key)[3]
+        eps_factor = extract_parameters(key)[4]
+        sig_c[i] =  sig_c_quadr_deg(mu=mue,Gc=gc,epsilon=get_epsilon(eps_factor))
+    return sig_c
+
+def poisson_ratio(lam, mue):
+    nu = lam / (2 * (lam + mue))
+    return nu
+
+
+
+
+### FILTERING DATA 
+
+def create_max_dict(results_dict, column_index=1):
+    """
+    Creates a new dictionary that stores the maximum value of a specified column for each key in the results dictionary.
+
+    :param results_dict: Dictionary containing the results data.
+                         The keys are folder names and values are numpy arrays with the data.
+    :param column_index: Index of the column for which to find the maximum value. Default is 1.
+    :return: Dictionary with the same keys as results_dict and maximum values of the specified column as values.
+    """
+    max_dict = {}
+    
+    for key, data in results_dict.items():
+        max_value = np.max(data[:, column_index])
+        max_dict[key] = max_value
+    
+    return max_dict
+
+
+def extract_parameters(key):
+    # Regular expression pattern to match the key format
+    pattern = re.compile(
+        r"(?P<mesh_name>[a-zA-Z0-9_]+)_lam(?P<lam_value>\d+\.\d+)_mue(?P<mue_value>\d+\.\d+)_Gc(?P<Gc_value>\d+\.\d+)_eps(?P<eps_value>\d+\.\d+)_order(?P<order_value>\d+)"
+    )
+    
+    match = pattern.match(key)
+    if match:
+        # Extract the values and convert them to appropriate types
+        mesh_name = match.group("mesh_name")
+        lam_value = float(match.group("lam_value"))
+        mue_value = float(match.group("mue_value"))
+        Gc_value = float(match.group("Gc_value"))
+        eps_value = float(match.group("eps_value"))
+        order_value = int(match.group("order_value"))
+        return (mesh_name, lam_value, mue_value, Gc_value, eps_value, order_value)
+    else:
+        raise ValueError("Key format is incorrect")
+
+def remove_parameter(param_string, param_names):
+    """
+    Removes the specified parameters and their values from the parameter string.
+
+    :param param_string: The parameter string in the format 
+                         "mesh_name_lam{lam_value}_mue{mue_value}_Gc{Gc_value}_eps{eps_value}_order{order_value}"
+    :param param_names: List of lists/tuples of parameter names to remove (e.g., [['mesh_name'], ['lam', 'mue'], ['Gc']], etc.)
+    :return: The parameter string with the specified parameters removed.
+    """
+    # Split the parameter string into parts
+    parts = param_string.split('_')
+    
+    # Initialize indices to remove
+    indices_to_remove = []
+    
+    # Handle removal of 'mesh_name' separately since it's at the beginning
+    if ['mesh_name'] in param_names:
+        indices_to_remove.append(0)  # Add index 0 for 'mesh_name'
+    
+    # Identify the indices of other parameters to remove
+    for param_set in param_names:
+        if param_set == ['mesh_name']:
+            continue  # Skip since we've already handled 'mesh_name'
+        
+        found = False
+        for i, part in enumerate(parts):
+            if any(part.startswith(param_name) for param_name in param_set):
+                found = True
+                indices_to_remove.append(i)
+                if len(part) > len(max(param_set, key=len)):  # Check length of longest parameter name in set
+                    # Also remove the value if it exists after the parameter name
+                    indices_to_remove.append(i + 1)
+                break
+        if not found:
+            raise ValueError(f"No parameters '{param_set}' found in the parameter string")
+    
+    # Remove identified parameters and their values
+    new_parts = [part for i, part in enumerate(parts) if i not in indices_to_remove]
+    
+    # Reconstruct the parameter string without the specified parameters
+    new_param_string = '_'.join(new_parts)
+    
+    return new_param_string
 
 
 
@@ -72,6 +185,253 @@ def plot_results(results_dict, keys, column_index, save_path, scaling_factors=No
     plt.savefig(save_path)
     plt.close()  # Close the plot to free up memory
     
+# Example function modified for your specific plotting needs
+def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, reference_L_global, pore_size_all, special_keys=None):
+    # Create the max dictionary
+    max_Jx_dict = create_max_dict(results_dict, column_index=1)
+    
+    # Compute sig_c for all keys in max_Jx_dict
+    sig_c_values = get_sig_c(extract_parameters, keys, reference_L_global=reference_L_global)
+    
+    # Create a colormap for the mesh types
+    mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+    
+    # Marker types based on (lam, mue) values
+    marker_types = {
+        (1.0, 1.0): 'o',       # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',     # Triangle
+        (15.0, 10.0): 's'      # Square
+    }
+    
+    # Plot max_Jx_dict values vs sig_c_values with colors and markers based on mesh type and (lam, mue)
+    plt.figure(figsize=(10, 20))
+    
+    unique_labels = set()
+    
+    for key, sig_c in zip(keys, sig_c_values):
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_mue = (params[1], params[2])
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get(lam_mue, 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            # Check if the current key is in the special_keys set
+            if special_keys and key in special_keys:
+                edge_color = 'black'
+                linewidth = 2.0
+            else:
+                edge_color = 'none'
+                linewidth = 0
+            
+            plt.scatter(sig_c, max_Jx_dict[key], color=color, marker=marker, s=100, label=label, edgecolor=edge_color, linewidth=linewidth)
+            unique_labels.add(mesh_type)
+            
+            # Display Gc and inverse of eps values as tuples to the right of the markers
+            eps_value = get_eps(reference_L_global,params[4])
+            eps_pore_size_ratio = get_pore_size_eps_ratio(mesh_type,eps_value, pore_size_all)
+            plt.text(sig_c, max_Jx_dict[key], f"({params[3]}, {eps_pore_size_ratio})", fontsize=9, ha='left', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        nu = poisson_ratio(lam, mue)
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue} (nu={nu:.2f})'))
+    
+    plt.xlabel('Sig_c')
+    plt.ylabel('Max Jx')
+    plt.title(plot_title)
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()
+    
+
+def plot_max_Jx_vs_data(results_dict, keys, xdata_function, xdata_label, data_label_function,plot_title, save_path, special_keys=None):
+    # Create the max dictionary
+    max_Jx_dict = create_max_dict(results_dict, column_index=1)
+    
+    # Initialize the eps_pore_size_ratio values for each key
+    xdata_values = dict()
+
+    # Compute eps_pore_size_ratio for all keys in max_Jx_dict
+    for key in keys:
+        xdata_values[key] = xdata_function(key)
+            
+    
+    # Create a colormap for the mesh types
+    mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+    
+    # Marker types based on (lam, mue) values
+    marker_types = {
+        (1.0, 1.0): 'o',      # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',    # Triangle
+        (15.0, 10.0): 's'     # Square
+    }
+    
+    # Plot max_Jx_dict values vs eps_pore_size_ratio_values with colors and markers based on mesh type and (lam, mue)
+    plt.figure(figsize=(10, 20))
+    
+    unique_labels = set()
+    
+    for key in keys:
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_mue = (params[1], params[2])
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get(lam_mue, 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            # Check if the current key is in the special_keys set
+            if special_keys and key in special_keys:
+                edge_color = 'black'
+                linewidth = 2.0
+            else:
+                edge_color = 'none'
+                linewidth = 0
+            
+            plt.scatter(xdata_values[key], max_Jx_dict[key], color=color, marker=marker, s=100, label=label, edgecolor=edge_color, linewidth=linewidth)
+            unique_labels.add(mesh_type)
+            
+            # Display Gc and inverse of eps values as tuples to the right of the markers
+            data_label1, data_label2 = data_label_function(key)
+            plt.text(xdata_values[key], max_Jx_dict[key], f"({data_label1}, {data_label2})", fontsize=9, ha='left', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        nu = poisson_ratio(lam, mue)
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue} (nu={nu:.2f})'))
+    
+    plt.xlabel(xdata_label)
+    plt.ylabel('Max Jx')
+    plt.title(plot_title)
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()    
+
+    
+def plot_max_Jx_vs_pore_size_eps_ratio(results_dict, keys, plot_title, save_path, pore_size_all, reference_L_global, special_keys=None):
+    # Create the max dictionary
+    max_Jx_dict = create_max_dict(results_dict, column_index=1)
+    
+    # Initialize the eps_pore_size_ratio values for each key
+    pore_size_eps_ratio_values = []
+
+    # Compute eps_pore_size_ratio for all keys in max_Jx_dict
+    for key in keys:
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            eps_value = get_eps(reference_L_global, params[4])
+            pore_size_eps_ratio = get_pore_size_eps_ratio(mesh_type, eps_value, pore_size_all)
+            pore_size_eps_ratio_values.append(pore_size_eps_ratio)
+    
+    # Create a colormap for the mesh types
+    mesh_colors = {
+        "fine_pores": mcolors.to_rgba('darkred'),
+        "medium_pores": mcolors.to_rgba('red'),
+        "coarse_pores": mcolors.to_rgba('lightcoral')
+    }
+    
+    # Marker types based on (lam, mue) values
+    marker_types = {
+        (1.0, 1.0): 'o',      # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',    # Triangle
+        (15.0, 10.0): 's'     # Square
+    }
+    
+    # Plot max_Jx_dict values vs eps_pore_size_ratio_values with colors and markers based on mesh type and (lam, mue)
+    plt.figure(figsize=(10, 20))
+    
+    unique_labels = set()
+    
+    for key, pore_size_eps_ratio in zip(keys, pore_size_eps_ratio_values):
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_mue = (params[1], params[2])
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get(lam_mue, 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            # Check if the current key is in the special_keys set
+            if special_keys and key in special_keys:
+                edge_color = 'black'
+                linewidth = 2.0
+            else:
+                edge_color = 'none'
+                linewidth = 0
+            
+            plt.scatter(pore_size_eps_ratio, max_Jx_dict[key], color=color, marker=marker, s=100, label=label, edgecolor=edge_color, linewidth=linewidth)
+            unique_labels.add(mesh_type)
+            
+            # Display Gc and inverse of eps values as tuples to the right of the markers
+            plt.text(pore_size_eps_ratio, max_Jx_dict[key], f"({params[3]}, {pore_size_eps_ratio})", fontsize=9, ha='left', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        nu = poisson_ratio(lam, mue)
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue} (nu={nu:.2f})'))
+    
+    plt.xlabel('pore_size_eps_ratio')
+    plt.ylabel('Max Jx')
+    plt.title(plot_title)
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()
 
 def plot_results_2yaxis(results_dict, keys, column_indices, save_path, scaling_factors=None, y_labels=None, show_legend=True, label_fontsize=16, tick_fontsize=12):
     """
@@ -150,6 +510,172 @@ def plot_results_2yaxis(results_dict, keys, column_indices, save_path, scaling_f
     # Save the plot to disk
     plt.savefig(save_path)
     plt.close()  # Close the plot to free up memory
+    
+def plot_gc_num_vs_gc(results_dict, keys, h_all, save_path, reference_L_global, mesh_colors):
+    """
+    Plots gc_num vs Gc for a set of keys and saves the plot to disk.
+
+    :param results_dict: Dictionary containing the results data.
+                         The keys are folder names and values are numpy arrays with the data.
+    :param keys: List of keys to plot.
+    :param h_all: Dictionary mapping mesh types to their corresponding h values.
+    :param save_path: File path to save the plot.
+    """
+    plt.figure(figsize=(10, 6))  # Optional: Set the figure size for better readability
+
+    # mesh_colors = {
+    #     "fine_pores": mcolors.to_rgba('darkred'),
+    #     "medium_pores": mcolors.to_rgba('red'),
+    #     "coarse_pores": mcolors.to_rgba('lightcoral')
+    # }
+    
+    marker_types = {
+        (1.0, 1.0): 'o',       # Circle
+        (1.5, 1.0): 'p',      # Cross
+        (1.0, 1.5): 'v',      # Dot
+        (10.0, 10.0): '^',     # Triangle
+        (15.0, 10.0): 's'      # Square
+    }
+    
+    unique_labels = set()
+    
+    for key in keys:
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            lam_value = params[1]
+            mue_value = params[2]
+            gc_value = params[3]
+            eps_value = params[4]
+            
+            gc_num_value = compute_gc_num(mesh_name=mesh_type, gc=gc_value, eps_factor=eps_value, h_all=h_all, reference_L_global=reference_L_global)
+            
+            color = mesh_colors.get(mesh_type, 'black')
+            marker = marker_types.get((lam_value, mue_value), 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+            label = mesh_type if mesh_type not in unique_labels else ""
+            
+            plt.scatter(gc_value, gc_num_value, color=color, marker=marker, s=100, label=label)
+            unique_labels.add(mesh_type)
+            
+            # Display gc_num values as text next to the markers
+            plt.text(gc_value, gc_num_value, f"{1.0/eps_value:.2f}", fontsize=9, ha='right', va='bottom')
+    
+    # Create custom legend handles
+    handles = []
+    
+    # Add mesh type legend handles
+    for mesh_type, color in mesh_colors.items():
+        handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=mesh_type))
+    
+    # Add marker type legend handles with Poisson ratio included
+    for (lam, mue), marker in marker_types.items():
+        handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue}'))
+    
+    plt.xlabel('Gc')
+    plt.ylabel('gc_num')
+    plt.title('gc_num vs Gc')
+    plt.legend(handles=handles, title="Legend", loc='best')
+    
+    # Ensure the directory exists
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    
+    # Save the plot
+    plt.savefig(save_path)
+    plt.close()
+    
+    
+def plot_eps_h_ratio(keys, h_all, reference_L_global, mesh_colors, output_file, lower_limit_eps_h=0.0, lower_limit_pore_size_eps=0.0, pore_size_all=None):
+    ratios = []
+    epss = []
+    colors = []
+    outlines = []
+    
+    for key in keys:
+        params = extract_parameters(key)
+        eps_factor = float(params[4])
+        mesh_type = params[0]
+        if eps_factor is not None and mesh_type in h_all:
+            h = h_all[mesh_type]
+            eps = get_eps(reference_L_global, eps_factor)
+            ratio = eps / h
+            ratios.append(ratio)
+            epss.append(eps)
+            colors.append(mesh_colors[mesh_type])
+            
+            # Determine if the point meets the criteria
+            pore_size = pore_size_all[mesh_type]
+            ratio_pore_size_eps = pore_size / eps
+            if ratio >= lower_limit_eps_h and ratio_pore_size_eps >= lower_limit_pore_size_eps:
+                outlines.append('green')
+            else:
+                outlines.append('none')
+    
+    plt.figure(figsize=(10, 6))
+    
+    for eps, ratio, color, outline in zip(epss, ratios, colors, outlines):
+        plt.scatter(eps, ratio, c=[color], edgecolors=outline, marker='o', linewidths=1.5)
+    
+    plt.xlabel(r'$\epsilon$')
+    plt.ylabel(r'$\epsilon/h$')
+    plt.title(r'Ratio of $\epsilon/h$ vs $\epsilon$')
+    
+    # Create custom legend
+    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=mesh_colors[mesh], markersize=10, label=mesh) for mesh in mesh_colors]
+    plt.legend(handles=handles, title="Mesh Types")
+    
+    plt.grid(True)
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    plt.savefig(output_file)
+    plt.close()
+    
+    
+def plot_ratio_pore_size_eps(results_dict, save_path, reference_L_global, pore_size_all, mesh_colors):
+    plt.figure(figsize=(10, 6))
+    
+    for key in results_dict.keys():
+        params = extract_parameters(key)
+        mesh_name = params[0]
+        eps_factor = float(params[4])
+        eps_value = get_eps(reference_L_global,eps_factor=eps_factor)
+        ratio = get_pore_size_eps_ratio(mesh_name, eps_value, pore_size_all=pore_size_all)
+        plt.scatter(eps_value, ratio, color=mesh_colors[mesh_name], label=mesh_name)
+        
+    plt.xlabel('eps')
+    plt.ylabel('pore_size/eps')
+    plt.title('Ratio of Pore Size to Eps for All Mesh Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid(True)
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
+
+
+
+def plot_ratio_pore_size_h(results_dict, save_path, h_all, pore_size_all, mesh_colors):
+    plt.figure(figsize=(10, 6))
+    
+    for key in results_dict.keys():
+        params = extract_parameters(key)
+        mesh_name = params[0]
+        h_value = h_all[mesh_name]
+        pore_size = pore_size_all[mesh_name]
+        ratio = pore_size / h_value
+        plt.scatter(h_value, ratio, color=mesh_colors[mesh_name], label=mesh_name)
+        
+    plt.xlabel('h')
+    plt.ylabel('pore_size/h')
+    plt.title('Ratio of Pore Size to h for All Mesh Types')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
+    plt.grid(True)
+    
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path)
+    plt.close()
 
 
 

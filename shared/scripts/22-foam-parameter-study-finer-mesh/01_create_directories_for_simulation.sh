@@ -46,9 +46,9 @@ echo "EPS_FACTOR_PARAMS: ${EPS_FACTOR_PARAMS[@]}"
 # Define the possible values for each parameter
 MESH_FILES=("coarse_pores")
 LAM_MUE_PAIRS=(
-    "1.0 1.0"
-    "1.5 1.0"
-    "1.0 1.5" 
+    "1.0    1.0"
+    "1.5    1.0"
+    "0.6667 1.0" 
 )
 GC_FACTORS=(25.0 50.0)  # Factors to compute Gc
 
