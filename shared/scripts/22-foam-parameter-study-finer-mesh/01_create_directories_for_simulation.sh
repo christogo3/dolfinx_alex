@@ -50,7 +50,7 @@ LAM_MUE_PAIRS=(
     "1.5    1.0"
     "0.6667 1.0" 
 )
-GC_FACTORS=(12.5 25.0 50.0 100.0)  # Factors to compute Gc
+GC_FACTORS=(25.0 50.0)  # Factors to compute Gc
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"
@@ -87,6 +87,9 @@ replicate_folder() {
     # Create the new directory
     mkdir -p "${BASE_WORKING_DIR}/${folder_name}"
     
+    # Create the scratch/as12vapa directory inside the new simulation folder
+    mkdir -p "${BASE_WORKING_DIR}/${folder_name}/scratch/as12vapa"
+
     # Copy the contents of the template folder to the new directory
     rsync -av --exclude='000_template' "${SCRIPT_DIR}/${TEMPLATE_FOLDER}/" "${BASE_WORKING_DIR}/${folder_name}/"
 }
@@ -121,6 +124,7 @@ for mesh_file in "${MESH_FILES[@]}"; do
         done
     done
 done
+
 
 
 
