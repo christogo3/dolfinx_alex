@@ -15,7 +15,7 @@ get_memory_processors_and_time() {
         "coarse_pores")
             memory_value=4000
             processor_number=64
-            time="300"
+            time="600"
             ;;
         "medium_pores")
             memory_value=4000
