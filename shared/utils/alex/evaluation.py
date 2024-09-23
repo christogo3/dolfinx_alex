@@ -1,10 +1,12 @@
-import re
 import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import os
 import math
 import numpy as np
+import re
+from collections import defaultdict
+from typing import Callable, List, Dict, Tuple
 
 
 ### AUXILIARY 
@@ -77,8 +79,9 @@ def create_max_dict(results_dict, column_index=1):
     
     return max_dict
 
+# Your function to extract parameters
+def extract_parameters(key: str) -> Tuple[str, float, float, float, float, int]:
 
-def extract_parameters(key):
     # Regular expression pattern to match the key format
     pattern = re.compile(
         r"(?P<mesh_name>[a-zA-Z0-9_]+)_lam(?P<lam_value>\d+\.\d+)_mue(?P<mue_value>\d+\.\d+)_Gc(?P<Gc_value>\d+\.\d+)_eps(?P<eps_value>\d+\.\d+)_order(?P<order_value>\d+)"
@@ -96,6 +99,39 @@ def extract_parameters(key):
         return (mesh_name, lam_value, mue_value, Gc_value, eps_value, order_value)
     else:
         raise ValueError("Key format is incorrect")
+    
+def group_by_function(keys: List[str], grouping_function: Callable[[Tuple[str, float, float, float, float, int]], any]) -> Dict[any, List[str]]:
+    groups = defaultdict(list)
+    
+    for key in keys:
+        try:
+            parameters = extract_parameters(key)
+            group_key = grouping_function(parameters)
+            groups[group_key].append(key)
+        except ValueError as e:
+            print(f"Skipping key {key}: {e}")
+    
+    return dict(groups)
+    
+def filter_keys(results_dict, target_Gc=None, target_eps=None, target_lam=None, target_mue=None, target_mesh_types=None):
+    filtered_keys = []
+    for key in results_dict.keys():
+        params = extract_parameters(key)
+        if params:
+            mesh_type = params[0]
+            Gc_value = params[3]
+            eps_value = params[4]
+            lam_value = params[1]
+            mue_value = params[2]
+            
+            # Check if the key meets all specified criteria
+            if (target_Gc is None or np.isclose(Gc_value, target_Gc).any()) and \
+               (target_eps is None or np.isclose(eps_value, target_eps).any()) and \
+               (target_lam is None or np.isclose(lam_value, target_lam).any()) and \
+               (target_mue is None or np.isclose(mue_value, target_mue).any()) and \
+               (target_mesh_types is None or mesh_type in target_mesh_types):
+                filtered_keys.append(key)
+    return filtered_keys
 
 def remove_parameter(param_string, param_names):
     """
@@ -204,6 +240,7 @@ def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, reference_L_
     marker_types = {
         (1.0, 1.0): 'o',       # Circle
         (1.5, 1.0): 'p',      # Cross
+        (0.6667, 1.0): '^',      # Cross
         (1.0, 1.5): 'v',      # Dot
         (10.0, 10.0): '^',     # Triangle
         (15.0, 10.0): 's'      # Square

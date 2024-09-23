@@ -50,7 +50,7 @@ LAM_MUE_PAIRS=(
     "1.5    1.0"
     "0.6667 1.0" 
 )
-GC_FACTORS=(25.0 50.0)  # Factors to compute Gc
+GC_FACTORS=(12.5 25.0 50.0 100.0)  # Factors to compute Gc
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"

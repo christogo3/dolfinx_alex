@@ -210,6 +210,9 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              t: dlfx.fem.Constant = None):
     rank = comm.Get_rank()
     
+    if print_bool:
+        print_total_dofs(w, comm, rank)
+    
     # time stepping
     max_iters = 8
     min_iters = 4
@@ -272,7 +275,7 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                 print_increasing_dt(dt.value)
         
         restart_solution = False
-        if converged and iters > 0:
+        if converged:
             after_timestep_success_hook(t.value,dt.value,iters)
             trestart.value = t.value
             t.value = t.value+dt.value
@@ -283,6 +286,15 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         if rank == 0 and print_bool:    
             print_timestep_overview(iters,converged,restart_solution) 
     after_last_timestep_hook()
+
+def print_total_dofs(w, comm, rank):
+    num_dofs = np.shape(w.x.array[:])[0]
+    comm.Barrier()
+    num_dofs_all = comm.allreduce(num_dofs, op=MPI.SUM)
+    comm.Barrier()
+    if rank == 0:
+        print('solving fem problem with', num_dofs_all,'dofs ...')
+        sys.stdout.flush()
 
 # def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
 #                                              w: dlfx.fem.Function, 

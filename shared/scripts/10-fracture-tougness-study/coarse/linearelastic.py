@@ -42,11 +42,17 @@ sys.stdout.flush()
 # generate domain
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
-with dlfx.io.XDMFFile(comm, os.path.join(script_path,'coarse_pores.xdmf'), 'r') as mesh_inp: 
+# with dlfx.io.XDMFFile(comm, os.path.join(script_path,'coarse_pores.xdmf'), 'r') as mesh_inp: 
+#     domain = mesh_inp.read_mesh()
+
+with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,'coarse_pores.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh()
 
-dt = 0.05
-Tend = 2.0 * dt
+# with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,"finest",'coarse_pores_y_rotated.xdmf'), 'r') as mesh_inp: 
+#     domain = mesh_inp.read_mesh(name="Grid")
+
+dt = dlfx.fem.Constant(domain, 0.05)
+Tend = 2.0 * dt.value
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 10.0)
@@ -90,18 +96,14 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     return [Res, dResdw]
 
 
-eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-                    [0.0, 0.6, 0.0],
-                    [0.0, 0.0, 0.0]]))
+# eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
+#                     [0.0, 0.6, 0.0],
+#                     [0.0, 0.0, 0.0]]))
 
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
 crack_tip_start_location_x = 0.1*(x_max_all-x_min_all) + x_min_all
 crack_tip_start_location_y = (y_max_all + y_min_all) / 2.0
 
-import math
-E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
-Gc = dlfx.fem.Constant(domain, 1.0)
-K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc.value*E_mod))
 atol=(x_max_all-x_min_all)*0.02 # for selection of boundary
 def get_bcs(t):
     

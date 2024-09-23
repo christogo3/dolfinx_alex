@@ -10,6 +10,8 @@ import alex.evaluation as ev
 import pandas as pd
 import statsmodels.api as sm
 
+from typing import Callable, List, Dict, Tuple
+
 
 ### PROBLEM DEFINITION
 # height / width of domain
@@ -214,25 +216,6 @@ max_Jx_dict = ev.create_max_dict(results_dict, column_index=1)
 keys = list(max_Jx_dict.keys())
 
 
-def filter_keys(results_dict, target_Gc=None, target_eps=None, target_lam=None, target_mue=None, target_mesh_types=None):
-    filtered_keys = []
-    for key in results_dict.keys():
-        params = ev.extract_parameters(key)
-        if params:
-            mesh_type = params[0]
-            Gc_value = params[3]
-            eps_value = params[4]
-            lam_value = params[1]
-            mue_value = params[2]
-            
-            # Check if the key meets all specified criteria
-            if (target_Gc is None or np.isclose(Gc_value, target_Gc).any()) and \
-               (target_eps is None or np.isclose(eps_value, target_eps).any()) and \
-               (target_lam is None or np.isclose(lam_value, target_lam).any()) and \
-               (target_mue is None or np.isclose(mue_value, target_mue).any()) and \
-               (target_mesh_types is None or mesh_type in target_mesh_types):
-                filtered_keys.append(key)
-    return filtered_keys
 
 mesh_colors = {
         "fine_pores": mcolors.to_rgba('darkred'),
@@ -271,11 +254,11 @@ ev.plot_max_Jx_vs_sig_c(results_dict, keys_to_plot, plot_title, save_path,refere
 # 1. fixed Gc
 target_Gc_values = np.array([1.3987])  
 target_eps_values = np.array(np.array([values_of_params_all["eps"]])  )  
-target_lam_values = np.array([1.0, 1.5])  
-target_mue_values = np.array([1.0, 1.5])   
+target_lam_values = np.array([0.6667,1.0, 1.5])  
+target_mue_values = np.array([1.0])   
 target_mesh_types = ["fine_pores", "medium_pores", "coarse_pores"]  
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -296,7 +279,7 @@ target_lam_values = lam_all
 target_mue_values = mue_all
 target_mesh_types = ["medium_pores"] 
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -316,7 +299,7 @@ target_lam_values = np.array([1.0])
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["coarse_pores", "medium_pores", "fine_pores" ]  
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -340,7 +323,7 @@ target_lam_values = np.array([1.0])
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -362,7 +345,7 @@ target_lam_values = np.array([1.0])
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores"]  
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -383,7 +366,7 @@ target_eps_values = eps_all
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["coarse_pores"]
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -399,7 +382,7 @@ target_eps_values = eps_all
 target_lam_values = np.array([1.0])  
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["coarse_pores", "medium_pores", "fine_pores"]
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -422,7 +405,9 @@ ev.plot_ratio_pore_size_h(results_dict, save_path_ratio_h,h_all,pore_size_all,me
 
 
 
-# 10. varying eps (with different function)
+## 10. varying eps (with different function)
+
+# get datasets with same Gc
 intersect_medium_coarse = ev.intersect_dicts(values_of_params_coarse_mesh,values_of_params_medium_mesh)
 intersect_medium_fine = ev.intersect_dicts(values_of_params_fine_mesh,values_of_params_medium_mesh)
 merged_data = ev.merge_dicts([intersect_medium_coarse,intersect_medium_fine])
@@ -433,7 +418,7 @@ target_lam_values = np.array([1.0])
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
 
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
@@ -469,9 +454,17 @@ ev.plot_max_Jx_vs_data(results_dict, filtered_keys,
 
 
 
+### 12. Const sig_c
+
+def group_by_sig_c(parameters: Tuple[str, float, float, float, float, int]):
+    
+        return round(ev.sig_c_quadr_deg(parameters[3],parameters[2],ev.get_eps(reference_L_global,parameters[4])),2)
+    
+keys_grouped_by_sigc = ev.group_by_function(keys,group_by_sig_c)
+
 
 #### do regression analysis in order to find trends, BAD dataset sig_c is almost const.
-filtered_keys = filter_keys(results_dict,
+filtered_keys = ev.filter_keys(results_dict,
                             target_Gc=[0.5722,0.6993,1.3987, 1.7982],
                             target_eps=[43.6908, 35.7478, 27.8050],
                             target_lam=np.array([1.0]),
