@@ -63,7 +63,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 #################### START DOLFINX
 # script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-working_folder = alex.os.scratch_directory # or script_path if local
+working_folder = script_path #alex.os.scratch_directory # or script_path if local
 logfile_path = alex.os.logfile_full_path(working_folder,script_name_without_extension)
 outputfile_graph_path = alex.os.outputfile_graph_full_path(working_folder,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(working_folder,script_name_without_extension)
@@ -82,8 +82,8 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
-with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,args.mesh_file+".xdmf"), 'r') as mesh_inp: 
-    domain = mesh_inp.read_mesh(name="mesh")
+with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,"finer", args.mesh_file+".xdmf"), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
 
 dt = dlfx.fem.Constant(domain,0.0001)
 t_global = dlfx.fem.Constant(domain,0.0)

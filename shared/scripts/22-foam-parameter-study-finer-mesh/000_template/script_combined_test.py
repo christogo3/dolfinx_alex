@@ -82,8 +82,8 @@ sys.stdout.flush()
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
 # domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-with dlfx.io.XDMFFile(comm, os.path.join("finer",alex.os.resources_directory,"coarse_pores.xdmf"), 'r') as mesh_inp: 
-    domain = mesh_inp.read_mesh(name="mesh")
+with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,"finer","coarse_pores.xdmf"), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
 
 
 dt = dlfx.fem.Constant(domain,0.0001)
