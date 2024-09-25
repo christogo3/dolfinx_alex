@@ -46,7 +46,7 @@ mu = dlfx.fem.Constant(domain, 10.0)
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 
 # function space using mesh and degree
-Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 2) # displacements
+Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
 V = dlfx.fem.FunctionSpace(domain, Ve)
 
 # define boundary condition on top and bottom
@@ -91,7 +91,7 @@ def get_bcs(t):
         eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
                      [0.0, 0.0, 0.0],
                      [0.0, 0.0, 0.0]]))
-    bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac)
+    bcs = bc.get_total_linear_displacement_boundary_condition_at_box(domain, comm, V,eps_mac=eps_mac, atol=atol)
     return bcs
 
 n = ufl.FacetNormal(domain)
