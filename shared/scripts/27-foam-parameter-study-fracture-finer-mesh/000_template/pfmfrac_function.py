@@ -213,7 +213,7 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
         
         # u, s = ufl.split(w)
         sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
-        Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
+        Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
         
         um1, _ = ufl.split(wm1)
 

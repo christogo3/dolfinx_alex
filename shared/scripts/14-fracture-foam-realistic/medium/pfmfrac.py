@@ -83,7 +83,7 @@ eta = dlfx.fem.Constant(domain, 0.001)
 
 epsilon = dlfx.fem.Constant(domain, (y_max_all-y_min_all)/50.0)
 
-Gc_for_given_tensile_strength = pf.get_Gc_for_given_sig_c(tens_strength_al_upper,mue_al,epsilon.value)
+Gc_for_given_tensile_strength = pf.get_Gc_for_given_sig_c_quadr(tens_strength_al_upper,mue_al,epsilon.value)
 Gc = dlfx.fem.Constant(domain, Gc_for_given_tensile_strength)
 
 Mob = dlfx.fem.Constant(domain, 1000.0)
@@ -207,7 +207,7 @@ def after_timestep_success(t,dt,iters):
     
     # u, s = ufl.split(w)
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
-    Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
+    Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
     
     um1, _ = ufl.split(wm1)
 

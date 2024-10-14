@@ -608,11 +608,18 @@ def percentage_of_volume_above(domain: dlfx.mesh.Mesh, function: dlfx.fem.Functi
 
 
 
-def reaction_force_3D(sigma_func, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
-    Rx = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[0] * ds))
-    Ry = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[1] * ds))
-    Rz = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[2] * ds))
-    return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM), comm.allreduce(Rz,MPI.SUM)]
+def reaction_force(sigma_func, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
+    if n.ufl_shape[0] == 3:
+        Rx = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[0] * ds))
+        Ry = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[1] * ds))
+        Rz = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[2] * ds))
+        return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM), comm.allreduce(Rz,MPI.SUM)]
+    elif n.ufl_shape[0] == 2:
+        Rx = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[0] * ds))
+        Ry = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.dot(sigma_func,n)[1] * ds))
+        return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM)]
+    else:
+        raise NotImplementedError(f"dim {sigma_func.function_space.mesh.geometry.dim} not implemented")
 
 
 def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):

@@ -69,7 +69,7 @@ def define_dirichlet_bc_from_value(domain: dlfx.mesh.Mesh,
                                                          subspace_idx: int) -> dlfx.fem.DirichletBC:
     fdim = domain.topology.dim-1
     facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, where_function)
-    if subspace_idx < 0:
+    if subspace_idx < 0: # not a phase field mixed function space
         space = functionSpace.sub(coordinate_idx)
     else:
         space = functionSpace.sub(subspace_idx).sub(coordinate_idx)
@@ -177,9 +177,29 @@ def get_boundary_for_surfing_boundary_condition_at_box_as_function(domain: dlfx.
     # total_boundary = get_boundary_of_box_as_function(domain, comm,atol=atol)
     total_boundary = get_topbottom_boundary_of_box_as_function(domain, comm,atol=atol)
     
+  
+    
     def boundary(x):
         return np.logical_and(total_boundary(x), np.logical_not(excluded_where_function(x)))
     return boundary
+
+# def get_boundary_for_surfing_boundary_condition_2D(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float, epsilon: float) -> Callable:
+    
+#     # TODO total boundary or only apply at top and bottom?
+#     # total_boundary = get_boundary_of_box_as_function(domain, comm,atol=atol)
+#     total_boundary =   get_boundary_of_box_as_function(domain,comm,atol=atol)
+#     # get_topbottom_boundary_of_box_as_function(domain, comm,atol=atol)
+#     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+#     def crack_boundary_where(x):
+#         # x_range = x[0] < xtip + 3.0 * epsilon TODO is this necessary
+#         x_range = np.isclose(x[0],x_min_all,atol=0.0001*epsilon)
+#         y_range = np.isclose(x[1],(y_max_all - y_min_all)/2.0,atol=2.0*epsilon)
+#         excluded = np.logical_and(x_range, y_range)
+#         return excluded
+    
+#     def boundary(x):
+#         return np.logical_and(total_boundary(x), np.logical_not(crack_boundary_where(x)))
+#     return boundary
     
 
 def surfing_boundary_conditions(w_D: dlfx.fem.Function, K1: dlfx.fem.Constant, xK1: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, subspace_index: int =0) -> dlfx.fem.Function:
@@ -264,8 +284,9 @@ def get_total_surfing_boundary_condition_at_box(domain: dlfx.mesh.Mesh,
     
     bcs.append(define_dirichlet_bc_from_interpolated_function(domain, w_D, where, functionSpace,subspace_idx))
     
-    # TODO set front and back faces to zero ~plane strain?
-    bcs.append(define_dirichlet_bc_from_value(domain=domain,
+    # set displacement perpendicular to front and back faces to zero ~plane strain, only 3D
+    if functionSpace.mesh.geometry.dim == 3:
+        bcs.append(define_dirichlet_bc_from_value(domain=domain,
                                              desired_value_at_boundary=0.0,
                                              coordinate_idx=2,
                                              where_function=get_frontback_boundary_of_box_as_function(domain,comm,atol=atol),

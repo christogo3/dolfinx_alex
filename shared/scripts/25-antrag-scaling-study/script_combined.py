@@ -205,7 +205,7 @@ v_crack = 2.0*(x_max_all-crack_tip_start_location_x)/Tend
 vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
 crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
-[Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
+# [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
 
 front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
@@ -270,7 +270,7 @@ def after_timestep_success(t,dt,iters):
     # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path,w,t,comm)
     
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam.value,mu.value,eta)
-    Rx_top, Ry_top, Rz_top = pp.reaction_force_3D(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
+    Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(1),comm=comm)
     
     um1, _ = ufl.split(wm1)
 

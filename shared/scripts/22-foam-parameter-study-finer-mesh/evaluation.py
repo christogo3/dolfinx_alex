@@ -18,6 +18,14 @@ from typing import Callable, List, Dict, Tuple
 reference_L_global = 1.2720814740168862
 
 # MESH SIZES
+h_coarse_mean_mesh_finest =  0.013523871686242459 #0.040704583134024946
+h_all_mesh_finest = {
+    "coarse_pores": h_coarse_mean_mesh_finest,
+    "medium_pores": h_coarse_mean_mesh_finest/2.0,
+    "fine_pores": h_coarse_mean_mesh_finest/4.0,
+}
+
+
 h_coarse_mean_mesh_finer =  0.024636717648428213 #0.040704583134024946
 h_all_mesh_finer = {
     "coarse_pores": h_coarse_mean_mesh_finer,
@@ -46,6 +54,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 # Directory containing the simulation folders
 directory_path_coarse = os.path.join(script_path, "data_not_tracked", "coarse_original_dir")
 directory_path_finer = os.path.join(script_path, "data_not_tracked", "finer_original_dir")
+directory_path_finest = os.path.join(script_path, "data_not_tracked", "finest_original_dir")
 
 results_path = os.path.join(script_path)
 
@@ -59,10 +68,8 @@ outer_pattern = re.compile(
 
 results_dict_coarse, first_level_keys_coarse = ev.create_results_dict(directory_path_coarse, outer_pattern)
 results_dict_finer, first_level_keys_finer = ev.create_results_dict(directory_path_finer, outer_pattern)
-            
+results_dict_finest, first_level_keys_finest = ev.create_results_dict(directory_path_finest, outer_pattern)       
            
-
-
 
 # Example usage
 # param_string = "coarse_pores_lam10.0_mue10.0_Gc0.5_eps50.0_order2"
@@ -298,23 +305,28 @@ target_lam_values = np.array([1.0])
 target_mue_values = np.array([1.0])  
 target_mesh_types = ["medium_pores", "coarse_pores" ,"fine_pores"]  
 
-filtered_keys = ev.filter_keys(results_dict_coarse,
+keys_to_plot_coarse = ev.filter_keys(results_dict_coarse,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
                             target_mue=target_mue_values,
                             target_mesh_types=target_mesh_types)
-keys_to_plot_coarse = filtered_keys 
 
-filtered_keys = ev.filter_keys(results_dict_finer,
+keys_to_plot_finer = ev.filter_keys(results_dict_finer,
                             target_Gc=target_Gc_values,
                             target_eps=target_eps_values,
                             target_lam=target_lam_values,
                             target_mue=target_mue_values,
                             target_mesh_types=target_mesh_types)
-keys_to_plot_finer = filtered_keys 
 
-plot_title = "Max Jx vs sig_c"
+keys_to_plot_finest = ev.filter_keys(results_dict_finest,
+                            target_Gc=target_Gc_values,
+                            target_eps=target_eps_values,
+                            target_lam=target_lam_values,
+                            target_mue=target_mue_values,
+                            target_mesh_types=target_mesh_types)
+
+plot_title = "Max Jx vs pore size ratio"
 save_path = os.path.join(results_path, "004_max_Jx_vs_sig_c_varying_eps.png")
 # ev.plot_max_Jx_vs_sig_c(results_dict_coarse, 
 #                          keys_to_plot, 
@@ -332,13 +344,13 @@ save_path = os.path.join(results_path, "004_max_Jx_vs_sig_c_varying_eps.png")
 #                                       special_keys=first_level_keys_coarse,
 #                                       h_all=h_all_mesh_coarse
 #                                       )
-ev.plot_max_Jx_vs_pore_size_eps_ratio_multiple([results_dict_coarse, results_dict_finer],
-                                      [keys_to_plot_coarse, keys_to_plot_finer],plot_title,
+ev.plot_max_Jx_vs_pore_size_eps_ratio_multiple([results_dict_coarse, results_dict_finer, results_dict_finest],
+                                      [keys_to_plot_coarse, keys_to_plot_finer, keys_to_plot_finest],plot_title,
                                       save_path, 
                                       pore_size_all, 
                                       reference_L_global=reference_L_global, 
-                                      special_keys_list=[first_level_keys_coarse, first_level_keys_finer],
-                                      h_all_list=[h_all_mesh_coarse, h_all_mesh_finer]
+                                      special_keys_list=[first_level_keys_coarse, first_level_keys_finer, first_level_keys_finest],
+                                      h_all_list=[h_all_mesh_coarse, h_all_mesh_finer, h_all_mesh_finest]
                                       )
 
 

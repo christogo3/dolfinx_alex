@@ -11,11 +11,18 @@ def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
     return degrad
 
+def degrad_cubic(s: any, eta: dlfx.fem.Constant, beta=0.01) -> any:
+    degrad = beta * ((s ** 2) * s - (s ** 2)) + 3.0*(s**2) - 2.0*(s**2)*s + eta
+    return degrad
+
 def sig_c_quadr_deg(Gc, mu, epsilon):
     return 9.0/16.0 * math.sqrt(Gc*2.0*mu/(6.0*epsilon))
 
+def sig_c_cubic_deg(Gc, mu, epsilon):
+    return 81.0/50.0 * math.sqrt(Gc*2.0*mu/(15.0*epsilon))
 
-def get_Gc_for_given_sig_c(sig_c, mu, epsilon):
+
+def get_Gc_for_given_sig_c_quadr(sig_c, mu, epsilon):
     return (256.0 * epsilon / (27.0 * mu)) * sig_c**2
 
 
@@ -78,7 +85,6 @@ class StaticPhaseFieldProblem3D:
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
-        # Wen = self.degradation_function(s,eta) * self.psiel_undegraded(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
         eshelby = self.psiel_degraded(s,eta,u,lam.value,mu.value) * ufl.Identity(3) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam.value,mu.value, eta))
         return ufl.as_tensor(eshelby)
     
@@ -132,7 +138,7 @@ def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: d
     # all_dofs_s_global = np.array(dofmap.local_to_global(all_dofs_s_local),dtype=np.int32)
     
     array_s = wm1.x.array[all_dofs_s_local]
-    indices_where_zero_in_array_s = np.where(np.isclose(array_s,0.0,atol=0.01))
+    indices_where_zero_in_array_s = np.where(np.isclose(array_s,0.0,atol=0.001))
     dofs_s_zero = all_dofs_s_local[indices_where_zero_in_array_s]
     
     # array_s_zero=wm1.x.array[dofs_s_zero]

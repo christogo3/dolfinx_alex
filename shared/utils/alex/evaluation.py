@@ -180,6 +180,21 @@ def extract_parameters(key: str) -> Tuple[str, float, float, float, float, int]:
     else:
         raise ValueError("Key format is incorrect")
     
+def get_mesh_name(key: str):
+    return extract_parameters(key)[0]
+
+def get_lam(key: str):
+    return extract_parameters(key)[1]
+
+def get_mue(key: str):
+    return extract_parameters(key)[2]
+
+def get_gc(key: str):
+    return extract_parameters(key)[3]
+
+def get_order(key: str):
+    return extract_parameters(key)[4]
+    
 def group_by_function(keys: List[str], grouping_function: Callable[[Tuple[str, float, float, float, float, int]], any]) -> Dict[any, List[str]]:
     groups = defaultdict(list)
     
