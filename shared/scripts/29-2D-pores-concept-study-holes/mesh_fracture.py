@@ -10,15 +10,6 @@ import alex.os
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 
-
-# l0 = 4.0                 # length rve    
-# h0 = 1.0                 # height (edges at +/- h0/2)
-# a0 = l0/32               # inital crack length
-# r0 = 0.25*h0             # radius of inclusion
-
-# offset = 0               # offset 0 / 0.15*h0
-
-
 Nholes=3
 dhole=0.25
 wsteg=0.1
@@ -51,18 +42,6 @@ line3 = model.add_line(p3, p0)            # 3 (left)
 outer = model.add_curve_loop([line0, line1, line2, line3])
 eff_matr = model.add_plane_surface(outer)
 
-p4 = model.add_point([0+w_cell, -h_cell/2])          
-p5 = model.add_point([l0-w_cell,-h_cell/2])         
-p6 = model.add_point([l0-w_cell,+h_cell/2])         
-p7 = model.add_point([0+w_cell, h_cell/2])
-line4 = model.add_line(p4, p5)            # 1 (bottom)
-line5 = model.add_line(p5, p6)            # 2 (right)
-line6 = model.add_line(p6, p7)            # 3 (top)
-line7 = model.add_line(p7, p4)            # 3 (left)
-tmp_inner = model.add_curve_loop([line4, line5, line6, line7])
-rect_hole = model.add_plane_surface(tmp_inner)
-
-eff_matr = model.boolean_difference(eff_matr,rect_hole)
 model.synchronize()
 
 
@@ -73,27 +52,22 @@ for n in range(0,Nholes):
     y_center = 0.0
     left_bottom_rectangle = [x_center - w_cell/2.0,-h_cell/2,0]
     cell_matrix_tmp = model.add_rectangle(left_bottom_rectangle,w_cell,h_cell,0)
+    eff_matr = model.boolean_fragments(eff_matr,cell_matrix_tmp,delete_first=True, delete_other=True)
+    
     hole = model.add_disk([x_center, y_center],dhole/2)
-    cell_matrix = model.boolean_difference(cell_matrix_tmp,hole)
-    eff_matr = model.boolean_union([eff_matr,cell_matrix],delete_first=True, delete_other=True)
-    # cell_matrix = model.boolean_fragments(cell_matrix_tmp,hole)
-    cells.append(cell_matrix)
-
+    eff_matr = model.boolean_difference(eff_matr,hole)
+    
 # Add crack as a line
 p8 = model.add_point([0.0,0.0])         
 p9 = model.add_point([w_cell, 0.0])
 crack = model.add_line(p8, p9)  # 4 (crack)
 eff_matr = model.boolean_fragments(eff_matr, crack, delete_first=True, delete_other=True)
 
+model.synchronize()
 
-model.add_physical(eff_matr[0], 'eff_matrix')
-# model.add_physical(cells,'cell_matrix')
-# Ensure we are adding the correct surfaces (2D entities) to the physical group
-surfaces = [c[0] for c in cells if c[0].dim == 2]  # Extract only 2D surfaces
-if mesh_inclusions:
-    model.add_physical(surfaces, 'cell_matrix')  # Add the outer surface as 'matrix'
-
-
+model.add_physical(eff_matr[3], 'eff_matrix')
+cells = eff_matr[0:(Nholes)]
+model.add_physical(cells, "cell_matrix")
 
 # Add the crack (a 1D line) as a physical group
 model.add_physical(crack, 'crack')
@@ -118,7 +92,6 @@ if mesh_info:
     print(elem_data)
 
 cell_mesh = meshio.Mesh(points=nodes, cells={'triangle': elems}, cell_data={'name_to_read': [elem_data]})
-# print(os.path.join(alex.os.resources_directory,script_name_without_extension+'.xdmf'))
 meshio.write(os.path.join(script_path,script_name_without_extension+'.xdmf'), cell_mesh)
 
 

@@ -627,3 +627,13 @@ def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.f
     t = ufl.dot(sigma_func,n)
     dW = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.inner(t,du)*ds))
     return comm.allreduce(dW,MPI.SUM)
+
+
+
+# store parameters to parameters file
+def append_to_file(filename, parameters, comm):
+    if comm.Get_rank() == 0:
+        with open(filename, 'a') as file:
+            for key, value in parameters.items():
+                file.write(f"{key}={value}\n")
+

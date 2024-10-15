@@ -32,9 +32,15 @@ def linear_displacements(V: dlfx.fem.FunctionSpace,
                                eps_mac: dlfx.fem.Constant):
     u_D = dlfx.fem.Function(V)
     dim = ut.get_dimension_of_function(u_D)
-    for k in range(0, dim):
-        u_D.sub(k).interpolate(lambda x: eps_mac.value[k, 0]*x[0] + eps_mac.value[k, 1]*x[1] + eps_mac.value[k, 2]*x[2] )
-        u_D.x.scatter_forward()
+    if dim == 3:
+        for k in range(0, dim):
+            u_D.sub(k).interpolate(lambda x: eps_mac.value[k, 0]*x[0] + eps_mac.value[k, 1]*x[1] + eps_mac.value[k, 2]*x[2] )
+            u_D.x.scatter_forward()
+    elif dim == 2:
+         for k in range(0, dim):
+            u_D.sub(k).interpolate(lambda x: eps_mac.value[k, 0]*x[0] + eps_mac.value[k, 1]*x[1] )
+            u_D.x.scatter_forward()
+        
         
     # def u_x(x):
     #     return eps_mac.value[0, 0]*x[0] + eps_mac.value[0, 1]*x[1] + eps_mac.value[0, 2]*x[2]

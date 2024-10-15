@@ -42,62 +42,37 @@ if rank == 0:
 parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
 try:
     parser.add_argument("--mesh_file", type=str, required=True, help="Name of the mesh file")
-    parser.add_argument("--lam_param", type=float, required=True, help="Lambda parameter")
-    parser.add_argument("--mue_param", type=float, required=True, help="Mu parameter")
-    parser.add_argument("--Gc_param", type=float, required=True, help="Gc parameter")
+    parser.add_argument("--in_crack_length", type=str, required=True, help="Initial Crack length")
+    parser.add_argument("--lam_effective_param", type=float, required=True, help="Lambda effective_parameter")
+    parser.add_argument("--mue_effective_param", type=float, required=True, help="Mu effective_parameter")
+    parser.add_argument("--lam_micro_param", type=float, required=True, help="Lambda micro_parameter")
+    parser.add_argument("--mue_micro_param", type=float, required=True, help="Mu micro_parameter")
+    parser.add_argument("--Gc_micro_param", type=float, required=True, help="Gc micor parameter")
     parser.add_argument("--eps_factor_param", type=float, required=True, help="Epsilon factor parameter")
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
     args = parser.parse_args()
     mesh_file = args.mesh_file
-    la_micro = 2.0
-    la_effective = args.lam_param
-    mu_micro = 2.0
-    mu_effective = args.mue_param
-    gc_micro = 1.1
-    gc_effective = args.Gc_param
+    in_crack_length = args.in_crack_length
+    la_micro = args.lam_micro_param
+    la_effective = args.lam_effective_param
+    mu_micro = args.mue_micro_param
+    mu_effective = args.mue_effective_param
+    gc_micro = args.Gc_micro_param
+    gc_effective = gc_micro
     eps_factor_param = args.eps_factor_param
-    
-    # parameters_to_write = {
-    #     'mesh_file': args.mesh_file,
-    #     'lam_param': args.lam_param,
-    #     'mue_param': args.mue_param,
-    #     'Gc_param': args.Gc_param,
-    #     'eps_factor_param': args.eps_factor_param,
-    #     'element_order': args.element_order,
-    #     'la_inclusion': 2.0,
-    #     'la_matrix': args.lam_param,
-    #     'mu_inclusion': 2.0,
-    #     'mu_matrix': args.mue_param,
-    #     'gc_inclusion': 1.1,
-    #     'gc_matrix': args.Gc_param
-    # }
 except:
     if rank == 0:
         print("Could not parse arguments")
-    la_micro = 2.0
+    in_crack_length = 0.05
+    la_micro = 1.0
     la_effective = 1.0
-    mu_micro = 2.0
+    mu_micro = 1.0
     mu_effective = 1.0
     gc_micro = 1.0
     gc_effective = gc_micro
-    mesh_file = "mesh.xdmf"
-    eps_factor_param = 0.02
+    mesh_file = "mesh_fracture.xdmf"
+    eps_factor_param = 0.1
     
-    # parameters_to_write = {
-    #     'mesh_file': "mesh_holes.xdmf",
-    #     'lam_param': 1.0,
-    #     'mue_param': 1.0,
-    #     'Gc_param': 1.0,
-    #     'eps_factor_param': 50,
-    #     'element_order': 1,
-    #     'la_inclusion': 2.0,
-    #     'la_matrix': 1.0,
-    #     'mu_inclusion': 2.0,
-    #     'mu_matrix': 1.0,
-    #     'gc_inclusion': 1.1,
-    #     'gc_matrix': 1.0
-    # }
-
 
 
 with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
@@ -107,9 +82,6 @@ with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_in
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
     
-# mesh, cell_markers, facet_markers = gmshio.read_from_msh(os.path.join(script_path,'Keff_mesh.msh'), MPI.COMM_WORLD, gdim=2)
-    
-
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
 if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
@@ -166,8 +138,8 @@ Gc_num = (1.0 + hh / epsilon.value ) * gc_effective
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
-crack_tip_start_location_x = 0.05*(x_max_all-x_min_all) + x_min_all
-crack_tip_start_location_y = (y_max_all + y_min_all) / 2.0
+crack_tip_start_location_x = in_crack_length
+crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*(y_max_all-y_min_all))
@@ -218,7 +190,7 @@ c = dlfx.fem.Constant(domain, petsc.ScalarType(1))
 sub_expr = dlfx.fem.Expression(c,S.element.interpolation_points())
 s_zero_for_tracking_at_nodes.interpolate(sub_expr)
 
-atol=(x_max_all-x_min_all)*0.001 # for selection of boundary
+atol=(x_max_all-x_min_all)*0.000 # for selection of boundary
 
 # surfing BCs
 xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
@@ -284,7 +256,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,10.0)
+postprocessing_interval = dlfx.fem.Constant(domain,1.0)
 def after_timestep_success(t,dt,iters):
     
     
@@ -409,7 +381,7 @@ if rank == 0:
     ]
         
     # Create the directory
-    target_directory = create_timestamped_directory()
+    target_directory = create_timestamped_directory(base_dir=script_path)
     print(f"Created directory: {target_directory}")
 
     # Copy the files
