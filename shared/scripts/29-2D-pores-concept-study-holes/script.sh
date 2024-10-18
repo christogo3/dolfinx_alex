@@ -12,7 +12,7 @@ GC_MICRO_PARAM=${8:-1.0}
 
 
 # Calculate EPS_PARAM as 6 times E0 using awk if not provided by user
-EPS_PARAM=$(awk "BEGIN {print 6 * $E0}")
+EPS_PARAM=$(awk "BEGIN {print 5 * $E0}")
 EPS_PARAM=${9:-$EPS_PARAM}
 ELEMENT_ORDER=${10:-1}
 
