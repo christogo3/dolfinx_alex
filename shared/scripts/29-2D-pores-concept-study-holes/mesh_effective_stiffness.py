@@ -3,22 +3,31 @@ import meshio
 import numpy as np
 import gmsh
 import os
-
+import argparse
 import alex.os
 
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 
+parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
+try:
+    parser.add_argument("--dhole", type=float, required=True, help="Diameter of hole")
+    parser.add_argument("--wsteg", type=float, required=True, help="width of steg")
+    parser.add_argument("--e0", type=float, required=True, help="size of elements")
+    args = parser.parse_args()
+    dhole=args.dhole
+    wsteg=args.wsteg
+    e0 = args.e0                # mesh size
+    # }
+except:
+    print("Could not parse arguments")
+    dhole=0.25
+    wsteg=0.1
+    e0 = 0.02                # mesh size
 
-Nholes=3
-dhole=0.25
-wsteg=0.1
 w_cell=dhole+wsteg
 h_cell=w_cell
-e0 = 0.02                # mesh size
-
-l0 = (Nholes +2) * w_cell
 h0 = 2*w_cell
 
 mesh_inclusions = True  # mesh inclusions 

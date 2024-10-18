@@ -631,9 +631,55 @@ def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.f
 
 
 # store parameters to parameters file
-def append_to_file(filename, parameters, comm):
+def append_to_file(filename, parameters, comm=MPI.COMM_WORLD):
     if comm.Get_rank() == 0:
         with open(filename, 'a') as file:
             for key, value in parameters.items():
                 file.write(f"{key}={value}\n")
+                
+def read_parameters_file(file_path):
+    """
+    Reads a file with key-value pairs separated by '=' and returns a dictionary.
+    
+    Parameters:
+    file_path (str): Path to the file containing key-value pairs.
+    
+    Returns:
+    dict: A dictionary containing the key-value pairs from the file, with values as floats or integers.
+    """
+    data_dict = {}
+    
+    try:
+        with open(file_path, 'r') as file:
+            for line in file:
+                line = line.strip()
+                
+                # Skip empty lines
+                if not line:
+                    continue
+                
+                # Split the line into key and value
+                key, value = line.split('=')
+                
+                # Try to convert the value to an integer first, then a float if that fails
+                try:
+                    # Remove any extraneous whitespace around key and value
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Attempt to convert value to integer
+                    data_dict[key] = int(value)
+                except ValueError:
+                    # If integer conversion fails, convert to float
+                    data_dict[key] = float(value)
+    
+    except FileNotFoundError:
+        print(f"Error: The file at '{file_path}' was not found.")
+    except ValueError:
+        print("Error: Could not convert a value to a number. Check the file for proper formatting.")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    
+    return data_dict
+
 

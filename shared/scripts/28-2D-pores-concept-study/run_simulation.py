@@ -284,7 +284,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,10.0)
+postprocessing_interval = dlfx.fem.Constant(domain,100.0)
 def after_timestep_success(t,dt,iters):
     
     
@@ -359,7 +359,8 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
-    t=t_global
+    t=t_global,
+    dt_never_scale_up=True
 )
 
 parameters_to_write = {

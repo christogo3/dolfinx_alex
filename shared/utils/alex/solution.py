@@ -207,7 +207,9 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              comm: MPI.Intercomm = MPI.COMM_WORLD,
                                              print_bool = False,
                                              solver : NewtonSolver = None,
-                                             t: dlfx.fem.Constant = None):
+                                             t: dlfx.fem.Constant = None,
+                                             dt_max: dlfx.fem.Constant = None,
+                                             dt_never_scale_up: bool = False):
     rank = comm.Get_rank()
     
     if print_bool:
@@ -218,6 +220,10 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     min_iters = 4
     dt_scale_down = 0.5
     dt_scale_up = 2.0
+    
+    if not dt_max is None:
+        if dt.value >= dt_max.value:
+            dt.value = dt_max.value
     
     # t = 0
     if t is None:
@@ -270,10 +276,17 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                 
         
         if converged and iters < min_iters and t.value > np.finfo(float).eps and iters > 0:
-            dt.value = dt_scale_up*dt.value
-            if rank == 0 and print_bool:
-                print_increasing_dt(dt.value)
-        
+            if not dt_never_scale_up:
+                if dt_max is None:
+                    dt.value = dt_scale_up*dt.value
+                    if rank == 0 and print_bool:
+                        print_increasing_dt(dt.value)
+                else:
+                    if not (dt_scale_up*dt.value > dt_max.value): 
+                        dt.value = dt_scale_up*dt.value
+                        if rank == 0 and print_bool:
+                            print_increasing_dt(dt.value)
+                    
         restart_solution = False
         if converged:
             after_timestep_success_hook(t.value,dt.value,iters)

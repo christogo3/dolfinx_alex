@@ -13,7 +13,7 @@ try:
     args = parser.parse_args()
     mesh_file = args.mesh_file
 except: 
-    mesh_file = "mesh_holes.xdmf"
+    mesh_file = "mesh_fracture.xdmf"
 
 
 # Set up paths
@@ -22,6 +22,7 @@ script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path, script_name_without_extension)
 input_file_path = os.path.join(script_path,mesh_file)
 output_histogram_path = os.path.join(script_path, "edge_length_distribution.png")
+parameter_path = os.path.join(script_path,"parameters.txt")
 
 # Load the mesh data
 data = meshio.read(input_file_path)
@@ -78,7 +79,7 @@ def append_to_file(filename, parameters):
     with open(filename, 'a') as file:
         for key, value in parameters.items():
             file.write(f"{key}={value}\n")
-parameter_path = os.path.join(script_path,"parameters.txt")
+
 append_to_file(parameters=parameters_to_write,filename=parameter_path)
 
 # Plot histogram and save

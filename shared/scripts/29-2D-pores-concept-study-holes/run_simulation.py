@@ -42,27 +42,26 @@ if rank == 0:
 parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
 try:
     parser.add_argument("--mesh_file", type=str, required=True, help="Name of the mesh file")
-    parser.add_argument("--in_crack_length", type=str, required=True, help="Initial Crack length")
-    parser.add_argument("--lam_effective_param", type=float, required=True, help="Lambda effective_parameter")
-    parser.add_argument("--mue_effective_param", type=float, required=True, help="Mu effective_parameter")
+    parser.add_argument("--in_crack_length", type=float, required=True, help="Initial Crack length")
+    # parser.add_argument("--lam_effective_param", type=float, required=True, help="Lambda effective_parameter")
+    # parser.add_argument("--mue_effective_param", type=float, required=True, help="Mu effective_parameter")
     parser.add_argument("--lam_micro_param", type=float, required=True, help="Lambda micro_parameter")
     parser.add_argument("--mue_micro_param", type=float, required=True, help="Mu micro_parameter")
-    parser.add_argument("--Gc_micro_param", type=float, required=True, help="Gc micor parameter")
-    parser.add_argument("--eps_factor_param", type=float, required=True, help="Epsilon factor parameter")
+    parser.add_argument("--gc_micro_param", type=float, required=True, help="Gc micro parameter")
+    parser.add_argument("--eps_param", type=float, required=True, help="Epsilon factor parameter")
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
     args = parser.parse_args()
     mesh_file = args.mesh_file
     in_crack_length = args.in_crack_length
     la_micro = args.lam_micro_param
-    la_effective = args.lam_effective_param
     mu_micro = args.mue_micro_param
-    mu_effective = args.mue_effective_param
-    gc_micro = args.Gc_micro_param
+    gc_micro = args.gc_micro_param
     gc_effective = gc_micro
-    eps_factor_param = args.eps_factor_param
-except:
+    eps_param = args.eps_param
+except Exception as e:
     if rank == 0:
         print("Could not parse arguments")
+        print(e)
     in_crack_length = 0.05
     la_micro = 1.0
     la_effective = 1.0
@@ -71,8 +70,14 @@ except:
     gc_micro = 1.0
     gc_effective = gc_micro
     mesh_file = "mesh_fracture.xdmf"
-    eps_factor_param = 0.1
+    eps_param = 0.1
     
+parameters = pp.read_parameters_file(parameter_path)
+la_effective = parameters["lam_effective"]
+mu_effective = parameters["mue_effective"]
+
+if rank == 0:
+        print(f"Initial crack length: {in_crack_length}")
 
 
 with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
@@ -98,17 +103,19 @@ effective_material_cells = mesh_tags.find(effective_material_marker)
 
 
 # Simulation parameters ####
-
-dt = dlfx.fem.Constant(domain, 0.001)
+dt_start = 0.001
+dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
-Tend = 10.0 * dt.value
+Tend = 10.0 * dt_global.value
+dt_max = dlfx.fem.Constant(domain,dt_global.value)
+dt_max_in_critical_area = 2.0e-7
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
 gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_effective, micro_material_cells, effective_material_cells)
 
 eta = dlfx.fem.Constant(domain, 0.00001)
-epsilon = dlfx.fem.Constant(domain, (y_max_all-y_min_all)*eps_factor_param)
+epsilon = dlfx.fem.Constant(domain, eps_param)
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
@@ -199,7 +206,7 @@ v_crack = 1.2*(x_max_all-crack_tip_start_location_x)/Tend
 vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
 crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
-[Res, dResdw] = get_residuum_and_gateaux(delta_t=dt)
+[Res, dResdw] = get_residuum_and_gateaux(delta_t=dt_global)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
 
 # front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
@@ -243,6 +250,30 @@ def get_bcs(t):
     # bcs.append(bc_front_back)
     return bcs
 
+
+parameters_read = pp.read_parameters_file(parameter_path)
+wsteg = parameters_read["wsteg"]
+dhole = parameters_read["dhole"]
+w_cell = wsteg + dhole
+
+def in_steg_to_be_measured(x_ct):
+    #x_center = (w_cell) * 1.5 + dhole/2
+    first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
+    
+    in_first_steg = first_low <= x_ct <= first_high
+    in_second_steg = second_low <= x_ct <= second_high
+    
+    return in_first_steg or in_second_steg
+
+def steg_bounds_to_be_measured():
+    first_low = w_cell + wsteg/2.0 + dhole
+    first_high = first_low + wsteg #- (0.01*wsteg)
+    
+    second_low = first_high + dhole
+    second_high = second_low + wsteg 
+    return first_low,first_high,second_low,second_high
+
+
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
@@ -258,9 +289,6 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,1.0)
 def after_timestep_success(t,dt,iters):
-    
-    
-    
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(),comm=comm)
     
@@ -288,11 +316,20 @@ def after_timestep_success(t,dt,iters):
     # s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
     s_zero_for_tracking_at_nodes.interpolate(s)
     max_x, max_y, min_x, min_y  = pp.crack_bounding_box_2D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
+    x_ct = max_x
     if rank == 0:
-        x_ct = max_x
         print("Crack tip position x: " + str(x_ct))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
+
+    if in_steg_to_be_measured(x_ct=x_ct):
+        if rank == 0:
+            first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
+            print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
+        dt_max.value = dt_max_in_critical_area
+        dt_global.value = dt_max_in_critical_area
+    else:
+        dt_max.value = dt_start
 
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
@@ -314,14 +351,14 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,
     w,
     Tend,
-    dt,
+    dt_global,
     before_first_timestep_hook=before_first_time_step,
     after_last_timestep_hook=after_last_timestep,
     before_each_timestep_hook=before_each_time_step,
@@ -331,27 +368,26 @@ sol.solve_with_newton_adaptive_time_stepping(
     after_timestep_success_hook=after_timestep_success,
     comm=comm,
     print_bool=True,
-    t=t_global
+    t=t_global,
+    dt_max=dt_max
 )
 
 parameters_to_write = {
         'mesh_file': mesh_file,
-        'lam_param': la_effective,
-        'mue_param': mu_effective,
-        'Gc_param': gc_effective,
-        'eps_factor_param': eps_factor_param,
+        'lam_eff_simulation': la_effective,
+        'mue_eff_simulation': mu_effective,
+        'lam_micro_simulation': la_micro,
+        'mue_micro_simulation': mu_micro,
+        'Gc_simulation': gc_effective,
+        'eps_simulation': eps_param,
         'eps': epsilon.value,
         'eta': eta.value,
         'mob': Mob.value,
         'element_order': 1,
+        'in_crack_length': in_crack_length,
     }
-# store parameters
-def append_to_file(filename, parameters):
-    with open(filename, 'a') as file:
-        for key, value in parameters.items():
-            file.write(f"{key}={value}\n")
-if rank == 0:
-    append_to_file(parameters=parameters_to_write,filename=parameter_path)
+
+pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
 
 # copy relevant files
 

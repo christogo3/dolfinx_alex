@@ -16,6 +16,7 @@ import alex.boundaryconditions as bc
 import alex.postprocessing as pp
 import alex.solution as sol
 import alex.linearelastic as le
+import argparse
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
@@ -35,6 +36,19 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
+parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
+try:
+    parser.add_argument("--lam_micro_param", type=float, required=True, help="Lambda micro_parameter")
+    parser.add_argument("--mue_micro_param", type=float, required=True, help="Mu micro_parameter")
+    args = parser.parse_args()
+    lam_micro_param = args.lam_micro_param
+    mue_micro_param = args.mue_micro_param
+except:
+    print("Could not parse arguments")
+    lam_micro_param = 1.0
+    mue_micro_param = 1.0
+
+
 with dlfx.io.XDMFFile(comm, os.path.join(script_path,'mesh_effective_stiffness.xdmf'), 'r') as mesh_inp: 
     domain = mesh_inp.read_mesh(name="Grid")
 
@@ -42,8 +56,9 @@ dt = dlfx.fem.Constant(domain,0.05)
 Tend = 16.0 * dt.value
 
 # elastic constants
-lam = dlfx.fem.Constant(domain, 1.0)
-mu = dlfx.fem.Constant(domain, 1.0)
+lam = dlfx.fem.Constant(domain, lam_micro_param)
+mu = dlfx.fem.Constant(domain, mue_micro_param)
+
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 
 # function space using mesh and degree
@@ -136,8 +151,8 @@ def after_last_timestep():
         print(alex.homogenization.print_results(Chom))
         
         parameters_to_write = {
-                "lam_hom" : alex.homogenization.lam_hom(Chom)[0],
-                "mue_hom" : alex.homogenization.mu_hom(Chom)[0]
+                "lam_effective" : alex.homogenization.lam_hom(Chom)[0],
+                "mue_effective" : alex.homogenization.mu_hom(Chom)[0]
         }
         
         pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)

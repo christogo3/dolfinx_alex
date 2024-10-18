@@ -1,36 +1,30 @@
 #!/bin/bash
 
 # Define the list of WSTEG values you want to iterate over
-WSTEG_VALUES=(0.05 0.1 0.2 0.4 0.8 1.0 10.0)
+#WSTEG_VALUES=(0.05 0.1 0.2 0.4 0.5 1.0)
+
+#WSTEG_VALUES=(0.05 0.075 0.1 0.125 0.15 0.2)
+WSTEG_VALUES=(0.05)
 
 # Other parameters to be kept constant
-L0=6.0
-HSTEG=0.5
-VOL_MAT=0.5
-MESH_FILE="mesh_holes.xdmf"
-LAM_PARAM=1.0
-MUE_PARAM=1.0
-GC_PARAM=1.0
-EPS_FACTOR_PARAM=0.05
+MESH_FILE="mesh_fracture.xdmf"
+NHOLES=4
+DHOLE=1.0
+E0=0.02
+EPS_PARAM=$(awk "BEGIN {print 5 * $E0}")
+# E0=0.01
+# EPS_PARAM=$(awk "BEGIN {print 10 * $E0}") # temporary for small steg width
+LAM_MICRO_PARAM=1.0
+MUE_MICRO_PARAM=1.0
+GC__MICRO_PARAM=1.0
 ELEMENT_ORDER=1
 
 # Loop over each WSTEG value
 for WSTEG in "${WSTEG_VALUES[@]}"; do
-  # Calculate WHOLE with awk for floating-point arithmetic
-  WHOLE=$(awk "BEGIN {print $WSTEG * (1.0 - $VOL_MAT) / $VOL_MAT}")
-  
-  # Check if WHOLE calculation succeeded
-  if [ -z "$WHOLE" ]; then
-      echo "Error: WHOLE calculation failed for WSTEG=$WSTEG"
-      exit 1
-  fi
-  
-  # Debug: Print the values of WSTEG and WHOLE
-  echo "Debug: WSTEG=$WSTEG, WHOLE=$WHOLE"
-  
+
   # Call the original script with the current WSTEG value
-  echo "Running script with WSTEG=$WSTEG and WHOLE=$WHOLE"
-  ./script.sh "$L0" "$WSTEG" "$HSTEG" "$WHOLE" "$MESH_FILE" "$LAM_PARAM" "$MUE_PARAM" "$GC_PARAM" "$EPS_FACTOR_PARAM" "$ELEMENT_ORDER"
+  echo "Running script with WSTEG=$WSTEG"
+  ./script.sh "$NHOLES" "$WSTEG" "$DHOLE" "$E0" "$MESH_FILE" "$LAM_MICRO_PARAM" "$MUE_MICRO_PARAM" "$GC_MICRO_PARAM" "$EPS_PARAM" "$ELEMENT_ORDER"
   
   # Check if the script executed successfully
   if [ $? -ne 0 ]; then
