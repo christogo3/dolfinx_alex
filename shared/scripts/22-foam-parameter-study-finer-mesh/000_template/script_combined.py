@@ -157,7 +157,7 @@ bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 w =  dlfx.fem.Function(W)
 u,s = w.split()
 wrestart =  dlfx.fem.Function(W)
-wm1 =  dlfx.fem.Function(W) # trial space
+wm1 =  dlfx.fem.Function(W) 
 dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 

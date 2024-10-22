@@ -106,7 +106,7 @@ class StaticLinearElasticProblem:
         
     def prep_newton(self, u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, dx: ufl.Measure = ufl.dx):
         def residuum(u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction):
-            pot = psiel(u,sigma_as_tensor(u,lam,mu))*dx + self.traction
+            pot = psiel(u,sigma_as_tensor(u,lam,mu))*dx - self.traction
             equi = ufl.derivative(pot, u, du)
             Res = equi
             dResdw = ufl.derivative(Res, u, ddu)

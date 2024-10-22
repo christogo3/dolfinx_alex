@@ -51,8 +51,8 @@ def run_simulation(mesh_file, lam_param, mue_param, Gc_param, eps_factor_param,e
     with dlfx.io.XDMFFile(comm, os.path.join(alex.os.resources_directory,mesh_file+".xdmf"), 'r') as mesh_inp: 
         domain = mesh_inp.read_mesh()
 
-    dt = 0.0001
-    Tend = 10.0 * dt
+    dt = dlfx.fem.Constant(domain,0.0001)
+    Tend = 10.0 * dt.value
 
 
 

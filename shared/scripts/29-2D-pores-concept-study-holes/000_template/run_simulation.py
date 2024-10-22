@@ -56,7 +56,7 @@ try:
     la_micro = args.lam_micro_param
     mu_micro = args.mue_micro_param
     gc_micro = args.gc_micro_param
-    gc_effective = gc_micro
+    gc_matrix = gc_micro
     eps_param = args.eps_param
 except Exception as e:
     if rank == 0:
@@ -68,7 +68,7 @@ except Exception as e:
     mu_micro = 1.0
     mu_effective = 1.0
     gc_micro = 1.0
-    gc_effective = gc_micro
+    gc_matrix = gc_micro
     mesh_file = "mesh_fracture.xdmf"
     eps_param = 0.1
     
@@ -112,7 +112,7 @@ dt_max_in_critical_area = 2.0e-7
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
-gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_effective, micro_material_cells, effective_material_cells)
+gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_micro, micro_material_cells, effective_material_cells)
 
 eta = dlfx.fem.Constant(domain, 0.00001)
 epsilon = dlfx.fem.Constant(domain, eps_param)
@@ -141,7 +141,7 @@ ddw = ufl.TrialFunction(W)
 E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO should be effective elastic parameters
 epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 hh = 0.0 # TODO change
-Gc_num = (1.0 + hh / epsilon.value ) * gc_effective
+Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
@@ -378,7 +378,7 @@ parameters_to_write = {
         'mue_eff_simulation': mu_effective,
         'lam_micro_simulation': la_micro,
         'mue_micro_simulation': mu_micro,
-        'Gc_simulation': gc_effective,
+        'Gc_simulation': gc_matrix,
         'eps_simulation': eps_param,
         'eps': epsilon.value,
         'eta': eta.value,

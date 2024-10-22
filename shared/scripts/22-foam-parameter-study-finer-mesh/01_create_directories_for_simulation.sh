@@ -88,7 +88,7 @@ replicate_folder() {
     mkdir -p "${BASE_WORKING_DIR}/${folder_name}"
     
     # Create the scratch/as12vapa directory inside the new simulation folder
-    mkdir -p "${BASE_WORKING_DIR}/${folder_name}/scratch/as12vapa"
+    #mkdir -p "${BASE_WORKING_DIR}/${folder_name}/scratch/as12vapa"
 
     # Copy the contents of the template folder to the new directory
     rsync -av --exclude='000_template' "${SCRIPT_DIR}/${TEMPLATE_FOLDER}/" "${BASE_WORKING_DIR}/${folder_name}/"

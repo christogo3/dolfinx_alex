@@ -171,8 +171,10 @@ def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -
             zmin = np.isclose(x[2],z_min_all)
             zmax = np.isclose(x[2],z_max_all)
             boundaries = [xmin, ymin, zmin]
-        else: #2D
+        elif domain.geometry.dim == 2: #2D
             boundaries = [xmin, ymin]
+        else:
+            raise NotImplementedError()
         return reduce(np.logical_and, boundaries)
     return boundary
 

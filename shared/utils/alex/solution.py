@@ -807,4 +807,12 @@ def solve_with_custom_newton(jacobian, residual, sol, dsol, comm, bcs, after_ite
 
 
 
+def update_newmark(beta, gamma, dt, u, um1, vm1, am1, is_ufl=True):
+    if is_ufl:
+        acc = 1.0/(beta*dt*dt)*(u-um1) - 1.0/(beta*dt)*vm1-(0.5-beta)/beta*am1
+        vel = gamma/(beta*dt)*(u-um1)+(1.0-gamma/beta)*vm1+dt*(beta-0.5*gamma)/beta*am1
+    else: 
+        acc = 1.0/(beta*dt*dt)*(u.x.array[:]-um1.x.array[:])-1.0/(beta*dt)*vm1.x.array[:]-(0.5-beta)/beta*am1.x.array[:]
+        vel = gamma/(beta*dt)*(u.x.array[:]-um1.x.array[:])+(1.0-gamma/beta)*vm1.x.array[:]+dt*(beta-0.5*gamma)/beta*am1.x.array[:]
+    return acc, vel 
 
