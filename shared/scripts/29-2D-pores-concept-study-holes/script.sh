@@ -4,7 +4,7 @@
 NHOLES=${1:-3} # needs to be int
 WSTEG=${2:-0.1}
 DHOLE=${3:-0.25}
-E0=${4:-0.01}
+E0=${4:-0.02}
 MESH_FILE=${5:-"mesh_fracture.xdmf"} # for fracture simulation
 LAM_MICRO_PARAM=${6:-1.0}
 MUE_MICRO_PARAM=${7:-1.0}

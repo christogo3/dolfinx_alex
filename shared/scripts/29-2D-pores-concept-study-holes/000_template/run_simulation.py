@@ -58,7 +58,7 @@ try:
     gc_micro = args.gc_micro_param
     gc_matrix = gc_micro
     eps_param = args.eps_param
-except Exception as e:
+except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
         print("Could not parse arguments")
         print(e)
@@ -108,7 +108,7 @@ dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt_global.value
 dt_max = dlfx.fem.Constant(domain,dt_global.value)
-dt_max_in_critical_area = 2.0e-7
+dt_max_in_critical_area = 1.0e-7
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
@@ -228,7 +228,7 @@ def compute_surf_displacement():
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
-boundary_surfing_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+boundary_surfing_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_surfing_bc)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary) 
 
@@ -290,11 +290,11 @@ success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,1.0)
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
-    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(),comm=comm)
+    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
     um1, _ = ufl.split(wm1)
 
-    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds(top_surface_tag),comm=comm)
+    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
     
     A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
@@ -322,27 +322,27 @@ def after_timestep_success(t,dt,iters):
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
-    if in_steg_to_be_measured(x_ct=x_ct):
-        if rank == 0:
-            first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
-            print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
-        dt_max.value = dt_max_in_critical_area
-        dt_global.value = dt_max_in_critical_area
-    else:
-        dt_max.value = dt_start
+    # if in_steg_to_be_measured(x_ct=x_ct):
+    #     if rank == 0:
+    #         first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
+    #         print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
+    #     dt_max.value = dt_max_in_critical_area
+    #     dt_global.value = dt_max_in_critical_area
+    # else:
+    #     dt_max.value = dt_start
 
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
     # break out of loop if no postprocessing required
     if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    #pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
 
 def after_last_timestep():
-    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t_global.value, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t_global.value, comm)
     # stopwatch stop
     timer.stop()
 
@@ -411,9 +411,9 @@ if rank == 0:
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
-        "graphs.png",
-        script_name_without_extension+".xdmf",
-        script_name_without_extension+".h5"
+        os.path.join(script_path,"graphs.png"),
+        os.path.join(script_path,script_name_without_extension+".xdmf"),
+        os.path.join(script_path,script_name_without_extension+".h5")
     ]
         
     # Create the directory

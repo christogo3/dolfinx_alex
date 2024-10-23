@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define specific values for WSTEG (array of values to vary)
-WSTEG_VALUES=(0.05 0.075 0.1 0.2 0.3 0.4 0.45 0.5 0.6 1.0)  # Example WSTEG values
+WSTEG_VALUES=(0.05 0.06 0.075 0.08 0.1 0.125 0.2 0.25 0.3 0.35 0.4 0.45 0.5 0.6 1.0)  # Example WSTEG values
 
 # Define the template folder
 TEMPLATE_FOLDER="000_template"

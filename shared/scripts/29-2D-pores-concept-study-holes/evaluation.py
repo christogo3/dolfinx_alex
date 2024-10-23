@@ -15,8 +15,8 @@ import math
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
-data_path = os.path.join(script_path, 'lam_mue_1.0','simulation_20241015_131039', 'run_simulation_graphs.txt')
-parameter_path = os.path.join(script_path,'lam_mue_1.0','simulation_20241015_131039',"parameters.txt")
+data_path = os.path.join(script_path, 'lam_mue_1.0_finer','simulation_0.3', 'run_simulation_graphs.txt')
+parameter_path = os.path.join(script_path,'lam_mue_1.0_finer','simulation_0.3',"parameters.txt")
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
@@ -303,7 +303,7 @@ plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xl
 
 
 # plot all curves
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer"))
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -393,7 +393,7 @@ KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []

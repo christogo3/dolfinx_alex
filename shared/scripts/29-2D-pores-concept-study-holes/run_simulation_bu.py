@@ -56,7 +56,7 @@ try:
     la_micro = args.lam_micro_param
     mu_micro = args.mue_micro_param
     gc_micro = args.gc_micro_param
-    gc_matrix = gc_micro
+    gc_effective = gc_micro
     eps_param = args.eps_param
 except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
@@ -68,7 +68,7 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     mu_micro = 1.0
     mu_effective = 1.0
     gc_micro = 1.0
-    gc_matrix = gc_micro
+    gc_effective = gc_micro
     mesh_file = "mesh_fracture.xdmf"
     eps_param = 0.1
     
@@ -112,7 +112,7 @@ dt_max_in_critical_area = 2.0e-7
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
-gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_micro, micro_material_cells, effective_material_cells)
+gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_effective, micro_material_cells, effective_material_cells)
 
 eta = dlfx.fem.Constant(domain, 0.00001)
 epsilon = dlfx.fem.Constant(domain, eps_param)
@@ -141,7 +141,7 @@ ddw = ufl.TrialFunction(W)
 E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO should be effective elastic parameters
 epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 hh = 0.0 # TODO change
-Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
+Gc_num = (1.0 + hh / epsilon.value ) * gc_effective
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
@@ -228,7 +228,7 @@ def compute_surf_displacement():
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
-boundary_surfing_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+boundary_surfing_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_surfing_bc)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary) 
 
@@ -290,11 +290,11 @@ success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,1.0)
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
-    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(),comm=comm)
     
     um1, _ = ufl.split(wm1)
 
-    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
+    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds(top_surface_tag),comm=comm)
     Work.value = Work.value + dW
     
     A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
@@ -336,13 +336,13 @@ def after_timestep_success(t,dt,iters):
     # break out of loop if no postprocessing required
     if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
-    #pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
 
 def after_last_timestep():
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t_global.value, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t_global.value, comm)
     # stopwatch stop
     timer.stop()
 
@@ -378,7 +378,7 @@ parameters_to_write = {
         'mue_eff_simulation': mu_effective,
         'lam_micro_simulation': la_micro,
         'mue_micro_simulation': mu_micro,
-        'Gc_simulation': gc_matrix,
+        'Gc_simulation': gc_effective,
         'eps_simulation': eps_param,
         'eps': epsilon.value,
         'eta': eta.value,
@@ -411,9 +411,9 @@ if rank == 0:
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
-        os.path.join(script_path,"graphs.png"),
-        os.path.join(script_path,script_name_without_extension+".xdmf"),
-        os.path.join(script_path,script_name_without_extension+".h5")
+        "graphs.png",
+        script_name_without_extension+".xdmf",
+        script_name_without_extension+".h5"
     ]
         
     # Create the directory

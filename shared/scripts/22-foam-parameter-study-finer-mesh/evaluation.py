@@ -350,7 +350,36 @@ ev.plot_max_Jx_vs_pore_size_eps_ratio_multiple([results_dict_coarse, results_dic
                                       pore_size_all, 
                                       reference_L_global=reference_L_global, 
                                       special_keys_list=[first_level_keys_coarse, first_level_keys_finer, first_level_keys_finest],
-                                      h_all_list=[h_all_mesh_coarse, h_all_mesh_finer, h_all_mesh_finest]
+                                      h_all_list=[h_all_mesh_coarse, h_all_mesh_finer, h_all_mesh_finest],
+                                      show_numbers=True
+                                      )
+
+
+
+intersect_medium_coarse = ev.intersect_dicts(values_of_params_coarse_mesh,values_of_params_medium_mesh)
+target_Gc_values = np.array(intersect_medium_coarse["Gc"])  
+target_eps_values = eps_all  
+target_lam_values = np.array([1.0])  
+target_mue_values = np.array([1.0])  
+target_mesh_types = ["medium_pores", "coarse_pores"]  
+
+keys_to_plot_coarse = ev.filter_keys(results_dict_coarse,
+                            target_Gc=target_Gc_values,
+                            target_eps=target_eps_values,
+                            target_lam=target_lam_values,
+                            target_mue=target_mue_values,
+                            target_mesh_types=target_mesh_types)
+
+save_path = os.path.join(results_path, "004_max_Jx_vs_sig_c_varying_eps_reduced.png")
+ev.plot_max_Jx_vs_pore_size_eps_ratio_multiple([results_dict_coarse],
+                                      [keys_to_plot_coarse],plot_title,
+                                      save_path, 
+                                      pore_size_all, 
+                                      reference_L_global=reference_L_global, 
+                                      special_keys_list=[first_level_keys_coarse],
+                                      h_all_list=[h_all_mesh_coarse],
+                                      show_numbers=False,
+                                      fig_size=[10,8]
                                       )
 
 
