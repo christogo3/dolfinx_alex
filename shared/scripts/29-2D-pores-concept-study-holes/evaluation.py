@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import MaxNLocator, LogLocator
 
 import alex.postprocessing as pp
 import alex.homogenization as hom
@@ -15,8 +15,8 @@ import math
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
-data_path = os.path.join(script_path, 'lam_mue_1.0_finer','simulation_0.3', 'run_simulation_graphs.txt')
-parameter_path = os.path.join(script_path,'lam_mue_1.0_finer','simulation_0.3',"parameters.txt")
+data_path = os.path.join(script_path, 'lam_mue_1.0_finer_correct','simulation_20241023_210127', 'run_simulation_graphs.txt')
+parameter_path = os.path.join(script_path,'lam_mue_1.0_finer_correct','simulation_20241023_210127',"parameters.txt")
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
@@ -161,16 +161,25 @@ def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
 
 
 
-def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, xlabel=None, ylabel=None, title=None):
-    plt.figure(figsize=(10, 6))
+def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
+                 xlabel=None, ylabel=None, title=None, 
+                 xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
+                 tick_fontsize=14, figsize=(10, 6), usetex=False):
+    
+    # Enable LaTeX rendering if requested
+    if usetex:
+        plt.rcParams['text.usetex'] = True
+
+    # Set figure dimensions
+    plt.figure(figsize=figsize)
     
     # Plot the data
     plt.plot(data[col_x], data[col_y], marker='o', linestyle='-')
     
-    # Set custom labels and title, if provided
-    plt.xlabel(xlabel if xlabel else f'Column {col_x}')
-    plt.ylabel(ylabel if ylabel else f'Column {col_y}')
-    plt.title(title if title else f'Column {col_x} vs Column {col_y}')
+    # Set custom labels and title, with specific font sizes
+    plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
+    plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
+    plt.title(title if title else f' ', fontsize=title_fontsize)
     
     # Add dashed vertical lines if provided
     if vlines is not None:
@@ -187,14 +196,23 @@ def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit x-axis to 10 ticks
     ax.yaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit y-axis to 10 ticks
     
+    # Set fontsize for axis tick labels
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
+    
     # Save the plot as a PNG file
     plt.savefig(output_filename)
     plt.close()  # Close the figure to prevent display in some environments
     print(f"Plot saved as {output_filename}")
 
-def plot_multiple_columns(data_objects, col_x, col_y, output_filename, vlines=None, hlines=None, xlabel=None, ylabel=None, title=None, legend_labels=None):
+def plot_multiple_columns(data_objects, col_x, col_y, output_filename, 
+                          vlines=None, hlines=None, xlabel=None, ylabel=None, 
+                          title=None, legend_labels=None, 
+                          xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
+                          tick_fontsize=14, legend_fontsize=14, figsize=(10, 6), 
+                          usetex=False, log_y=False):
     """
-    Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each.
+    Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
+    with an optional logarithmic y-axis.
     
     Parameters:
         data_objects (list): List of data objects (DataFrames or dict-like) to be plotted.
@@ -207,16 +225,32 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename, vlines=No
         ylabel (str): Label for the y-axis.
         title (str): Title of the plot.
         legend_labels (list): List of labels for the legend, corresponding to each data object.
+        xlabel_fontsize (int): Font size for the x-axis label.
+        ylabel_fontsize (int): Font size for the y-axis label.
+        title_fontsize (int): Font size for the plot title.
+        tick_fontsize (int): Font size for the axis tick labels.
+        legend_fontsize (int): Font size for the legend labels.
+        figsize (tuple): Figure dimensions as (width, height) in inches.
+        usetex (bool): Whether to use LaTeX for rendering text in labels.
+        log_y (bool): Whether to display the y-axis in logarithmic scale.
     """
-    plt.figure(figsize=(10, 6))
     
-    colors = list(mcolors.TABLEAU_COLORS.values())
+    # Enable LaTeX rendering if requested
+    if usetex:
+        plt.rcParams['text.usetex'] = True
+
+    # Set figure dimensions
+    plt.figure(figsize=figsize)
+    
+    # Expand the color palette to support more datasets
+    colors = list(mcolors.CSS4_COLORS.values())  # Use CSS4 color names for a broader palette
     
     for i, data in enumerate(data_objects):
         color = colors[i % len(colors)]
         
         # Plot the data
-        plt.plot(data[col_x], data[col_y], marker='o', linestyle='-', color=color, label=legend_labels[i] if legend_labels else f'Data {i+1}')
+        plt.plot(data[col_x], data[col_y], marker='o', linestyle='-', color=color, 
+                 label=legend_labels[i] if legend_labels else f'Data {i+1}')
         
         # Add dashed vertical lines specific to this data object
         if vlines and i < len(vlines):
@@ -228,18 +262,28 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename, vlines=No
             for hline in hlines[i]:
                 plt.axhline(y=hline, color=color, linestyle='--', linewidth=1)
     
-    # Set custom labels and title, if provided
-    plt.xlabel(xlabel if xlabel else f'Column {col_x}')
-    plt.ylabel(ylabel if ylabel else f'Column {col_y}')
-    plt.title(title if title else f'Column {col_x} vs Column {col_y}')
+    # Set the y-axis to logarithmic scale if requested, and add minor ticks for readability
+    ax = plt.gca()
+    if log_y:
+        ax.set_yscale('log')
+        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))  # Adds minor ticks for each order of magnitude
+        ax.yaxis.set_minor_formatter(plt.NullFormatter())  # Hide minor tick labels to avoid clutter
     
-    # Add legend
-    plt.legend()
+    # Set custom labels and title, with specific font sizes
+    plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
+    plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
+    plt.title(title if title else f' ', fontsize=title_fontsize)
+    
+    # Add legend with custom font size
+    plt.legend(fontsize=legend_fontsize)
     
     # Set the maximum number of ticks on each axis
-    ax = plt.gca()
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit x-axis to 10 ticks
-    ax.yaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit y-axis to 10 ticks
+    if not log_y:
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))  # For linear y-axis, limit to 10 ticks
+    
+    # Set fontsize for axis tick labels
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
     # Save the plot as a PNG file
     plt.savefig(output_filename)
@@ -290,7 +334,7 @@ hole_positions_out.sort()
 
 # Specify the output file path
 output_file = os.path.join(script_path, 'all_Jx_vs_xct_pf.png')
-plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="xct_pf",ylabel="Jx")
+plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
 x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
@@ -298,12 +342,12 @@ low_boun = x_low-wsteg/8
 upper_boun = x_high-wsteg/8
 data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
 hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
-plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx")
+plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
 
 
 
 # plot all curves
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -326,7 +370,7 @@ for sim in simulation_results:
     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
-    legend_entry = f"wsteg: {wsteg}"
+    legend_entry = f"$w_s$: {wsteg}"
     legend_entries.append(legend_entry)
     
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -336,11 +380,26 @@ legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
 
 output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted)
+plot_multiple_columns(data_objects=data_to_plot_sorted,
+                      col_x=3,
+                      col_y=1,
+                      output_filename=output_file,
+                      legend_labels=legend_entries_sorted,
+                      xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$")
 
 output_file = os.path.join(script_path, 'Jx_vs_t_all.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted)
+plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
+                      legend_labels=legend_entries_sorted,
+                      xlabel="$t / T$",ylabel="$J_{x} / G_c$")
 
+output_file = os.path.join(script_path, 'dt_vs_xct_all.png')  
+plot_multiple_columns(data_objects=data_to_plot_sorted,
+                      col_x=3,
+                      col_y=10,
+                      output_filename=output_file,
+                      legend_labels=legend_entries_sorted,
+                      xlabel="$x_{ct} / L$",ylabel="$t / T$",
+                      log_y=True)
 
 
 # only crack growth - normalized
@@ -370,7 +429,7 @@ for sim in simulation_results:
     
     
     data_to_plot.append(data_in_x_range_norm)
-    legend_entry = f"wsteg: {wsteg}"
+    legend_entry = f"$w_s$: {wsteg}"
     legend_entries.append(legend_entry)
 
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -388,12 +447,20 @@ output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized.png')
 plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
 
 
+output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
+plot_multiple_columns(data_objects=data_to_plot_sorted,
+                      col_x=3,
+                      col_y=10,
+                      output_filename=output_file,
+                      legend_labels=legend_entries_sorted,
+                      xlabel="$x_{ct} / L$",ylabel="$t / T$",
+                      log_y=True)
 
 KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -448,7 +515,7 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_0.5"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -544,9 +611,9 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     plt.close()
     
 output_file = os.path.join(script_path,"KIc_vs_wsteg_varying_stiffness.png")
-plot_multiple_lines(w_steg_master,KIc_master,x_label="wsteg",y_label="KIc",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
+plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s$",y_label="KIc",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
 output_file = os.path.join(script_path,"Jx_vs_wsteg_varying_stiffness.png")
-plot_multiple_lines(w_steg_master,Jx_max_master,x_label="wsteg",y_label="Jx_max",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
+plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s$",y_label="Jx_max",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
 
 
 
@@ -571,22 +638,55 @@ plot_KIc_vs_wsteg(KIc_effs_sorted,wsteg_values_sorted,os.path.join(script_path,"
 plot_KIc_vs_wsteg(Jx_max_values_sorted,wsteg_values_sorted,os.path.join(script_path,"Jxmax_vs_wsteg.png"))
 
 
-def plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted, output_path):
-    # Calculate KIc divided by vol_ratios
+def plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted, output_path, 
+                                    xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
+                                    tick_fontsize=16, figsize=(8, 8), usetex=False):
+    """
+    Plots KIc divided by volume ratios against the square root of wsteg values.
+    
+    Parameters:
+        KIc_effs_sorted (list): Sorted KIc effective values.
+        wsteg_values_sorted (list): Sorted wsteg values.
+        vol_ratios_sorted (list): Sorted volume ratios.
+        output_path (str): Path to save the output plot.
+        xlabel_fontsize (int): Font size for the x-axis label.
+        ylabel_fontsize (int): Font size for the y-axis label.
+        title_fontsize (int): Font size for the title.
+        tick_fontsize (int): Font size for the axis tick labels.
+        figsize (tuple): Figure dimensions as (width, height) in inches.
+        usetex (bool): Whether to use LaTeX for rendering text in labels.
+    """
+    
+    # Enable LaTeX rendering if requested
+    if usetex:
+        plt.rcParams['text.usetex'] = True
+
+    # Calculate KIc divided by volume ratios
     KIc_div_volratios = [kic / vol for kic, vol in zip(KIc_effs_sorted, vol_ratios_sorted)]
+    # wsteg_values_sorted = [math.sqrt(wsteg) for wsteg in wsteg_values_sorted]
+    wsteg_values_sorted = [wsteg for wsteg in wsteg_values_sorted]
     
     # Create the plot
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=figsize)
     plt.plot(wsteg_values_sorted, KIc_div_volratios, marker='o', linestyle='-', color='b')
-    plt.xlabel('wsteg')
-    plt.ylabel('KIc / vol_ratio')
-    plt.title('KIc/vol_ratio vs. wsteg')
+    
+    # Set axis labels and title with customizable font sizes
+    # plt.xlabel(r'$\sqrt{\frac{w_s}{L}}$', fontsize=xlabel_fontsize)
+    plt.xlabel(r'${w_s}$ / ${L}$', fontsize=xlabel_fontsize)
+    plt.ylabel(r'$K_{Ic}$ / ${\Phi \sqrt{G_c\mu}}$', fontsize=ylabel_fontsize)
+    plt.title(' ', fontsize=title_fontsize)
+    
+    # Add grid
     plt.grid(True)
     
-    # Save the plot to the specified path without displaying it interactively
+    # Set tick label font size
+    ax = plt.gca()
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
+    
+    # Save the plot to the specified path
     plt.savefig(output_path, format='png')
-    plt.close()  # Close the plot to prevent it from displaying interactively
-
+    plt.close()  # Close the plot to prevent interactive display
+    print(f"Plot saved as {output_path}")
 
 plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted,wsteg_values_sorted,vol_ratios_sorted,
                                 os.path.join(script_path,"KIc_norm_vs_wsteg.png"))

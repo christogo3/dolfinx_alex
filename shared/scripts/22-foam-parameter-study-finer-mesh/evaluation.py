@@ -372,14 +372,16 @@ keys_to_plot_coarse = ev.filter_keys(results_dict_coarse,
 
 save_path = os.path.join(results_path, "004_max_Jx_vs_sig_c_varying_eps_reduced.png")
 ev.plot_max_Jx_vs_pore_size_eps_ratio_multiple([results_dict_coarse],
-                                      [keys_to_plot_coarse],plot_title,
+                                      [keys_to_plot_coarse], " " ,
                                       save_path, 
                                       pore_size_all, 
                                       reference_L_global=reference_L_global, 
                                       special_keys_list=[first_level_keys_coarse],
                                       h_all_list=[h_all_mesh_coarse],
                                       show_numbers=False,
-                                      fig_size=[10,8]
+                                      fig_size=[10,8],
+                                      x_label="$d_{{pore}} / \epsilon$",
+                                      y_label="Max $J_x$ / $G_{c}^{{num}}$"
                                       )
 
 

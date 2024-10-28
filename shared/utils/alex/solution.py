@@ -209,7 +209,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              solver : NewtonSolver = None,
                                              t: dlfx.fem.Constant = None,
                                              dt_max: dlfx.fem.Constant = None,
-                                             dt_never_scale_up: bool = False):
+                                             dt_never_scale_up: bool = False,
+                                             trestart: dlfx.fem.Constant = None):
     rank = comm.Get_rank()
     
     if print_bool:
@@ -228,7 +229,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
     # t = 0
     if t is None:
         t = dlfx.fem.Constant(domain, 0.0)
-    trestart = dlfx.fem.Constant(domain, 0.0)
+    if trestart is None:
+        trestart = dlfx.fem.Constant(domain, 0.0)
     # delta_t = dlfx.fem.Constant(domain, dt)
     # dtt = dt.value 
 
@@ -275,7 +277,11 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                 print_no_convergence(dt.value)
                 
         
+        if converged:
+            after_timestep_success_hook(t.value,dt.value,iters)
+        
         if converged and iters < min_iters and t.value > np.finfo(float).eps and iters > 0:
+            
             if not dt_never_scale_up:
                 if dt_max is None:
                     dt.value = dt_scale_up*dt.value
@@ -286,10 +292,12 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                         dt.value = dt_scale_up*dt.value
                         if rank == 0 and print_bool:
                             print_increasing_dt(dt.value)
+                    else:
+                        dt.value = dt_max.value
                     
         restart_solution = False
         if converged:
-            after_timestep_success_hook(t.value,dt.value,iters)
+            #after_timestep_success_hook(t.value,dt.value,iters)
             trestart.value = t.value
             t.value = t.value+dt.value
         else:

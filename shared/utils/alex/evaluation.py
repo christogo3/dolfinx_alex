@@ -492,40 +492,34 @@ def plot_max_Jx_vs_pore_size_eps_ratio_multiple(
     reference_L_global, 
     special_keys_list=None, 
     h_all_list=None, 
-    axis_label_size=18,    # Parameter for axis label size
-    tick_label_size=16,    # Parameter for tick label size
-    legend_label_size=16,  # Parameter for legend label size
+    axis_label_size=18,     # Parameter for axis label size
+    tick_label_size=16,     # Parameter for tick label size
+    legend_label_size=16,   # Parameter for legend label size
     number_size=23,         # Parameter for size of numbers (e.g., on the markers)
-    marker_size=200,       # Parameter for marker size
-    fig_size=(10, 20),     # Parameter for figure size
-    show_numbers=True      # Parameter to toggle number display
+    marker_size=200,        # Parameter for marker size
+    fig_size=(10, 20),      # Parameter for figure size
+    show_numbers=True,      # Parameter to toggle number display
+    x_label="pore_size_eps_ratio",   # New parameter for x-axis label
+    y_label="Max Jx / Gc_num"        # New parameter for y-axis label
 ):
     # Define color palettes for different datasets
     color_palettes = [
-        {"fine_pores": mcolors.to_rgba('darkred'), "medium_pores": mcolors.to_rgba('red'), "coarse_pores": mcolors.to_rgba('lightcoral')}, # Reds
-        {"fine_pores": mcolors.to_rgba('darkblue'), "medium_pores": mcolors.to_rgba('blue'), "coarse_pores": mcolors.to_rgba('lightblue')}, # Blues
-        {"fine_pores": mcolors.to_rgba('darkgreen'), "medium_pores": mcolors.to_rgba('green'), "coarse_pores": mcolors.to_rgba('lightgreen')}, # Greens
-        {"fine_pores": mcolors.to_rgba('darkorange'), "medium_pores": mcolors.to_rgba('orange'), "coarse_pores": mcolors.to_rgba('lightsalmon')}, # Oranges
-        # Add more color palettes if needed for additional datasets
+        {"fine_pores": mcolors.to_rgba('darkred'), "medium_pores": mcolors.to_rgba('red'), "coarse_pores": mcolors.to_rgba('lightcoral')},
+        {"fine_pores": mcolors.to_rgba('darkblue'), "medium_pores": mcolors.to_rgba('blue'), "coarse_pores": mcolors.to_rgba('lightblue')},
+        {"fine_pores": mcolors.to_rgba('darkgreen'), "medium_pores": mcolors.to_rgba('green'), "coarse_pores": mcolors.to_rgba('lightgreen')},
+        {"fine_pores": mcolors.to_rgba('darkorange'), "medium_pores": mcolors.to_rgba('orange'), "coarse_pores": mcolors.to_rgba('lightsalmon')},
     ]
 
-    # Set the figure size dynamically
     plt.figure(figsize=fig_size)
     unique_labels = set()
-
-    # Keep track of the used marker styles and pore types for the legend
     used_marker_styles = set()
     used_pore_types = set()
 
     # Iterate over each results_dict and corresponding keys
     for i, (results_dict, keys) in enumerate(zip(results_dicts, keys_list)):
-        # Create the max dictionary for the current results_dict
         max_Jx_dict = create_max_dict(results_dict, column_index=1)
-        
-        # Initialize the eps_pore_size_ratio values for each key
         pore_size_eps_ratio_values = []
 
-        # Compute eps_pore_size_ratio for all keys in the current max_Jx_dict
         for key in keys:
             params = extract_parameters(key)
             if params:
@@ -533,86 +527,64 @@ def plot_max_Jx_vs_pore_size_eps_ratio_multiple(
                 eps_value = get_eps(reference_L_global, params[4])
                 pore_size_eps_ratio = get_pore_size_eps_ratio(mesh_type, eps_value, pore_size_all)
                 pore_size_eps_ratio_values.append(pore_size_eps_ratio)
-        
-        # Select the color palette for the current dataset
-        mesh_colors = color_palettes[i % len(color_palettes)]
 
-        # Marker types based on (lam, mue) values
+        mesh_colors = color_palettes[i % len(color_palettes)]
         marker_types = {
-            (1.0, 1.0): 'o',      # Circle
-            (1.5, 1.0): 'p',      # Cross
-            (0.6667, 1.0): 'v',   # Dot
-            (10.0, 10.0): '^',    # Triangle
-            (15.0, 10.0): 's'     # Square
+            (1.0, 1.0): 'o', (1.5, 1.0): 'p', (0.6667, 1.0): 'v', (10.0, 10.0): '^', (15.0, 10.0): 's'
         }
 
-        # Plot max_Jx_dict values vs eps_pore_size_ratio_values with colors and markers
         for key, pore_size_eps_ratio in zip(keys, pore_size_eps_ratio_values):
             params = extract_parameters(key)
             if params:
                 mesh_type = params[0]
                 lam_mue = (params[1], params[2])
-                
                 color = mesh_colors.get(mesh_type, 'black')
-                marker = marker_types.get(lam_mue, 'x')  # Default marker is 'x' if (lam, mue) is not in the marker_types dictionary
+                marker = marker_types.get(lam_mue, 'x')
                 label = f"{mesh_type} (Set {i+1})" if mesh_type not in unique_labels else ""
                 
-                # Check if the current key is in the special_keys set
                 if special_keys_list and key in special_keys_list[i]:
                     edge_color = 'black'
                     linewidth = 2.0
                 else:
                     edge_color = 'none'
                     linewidth = 0
-                
+
                 y_value = max_Jx_dict[key] / get_gc_num_for_key(key, h_all=h_all_list[i], reference_L_global=reference_L_global)
                 plt.scatter(
                     pore_size_eps_ratio, y_value, 
-                    color=color, marker=marker, s=marker_size,  # Use dynamic marker size
+                    color=color, marker=marker, s=marker_size,
                     label=label, edgecolor=edge_color, linewidth=linewidth
                 )
                 unique_labels.add(mesh_type)
-
-                # Track the marker type and mesh type (pore type) that were actually used
                 used_marker_styles.add((lam_mue, marker))
                 used_pore_types.add(mesh_type)
 
-                # Conditionally display numbers (Gc and inverse of eps values) next to the markers
                 if show_numbers:
                     plt.text(pore_size_eps_ratio, y_value, f"({params[3]}, {pore_size_eps_ratio})", fontsize=number_size, ha='left', va='bottom')
 
-    # Create custom legend handles
     handles = []
     
-    # Add mesh type (pore type) legend handles for each results_dict, but only if it was used
     for i, _ in enumerate(results_dicts):
         mesh_colors = color_palettes[i % len(color_palettes)]
         for mesh_type, color in mesh_colors.items():
-            if mesh_type in used_pore_types:  # Only add to legend if the pore type was used
+            if mesh_type in used_pore_types:
                 handles.append(mlines.Line2D([], [], color=color, marker='o', linestyle='None', markersize=12, label=f'{mesh_type} (Set {i+1})'))
     
-    # Add marker type legend handles, but only for marker styles that were actually used
     for (lam, mue), marker in marker_types.items():
-        if (lam, mue) in [m for m, _ in used_marker_styles]:  # Check if this marker style was used
+        if (lam, mue) in [m for m, _ in used_marker_styles]:
             nu = poisson_ratio(lam, mue)
             handles.append(mlines.Line2D([], [], color='black', marker=marker, linestyle='None', markersize=12, label=f'lam={lam}, mue={mue} (nu={nu:.2f})'))
 
-    # Apply axis labels and title with specified sizes
-    plt.xlabel('pore_size_eps_ratio', fontsize=axis_label_size)
-    plt.ylabel('Max Jx / Gc_num', fontsize=axis_label_size)
+    # Use new x_label and y_label parameters
+    plt.xlabel(x_label, fontsize=axis_label_size)
+    plt.ylabel(y_label, fontsize=axis_label_size)
     plt.title(plot_title, fontsize=axis_label_size)
 
-    # Set the size of tick labels
     plt.xticks(fontsize=tick_label_size)
     plt.yticks(fontsize=tick_label_size)
-    
-    # Add the legend with the specified label size
-    plt.legend(handles=handles, title="Legend", loc='best', fontsize=legend_label_size)
+    plt.legend(handles=handles, loc='best', fontsize=legend_label_size)
 
-    # Ensure the directory exists
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    
-    # Save the plot
     plt.savefig(save_path)
     plt.close()
 

@@ -106,9 +106,10 @@ effective_material_cells = mesh_tags.find(effective_material_marker)
 dt_start = 0.001
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
+trestart_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt_global.value
 dt_max = dlfx.fem.Constant(domain,dt_global.value)
-dt_max_in_critical_area = 2.0e-7
+dt_max_in_critical_area = 5.0e-7
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
@@ -309,33 +310,47 @@ def after_timestep_success(t,dt,iters):
     
     alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)
     
-    # update
-    wm1.x.array[:] = w.x.array[:]
-    wrestart.x.array[:] = w.x.array[:]
+
     
     # s_zero_for_tracking.x.array[:] = s.collapse().x.array[:]
     s_zero_for_tracking_at_nodes.interpolate(s)
     max_x, max_y, min_x, min_y  = pp.crack_bounding_box_2D(domain, pf.get_dynamic_crack_locator_function(wm1,s_zero_for_tracking_at_nodes),comm)
     x_ct = max_x
-    if rank == 0:
+    
+    # only output to graphs file if timestep is correct in measured area
+    if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
         print("Crack tip position x: " + str(x_ct))
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
+
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
     if in_steg_to_be_measured(x_ct=x_ct):
         if rank == 0:
             first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
             print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
+        
+        
+        # restricting time step    
         dt_max.value = dt_max_in_critical_area
         dt_global.value = dt_max_in_critical_area
+        if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
+            w.x.array[:] = wrestart.x.array[:]
+            t_global.value = trestart_global.value
+             
     else:
-        dt_max.value = dt_start
+        dt_max.value = dt_start # reset to larger time step bound
+        
 
+            # update
+    wm1.x.array[:] = w.x.array[:]
+    wrestart.x.array[:] = w.x.array[:]
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
     # break out of loop if no postprocessing required
     if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
+    
+
     #pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
@@ -369,7 +384,8 @@ sol.solve_with_newton_adaptive_time_stepping(
     comm=comm,
     print_bool=True,
     t=t_global,
-    dt_max=dt_max
+    dt_max=dt_max,
+    trestart=trestart_global,
 )
 
 parameters_to_write = {
