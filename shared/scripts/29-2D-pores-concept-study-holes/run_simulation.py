@@ -335,7 +335,7 @@ def after_timestep_success(t,dt,iters):
         dt_global.value = dt_max_in_critical_area
         if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
             w.x.array[:] = wrestart.x.array[:]
-            t_global.value = trestart_global.value
+            t_global.value = t_global.value - dt #trestart_global.value
              
     else:
         dt_max.value = dt_start # reset to larger time step bound

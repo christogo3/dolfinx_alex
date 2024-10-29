@@ -329,13 +329,15 @@ def after_timestep_success(t,dt,iters):
             first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
             print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
         
-        
         # restricting time step    
         dt_max.value = dt_max_in_critical_area
         dt_global.value = dt_max_in_critical_area
+        
+        # restart if dt is to large
         if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
             w.x.array[:] = wrestart.x.array[:]
-            t_global.value = trestart_global.value
+            t_global.value = t_global.value - dt
+            #t_global.value = trestart_global.value
              
     else:
         dt_max.value = dt_start # reset to larger time step bound
