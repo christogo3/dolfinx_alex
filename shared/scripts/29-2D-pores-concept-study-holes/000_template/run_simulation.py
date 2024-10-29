@@ -267,10 +267,10 @@ def in_steg_to_be_measured(x_ct):
     return in_first_steg or in_second_steg
 
 def steg_bounds_to_be_measured():
-    first_low = w_cell + wsteg/2.0 + dhole
+    first_low = w_cell + wsteg/2.0 #+ dhole
     first_high = first_low + wsteg #- (0.01*wsteg)
     
-    second_low = first_high + dhole
+    second_low = first_high #
     second_high = second_low + wsteg 
     return first_low,first_high,second_low,second_high
 
@@ -334,10 +334,10 @@ def after_timestep_success(t,dt,iters):
         dt_global.value = dt_max_in_critical_area
         
         # restart if dt is to large
-        if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
-            w.x.array[:] = wrestart.x.array[:]
-            t_global.value = t_global.value - dt
-            #t_global.value = trestart_global.value
+        # if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
+        #     w.x.array[:] = wrestart.x.array[:]
+        #     t_global.value = t_global.value - dt
+        #     #t_global.value = trestart_global.value
              
     else:
         dt_max.value = dt_start # reset to larger time step bound
