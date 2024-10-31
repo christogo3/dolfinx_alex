@@ -104,12 +104,14 @@ effective_material_cells = mesh_tags.find(effective_material_marker)
 
 # Simulation parameters ####
 dt_start = 0.001
+dt_max_in_critical_area = 2.0e-7
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt_global.value
-dt_max = dlfx.fem.Constant(domain,dt_global.value)
-dt_max_in_critical_area = 2.0e-7
+dt_global.value = dt_max_in_critical_area
+dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
+
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
 mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
@@ -257,22 +259,22 @@ wsteg = parameters_read["wsteg"]
 dhole = parameters_read["dhole"]
 w_cell = wsteg + dhole
 
-def in_steg_to_be_measured(x_ct):
-    #x_center = (w_cell) * 1.5 + dhole/2
-    first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
+# def in_steg_to_be_measured(x_ct):
+#     #x_center = (w_cell) * 1.5 + dhole/2
+#     first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
     
-    in_first_steg = first_low <= x_ct <= first_high
-    in_second_steg = second_low <= x_ct <= second_high
+#     in_first_steg = first_low <= x_ct <= first_high
+#     in_second_steg = second_low <= x_ct <= second_high
     
-    return in_first_steg or in_second_steg
+#     return in_first_steg or in_second_steg
 
-def steg_bounds_to_be_measured():
-    first_low = w_cell + wsteg/2.0 #+ dhole
-    first_high = first_low + wsteg #- (0.01*wsteg)
+# def steg_bounds_to_be_measured():
+#     first_low = w_cell + wsteg/2.0 #+ dhole
+#     first_high = first_low + wsteg #- (0.01*wsteg)
     
-    second_low = first_high #
-    second_high = second_low + wsteg 
-    return first_low,first_high,second_low,second_high
+#     second_low = first_high #
+#     second_high = second_low + wsteg 
+#     return first_low,first_high,second_low,second_high
 
 
 n = ufl.FacetNormal(domain)
@@ -308,7 +310,7 @@ def after_timestep_success(t,dt,iters):
     Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ds=ds(external_surface_tag),comm=comm)
     # Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,ufl.dx,comm)
     
-    alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)
+    #alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)
     
 
     
@@ -318,29 +320,30 @@ def after_timestep_success(t,dt,iters):
     x_ct = max_x
     
     # only output to graphs file if timestep is correct in measured area
-    if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
+    # if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
+    if rank == 0:
         print("Crack tip position x: " + str(x_ct))
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
 
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
-    if in_steg_to_be_measured(x_ct=x_ct):
-        if rank == 0:
-            first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
-            print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
+    # if in_steg_to_be_measured(x_ct=x_ct):
+    #     if rank == 0:
+    #         first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
+    #         print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
         
-        # restricting time step    
-        dt_max.value = dt_max_in_critical_area
-        dt_global.value = dt_max_in_critical_area
+    #     # restricting time step    
+    #     dt_max.value = dt_max_in_critical_area
+    #     dt_global.value = dt_max_in_critical_area
         
-        # restart if dt is to large
-        # if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
-        #     w.x.array[:] = wrestart.x.array[:]
-        #     t_global.value = t_global.value - dt
-        #     #t_global.value = trestart_global.value
+    #     # restart if dt is to large
+    #     # if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
+    #     #     w.x.array[:] = wrestart.x.array[:]
+    #     #     t_global.value = t_global.value - dt
+    #     #     #t_global.value = trestart_global.value
              
-    else:
-        dt_max.value = dt_start # reset to larger time step bound
+    # else:
+    #     dt_max.value = dt_start # reset to larger time step bound
         
 
             # update

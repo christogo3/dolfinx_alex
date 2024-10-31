@@ -15,8 +15,8 @@ import math
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
-data_path = os.path.join(script_path, 'lam_mue_1.0_finer_correct','simulation_20241023_210127', 'run_simulation_graphs.txt')
-parameter_path = os.path.join(script_path,'lam_mue_1.0_finer_correct','simulation_20241023_210127',"parameters.txt")
+data_path = os.path.join(script_path, 'lam_mue_1.0_dts','simulation_20241030_181927', 'run_simulation_graphs.txt')
+parameter_path = os.path.join(script_path,'lam_mue_1.0_dts','simulation_20241030_181927',"parameters.txt")
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
@@ -347,7 +347,7 @@ plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xl
 
 
 # plot all curves
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -460,7 +460,7 @@ KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -515,7 +515,7 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_finer_correct"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -663,16 +663,16 @@ def plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, vol_ra
 
     # Calculate KIc divided by volume ratios
     KIc_div_volratios = [kic / vol for kic, vol in zip(KIc_effs_sorted, vol_ratios_sorted)]
-    # wsteg_values_sorted = [math.sqrt(wsteg) for wsteg in wsteg_values_sorted]
-    wsteg_values_sorted = [wsteg for wsteg in wsteg_values_sorted]
+    wsteg_values_sorted = [math.sqrt(wsteg) for wsteg in wsteg_values_sorted]
+    #wsteg_values_sorted = [wsteg for wsteg in wsteg_values_sorted]
     
     # Create the plot
     plt.figure(figsize=figsize)
     plt.plot(wsteg_values_sorted, KIc_div_volratios, marker='o', linestyle='-', color='b')
     
     # Set axis labels and title with customizable font sizes
-    # plt.xlabel(r'$\sqrt{\frac{w_s}{L}}$', fontsize=xlabel_fontsize)
-    plt.xlabel(r'${w_s}$ / ${L}$', fontsize=xlabel_fontsize)
+    plt.xlabel(r'$\sqrt{{w_s} / {L}}$', fontsize=xlabel_fontsize)
+    #plt.xlabel(r'${w_s}$ / ${L}$', fontsize=xlabel_fontsize)
     plt.ylabel(r'$K_{Ic}$ / ${\Phi \sqrt{G_c\mu}}$', fontsize=ylabel_fontsize)
     plt.title(' ', fontsize=title_fontsize)
     
