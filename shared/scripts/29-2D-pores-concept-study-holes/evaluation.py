@@ -15,8 +15,11 @@ import math
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
-data_path = os.path.join(script_path, 'lam_mue_1.0_dts','simulation_20241030_181927', 'run_simulation_graphs.txt')
-parameter_path = os.path.join(script_path,'lam_mue_1.0_dts','simulation_20241030_181927',"parameters.txt")
+# data_path = os.path.join(script_path, 'lam_mue_1.0_dt_set','simulation_20241103_231443', 'run_simulation_graphs.txt')
+# parameter_path = os.path.join(script_path,'lam_mue_1.0_dt_set','simulation_20241103_231443',"parameters.txt")
+data_path = os.path.join(script_path, 'lam_mue_1.0_dt_set','simulation_20241103_080637', 'run_simulation_graphs.txt')
+parameter_path = os.path.join(script_path,'lam_mue_1.0_dt_set','simulation_20241103_080637',"parameters.txt")
+
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
@@ -114,6 +117,43 @@ def normalize_columns(data, columns_to_normalize,x_upper=99999,x_lower=-99999):
             normalized_data[column] = (normalized_data[column] - min_val) / (max_val - min_val)
 
     return normalized_data
+
+def shift_columns(data, columns_to_adjust, x_upper=99999, x_lower=-99999):
+    """
+    Adjusts specified columns of a DataFrame by subtracting the minimum value in each column 
+    to ensure values start from 0. NaN values are replaced with -1 before adjustment.
+
+    Parameters:
+    - data: pd.DataFrame, the DataFrame containing the data to adjust.
+    - columns_to_adjust: list of str, column names to be adjusted.
+
+    Returns:
+    - pd.DataFrame, a DataFrame with the specified columns adjusted.
+    """
+    # Make a copy of the DataFrame to avoid modifying the original data
+    adjusted_data = data.copy()
+    
+    # Adjust each specified column
+    for column in columns_to_adjust:
+        # Replace NaN values with -1
+        adjusted_data[column].fillna(-1, inplace=True)
+
+        min_val = adjusted_data[column].min()
+        max_val = adjusted_data[column].max()
+
+        # Check for the case where all values are the same
+        if min_val == max_val:
+            if np.isclose(max_val, x_upper, rtol=0.001):
+                adjusted_data[column] = x_upper
+            elif np.isclose(max_val, x_lower, rtol=0.001):
+                adjusted_data[column] = x_lower
+            else:
+                adjusted_data[column] = -1.0
+        else:
+            # Subtract the minimum value to adjust
+            adjusted_data[column] = adjusted_data[column] - min_val
+
+    return adjusted_data
 
 def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
     """
@@ -336,6 +376,14 @@ hole_positions_out.sort()
 output_file = os.path.join(script_path, 'all_Jx_vs_xct_pf.png')
 plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
 
+output_file = os.path.join(script_path, 'all_Jx_vs_A_pf.png')
+plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
+
+
+output_file = os.path.join(script_path, 'all_A_vs_t_pf.png')
+plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=" ")
+
+
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
 x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
 low_boun = x_low-wsteg/8
@@ -344,10 +392,16 @@ data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_
 hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
 plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
 
+output_file = os.path.join(script_path, 'range_Jx_vs_A.png')
+plot_columns(data_in_x_range, 9, 1, output_file,vlines=None,xlabel="A_pf",ylabel="Jx",title="")
+
+output_file = os.path.join(script_path, 'range_A_vs_t.png')
+data_shifted = shift_columns(data_in_x_range,[1,9])
+plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title="")
 
 
 # plot all curves
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -398,7 +452,7 @@ plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=10,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$x_{ct} / L$",ylabel="$t / T$",
+                      xlabel="$x_{ct} / L$",ylabel="$dt / T$",
                       log_y=True)
 
 
@@ -419,11 +473,9 @@ for sim in simulation_results:
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    # if wsteg == 0.05:
-    #     x_ct = data_in_x_range[3]
     data_in_x_range_norm = normalize_columns(data_in_x_range, [0,1], x_upper=x_high, x_lower=x_high-wsteg)
-    data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 3, x_upper=x_high, x_lower=x_high-wsteg)
-    
+    data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 3, x_upper=x_high, x_lower=x_high-wsteg) # takes starting values ne x_high, x_low into account?
+    # data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 9, x_upper=x_high, x_lower=x_high-wsteg)
     
     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
@@ -443,9 +495,16 @@ plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_fi
 output_file = os.path.join(script_path, 'Jx_vs_t_in_between_normalized.png')  
 plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="Jx_norm", title="Crack growth in steg")
 
-output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
+output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized.png')
+data_without_xct_max = [filter_data_by_column_bounds(data,3,low_bound=0.0, upper_bound=0.99) for data in data_to_plot_sorted]   
+plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
 
+
+output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
+plot_columns(data_without_xct_max[4], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
+
+output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png')
+plot_columns(data_without_xct_max[0], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
 plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -453,14 +512,14 @@ plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=10,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$x_{ct} / L$",ylabel="$t / T$",
+                      xlabel="$x_{ct} / L$",ylabel="$dt / T$",
                       log_y=True)
 
 KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -515,7 +574,7 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dts"))
+simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
 # computing KIc 
 KIc_effs = []
 vol_ratios = []

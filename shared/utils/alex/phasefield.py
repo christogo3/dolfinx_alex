@@ -158,11 +158,15 @@ class StaticPhaseFieldProblem2D:
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
         
-    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H: dlfx.fem.Function = None):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any):
             pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
             equi = ufl.derivative(pot, u, du)
-            sdrive = ufl.derivative(pot, s, ds)
+            if H is not None:
+                potH = (self.psiel_degraded_history_field(s,eta,u,lam,mu,H) + self.psisurf(s,Gc,epsilon))*ufl.dx
+                sdrive = ufl.derivative(pot,s,ds)
+            else:
+                sdrive = ufl.derivative(pot, s, ds)
             rate = (s-sm1)/delta_t*ds*ufl.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
@@ -180,6 +184,10 @@ class StaticPhaseFieldProblem2D:
         
     def psiel_degraded(self,s,eta,u,lam,mu):
         return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+    
+    def psiel_degraded_history_field(self,s,eta,u,lam,mu,H):
+        psiel = le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return self.degradation_function(s,eta) * ufl.conditional(ufl.ge(psiel,H),true_value=psiel,false_value=H)
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)

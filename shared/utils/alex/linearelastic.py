@@ -48,6 +48,32 @@ def get_nu(lam: float, mu: float):
 def get_emod(lam: float, mu: float):
     return  mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
 
+def get_lambda(E: float, nu: float) -> float:
+    """
+    Compute the first Lamé parameter, λ, given Young's modulus (E) and Poisson's ratio (nu).
+    
+    Parameters:
+        E (float): Young's modulus
+        nu (float): Poisson's ratio
+        
+    Returns:
+        float: The first Lamé parameter λ
+    """
+    return E * nu / ((1 + nu) * (1 - 2 * nu))
+
+def get_mu(E: float, nu: float) -> float:
+    """
+    Compute the second Lamé parameter, μ (shear modulus), given Young's modulus (E) and Poisson's ratio (nu).
+    
+    Parameters:
+        E (float): Young's modulus
+        nu (float): Poisson's ratio
+        
+    Returns:
+        float: The second Lamé parameter μ
+    """
+    return E / (2 * (1 + nu))
+
 def get_K(lam: float, mu: float):
     return  lam + 2.0 / 3.0 * mu
 
