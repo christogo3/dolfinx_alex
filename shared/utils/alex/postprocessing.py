@@ -645,7 +645,7 @@ def read_parameters_file(file_path):
     file_path (str): Path to the file containing key-value pairs.
     
     Returns:
-    dict: A dictionary containing the key-value pairs from the file, with values as floats or integers.
+    dict: A dictionary containing the key-value pairs from the file, with values as integers, floats, or strings.
     """
     data_dict = {}
     
@@ -661,22 +661,23 @@ def read_parameters_file(file_path):
                 # Split the line into key and value
                 key, value = line.split('=')
                 
-                # Try to convert the value to an integer first, then a float if that fails
-                try:
-                    # Remove any extraneous whitespace around key and value
-                    key = key.strip()
-                    value = value.strip()
+                # Remove any extraneous whitespace around key and value
+                key = key.strip()
+                value = value.strip()
 
-                    # Attempt to convert value to integer
+                # Try to convert the value to an integer first, then a float, and finally leave as string if both conversions fail
+                try:
                     data_dict[key] = int(value)
                 except ValueError:
-                    # If integer conversion fails, convert to float
-                    data_dict[key] = float(value)
+                    try:
+                        data_dict[key] = float(value)
+                    except ValueError:
+                        data_dict[key] = value  # Keep as string if it cannot be converted to a number
     
     except FileNotFoundError:
         print(f"Error: The file at '{file_path}' was not found.")
     except ValueError:
-        print("Error: Could not convert a value to a number. Check the file for proper formatting.")
+        print("Error: Could not process the file. Check the file for proper formatting.")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
     

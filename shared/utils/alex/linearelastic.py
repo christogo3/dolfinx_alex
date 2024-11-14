@@ -77,6 +77,9 @@ def get_mu(E: float, nu: float) -> float:
 def get_K(lam: float, mu: float):
     return  lam + 2.0 / 3.0 * mu
 
+def get_K_2D(lam: float, mu: float):
+    return  lam + 2.0 / 2.0 * mu
+
 def get_J_3D(eshelby_as_function: Callable, n: ufl.FacetNormal, ds : ufl.Measure = ufl.ds, comm: MPI.Intracomm = MPI.COMM_WORLD):
     return alex.tensor.get_surface_integral_of_tensor_3D(eshelby_as_function,n,ds,comm)
 
@@ -101,6 +104,11 @@ def sigma_as_tensor(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.C
         eps = ufl.sym(ufl.grad(u))
         val = lam * ufl.tr(eps) * ufl.Identity(ut.get_dimension_of_function(u)) + 2*mu*eps
         return val
+    
+
+def eps_as_tensor(u: dlfx.fem.Function):
+    eps = ufl.sym(ufl.grad(u))
+    return eps
     
 def sigma_as_voigt(u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
     dim = ut.get_dimension_of_function(u)

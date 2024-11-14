@@ -308,7 +308,7 @@ w_D = dlfx.fem.Function(W) # for dirichlet BCs
 def compute_displacement():
     x = ufl.SpatialCoordinate(domain)
     u_x = 0.0 * x[0]
-    u_y = t_global * 1.0 * x[1] 
+    u_y = - t_global * 1.0 * x[1] 
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
 bc_expression = dlfx.fem.Expression(compute_displacement(),W.sub(0).element.interpolation_points())
@@ -354,7 +354,7 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,1.0)
 def after_timestep_success(t,dt,iters):
-    # sigma = phaseFieldProblem.sigma_degraded(u,s,lam,mue,eta)
+    sigma = phaseFieldProblem.sigma_degraded(u,s,lam,mue,eta)
     # Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
     # um1, _ = ufl.split(wm1)
@@ -395,7 +395,9 @@ def after_timestep_success(t,dt,iters):
     
 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    E.name = "E"
     pp.write_field(domain,outputfile_xdmf_path,E,t,comm,S)
+    pp.write_tensor_fields(domain,comm,[sigma],["sig"],outputfile_xdmf_path,t)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]

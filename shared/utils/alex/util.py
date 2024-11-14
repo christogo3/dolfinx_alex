@@ -20,3 +20,6 @@ def get_CG_functionspace(domain, order=1):
     Se = ufl.FiniteElement('CG', domain.ufl_cell(), order)
     S = dlfx.fem.FunctionSpace(domain, Se)
     return S
+
+# def get_geometric_dimension_of_function(f: dlfx.fem.Function):
+#     return f.function_space.mesh.geometry.dim

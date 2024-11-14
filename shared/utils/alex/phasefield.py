@@ -6,6 +6,7 @@ import numpy as np
 import alex.tensor as tensor
 from mpi4py import MPI
 import math
+import alex.util as ut
 
 def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
@@ -162,7 +163,7 @@ class StaticPhaseFieldProblem2D:
         def residuum(u: any, s: any, du: any, ds: any, sm1: any):
             pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
             equi = ufl.derivative(pot, u, du)
-            if H is not None:
+            if H is not None: # Irreversibility
                 potH = (self.psiel_degraded_history_field(s,eta,u,lam,mu,H) + self.psisurf(s,Gc,epsilon))*ufl.dx
                 sdrive = ufl.derivative(pot,s,ds)
             else:
@@ -179,10 +180,20 @@ class StaticPhaseFieldProblem2D:
         return residuum(u,s,du,ds,sm1)
     
     def sigma_degraded(self, u,s,lam,mu, eta):
+        #return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
         return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
-        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+    
+    def sigma_degraded_vol_split(self,u,s,lam,mu,eta):
+        K = le.get_K_2D(lam=lam,mu=mu)
+        eps = le.eps_as_tensor(u)
+        trEps = ufl.tr(eps)
+        dim = ut.get_dimension_of_function(u)
+        sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + self.degradation_function(s=s,eta=eta) \
+            * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + 2.0 * mu * ufl.dev(eps))
+        return sigma_degraded
         
     def psiel_degraded(self,s,eta,u,lam,mu):
+        #return 0.5 * ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),le.eps_as_tensor(u))
         return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def psiel_degraded_history_field(self,s,eta,u,lam,mu,H):
