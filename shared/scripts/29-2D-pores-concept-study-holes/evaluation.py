@@ -13,12 +13,44 @@ import alex.homogenization as hom
 import alex.linearelastic as le
 import math
 
+
+def find_simulation_by_wsteg(path, wsteg_value_in):
+    # Iterate over all directories starting with "simulation_"
+    for directory in os.listdir(path):
+        dir_path = os.path.join(path, directory)
+        
+        # Check if it is a directory and starts with "simulation_"
+        if os.path.isdir(dir_path) and directory.startswith("simulation_"):
+            parameters_file = os.path.join(dir_path, "parameters.txt")
+            
+            # Check if parameters.txt exists in the directory
+            if os.path.isfile(parameters_file):
+                # Open and read the file line by line
+                with open(parameters_file, "r") as file:
+                    for line in file:
+                        # Look for the line that starts with "wsteg="
+                        if line.startswith("wsteg="):
+                            # Extract the value and convert to float
+                            try:
+                                wsteg_value = float(line.split("=")[1].strip())
+                                # Compare with the given value
+                                if wsteg_value == wsteg_value_in:
+                                    return dir_path
+                            except ValueError:
+                                continue  # Skip line if conversion fails
+
+    # Return None if no directory with the matching wsteg value is found
+    return None
+
+
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
-# data_path = os.path.join(script_path, 'lam_mue_1.0_dt_set','simulation_20241103_231443', 'run_simulation_graphs.txt')
-# parameter_path = os.path.join(script_path,'lam_mue_1.0_dt_set','simulation_20241103_231443',"parameters.txt")
-data_path = os.path.join(script_path, 'lam_mue_1.0_dt_set','simulation_20241103_080637', 'run_simulation_graphs.txt')
-parameter_path = os.path.join(script_path,'lam_mue_1.0_dt_set','simulation_20241103_080637',"parameters.txt")
+data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
+
+
+simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.75)
+data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
+parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
@@ -381,7 +413,7 @@ plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel="$
 
 
 output_file = os.path.join(script_path, 'all_A_vs_t_pf.png')
-plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=" ")
+plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=f"wsteg: {wsteg}")
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
@@ -397,11 +429,11 @@ plot_columns(data_in_x_range, 9, 1, output_file,vlines=None,xlabel="A_pf",ylabel
 
 output_file = os.path.join(script_path, 'range_A_vs_t.png')
 data_shifted = shift_columns(data_in_x_range,[1,9])
-plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title="")
+plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title=f"wsteg: {wsteg}")
 
 
 # plot all curves
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
+simulation_results = read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -501,10 +533,10 @@ plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_f
 
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[4], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
+plot_columns(data_without_xct_max[6], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[0], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
+plot_columns(data_without_xct_max[6], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
 plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -519,7 +551,7 @@ KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
+simulation_results = read_all_simulation_data(data_directory)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -574,7 +606,7 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
 
-simulation_results = read_all_simulation_data(os.path.join(script_path,"lam_mue_1.0_dt_set"))
+simulation_results = read_all_simulation_data(data_directory)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -749,3 +781,106 @@ def plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, vol_ra
 
 plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted,wsteg_values_sorted,vol_ratios_sorted,
                                 os.path.join(script_path,"KIc_norm_vs_wsteg.png"))
+
+
+
+
+
+##### Estimating G_c_effective
+
+def Gc_eff(E_eff_s, L, sig_ff):
+    return (L * sig_ff ** 2) / E_eff_s
+
+def sig_ff_for_isolated_hole(dhole,epsilon,sig_loc_bar):
+    a = dhole/2.0
+    def antiderivative(r):
+        # a = dhole / 2.0
+        return 2.0 * r - a ** 2 / r - a ** 4 / (r ** 3)
+    length_over_which_is_averaged = 1.0*epsilon
+    out = (sig_loc_bar) * (length_over_which_is_averaged * 2.0) / (antiderivative(a+length_over_which_is_averaged) - antiderivative(a))
+    return out
+
+def sig_ff_medium_steg(dhole,wsteg,sig_loc_bar,epsilon):
+    r = dhole / 2
+    w = wsteg + dhole 
+    sig_ff = sig_loc_bar / (3.0 + (4.0 *r) / (w - 2.0 * r)) # estimation
+    # correct to averaged value, same as isolated holem how?
+    return sig_ff
+
+def sig_ff_thin_steg(dhole,wsteg,sig_loc_bar):
+    return sig_loc_bar * wsteg / dhole
+
+def sig_c_2D(la,mu,Gc,epsilon,i): # CK Diss Page 122
+    def kappa(i):
+        if i == 1:
+            return (2.0 * la + 2.0 * mu) / (la + 2.0 * mu)
+        elif i == 2:
+            return (la + 2.0 * mu) / (2.0 * mu)
+        else:
+            raise NotImplementedError()
+    return 3.0 * math.sqrt((3.0*kappa(i)*mu*Gc)/epsilon) / 16.0 
+
+def e_star(la_eff,mu_eff):
+    E_eff = le.get_emod(la_eff,mu_eff)
+    nu_eff = le.get_nu(la_eff,mu_eff) 
+    E_star = E_eff/ (1-nu_eff**2)
+    return E_star
+
+def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg,L):
+    sig_c_2D_val = sig_c_2D(la_local,mu_local,Gc_local,epsilon,1)
+    if wsteg / dhole <= 0.01:
+        sig_ff = sig_ff_thin_steg(dhole,wsteg,sig_c_2D_val)
+    elif wsteg/dhole < 5.0:
+        sig_ff = sig_ff_medium_steg(dhole,wsteg,sig_c_2D_val,epsilon)
+    else:
+        sig_ff = sig_ff_for_isolated_hole(dhole,epsilon,sig_c_2D_val)
+    E_star = e_star(la_eff,mu_eff)
+    
+    return Gc_eff(E_star,L,sig_ff)
+       
+
+simulation_results = read_all_simulation_data(data_directory)
+wsteg_values = []
+Gc_eff_est = []
+
+L = 60.0
+for sim in simulation_results:
+    data = sim[0]
+    param = sim[1]
+    
+    lam_eff = param["lam_effective"]
+    mue_eff = param["mue_effective"]
+    Gc_local = param["Gc_simulation"]
+    la_local = param["lam_micro_simulation"]
+    mu_local = param["mue_micro_simulation"]
+    epsilon = param["eps_simulation"]
+    wsteg = param["wsteg"]
+    dhole = param["dhole"]
+    
+    
+    
+    gc_estimate = Gc_eff_estimate(Gc_local=Gc_local,
+                                  la_local=la_local,
+                                  mu_local=mu_local,
+                                  la_eff = lam_eff,
+                                  mu_eff = mue_eff,
+                                  epsilon=epsilon,
+                                  dhole=dhole,
+                                  wsteg=wsteg,
+                                  L=L)
+    
+    wsteg_values.append(wsteg)
+    Gc_eff_est.append(gc_estimate)
+    
+sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
+Gc_eff_est_sorted = [Gc_eff_est[i] for i in sorted_indices]
+wsteg_values_sorted = [wsteg_values[i] for i in sorted_indices]
+
+
+plot_KIc_vs_wsteg(Gc_eff_est_sorted,wsteg_values_sorted,os.path.join(script_path,"Gc_est_vs_wsteg.png"))
+    
+    
+    
+    
+    
+    
