@@ -71,17 +71,16 @@ def map_E_to_grid(cell_id_grid, cell_data_df):
     E_Grid = np.full(cell_id_grid.shape, np.nan)  # Using NaN for any missing values
 
     # Access density column from cell_data_df
-    E = cell_data_df['E-Modul'].values
+    E_from_from_data_frame = cell_data_df['E-Modul'].values
 
-    # Populate the density grid based on cell_id_grid
+    # Populate the E-Modul grid based on cell_id_grid
     for row in range(cell_id_grid.shape[0]):
         for col in range(cell_id_grid.shape[1]):
             cell_id = cell_id_grid[row, col]
-            if cell_id < len(E):
-                E_Grid[row, col] = E[cell_id]
+            if cell_id < len(E_from_from_data_frame):
+                E_Grid[row, col] = E_from_from_data_frame[cell_id]
             else:
                 E_Grid[row, col] = np.nan  # Handle cases where cell_id exceeds density data
-
     return E_Grid
 
 
@@ -95,10 +94,8 @@ def calculate_element_size(nodes_df):
     distance = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
     return distance
 
-
-
 # Paths to the text files
-folder_path = os.path.join(script_path,"dcb")
+folder_path = os.path.join(script_path,"mbb")
 node_file = os.path.join(folder_path,'node_coord.csv')
 point_data_file = os.path.join(folder_path,'point_data.csv')
 connectivity_file = os.path.join(folder_path,'connectivity.csv')
@@ -118,6 +115,8 @@ cell_id_grid = arrange_cells_2D(connectivity_df, mesh_dims)
 
 # Map density values to a second grid
 E_grid = map_E_to_grid(cell_id_grid, cell_data_df)
+E_max = np.max(E_grid)
+E_min = np.min(E_grid)
 
 plt.figure(figsize=(10, 8))
 plt.imshow(E_grid, cmap='viridis', interpolation='nearest')
@@ -215,12 +214,15 @@ def create_emodulus_interpolator(nodes_df):
 
 E.interpolate(create_emodulus_interpolator(nodes_df=nodes_df))
 
+# TODO remove for varying E
+E_min = 100000.0
+E.x.array[:] = np.full_like(E.x.array[:],E_min)
+
 lam = le.get_lambda(E,nu)
 mue = le.get_mu(E,nu)
 
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
-    
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
 if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
@@ -300,39 +302,43 @@ atol=(x_max_all-x_min_all)*0.000 # for selection of boundary
 
 
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt_global)
-w_D = dlfx.fem.Function(W) # for dirichlet BCs
+# w_D = dlfx.fem.Function(W) # for dirichlet BCs
 
 # front_back = bc.get_frontback_boundary_of_box_as_function(domain,comm,atol=0.1*atol)
 # bc_front_back = bc.define_dirichlet_bc_from_value(domain,0.0,2,front_back,W,0)
 
-def compute_displacement():
-    x = ufl.SpatialCoordinate(domain)
-    u_x = 0.0 * x[0]
-    u_y = - t_global * 1.0 * x[1] 
-    return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
+# def compute_displacement():
+#     x = ufl.SpatialCoordinate(domain)
+#     u_x = 0.0 * x[0]
+#     u_y = - t_global * 1.0 * x[1] 
+#     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
-bc_expression = dlfx.fem.Expression(compute_displacement(),W.sub(0).element.interpolation_points())
-top_bottom_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
-top_bottom_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom_bc)
-dofs_at_top_bottom = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, top_bottom_facets) 
+# bc_expression = dlfx.fem.Expression(compute_displacement(),W.sub(0).element.interpolation_points())
+# top_bottom_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+# top_bottom_facets = dlfx.mesh.locate_entities_boundary(domain, fdim, top_bottom_bc)
+# dofs_at_top_bottom = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, top_bottom_facets) 
 
 
 
 def get_bcs(t):
     bcs = []
-    w_D.sub(0).interpolate(bc_expression)
-    bc_top_bottom : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_top_bottom)
-    uy = t_global.value * 1.0
+    # w_D.sub(0).interpolate(bc_expression)
+    # bc_top_bottom : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_top_bottom)
+    uy = -t_global.value * 1.0
     bc_top = bc.define_dirichlet_bc_from_value(domain,uy,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol),W,0)
-    bc_left_right_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_leftright_boundary_of_box_as_function(domain,comm,atol),W,0)
-    bc_left_right_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_leftright_boundary_of_box_as_function(domain,comm,atol),W,0)
+    bc_bottom = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol),W,0)
+    
+    bc_left_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_left_boundary_of_box_as_function(domain,comm,atol),W,0)
+    bc_right_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_right_boundary_of_box_as_function(domain,comm,atol),W,0)
+    # bc_left_right_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_leftright_boundary_of_box_as_function(domain,comm,atol),W,0)
         # irreversibility
     if(abs(t)> sys.float_info.epsilon*5): # dont do before first time step
         bcs.append(pf.irreversibility_bc(domain,W,wm1))
     bcs.append(bc_top)
-    # bcs.append(bc_top_bottom)
-    bcs.append(bc_left_right_x)
-    bcs.append(bc_left_right_y)
+    bcs.append(bc_bottom)
+    bcs.append(bc_left_x)
+    bcs.append(bc_right_x)
+    # bcs.append(bc_left_right_y)
     # bcs.append(bc_front_back)
     return bcs
 

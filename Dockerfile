@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /home
 
 # Copy the current directory contents into the container at /home
-COPY . .
+#COPY . .
 
 
 # Install necessary system packages
@@ -30,7 +30,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages
-RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio h5py python_papi
+RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio python_papi pandas scipy
+RUN pip install --no-binary=h5py h5py
 
 # Set PYTHONPATH to include /home/utils
 ENV PYTHONPATH="/home/utils:${PYTHONPATH}"

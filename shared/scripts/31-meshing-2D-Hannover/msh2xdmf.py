@@ -10,6 +10,40 @@ import glob
 import sys
 import copy
 
+def scale_domain_to_bounds(domain, x_min_target, x_max_target, y_min_target, y_max_target):
+    """
+    Scales the points in the domain so that the coordinates fit within the specified bounds.
+
+    Parameters:
+        domain: The domain object containing geometry to be scaled.
+        x_min_target (float): Target minimum x value.
+        x_max_target (float): Target maximum x value.
+        y_min_target (float): Target minimum y value.
+        y_max_target (float): Target maximum y value.
+
+    Modifies:
+        The domain's geometry is scaled in-place to match the target bounds.
+
+    Returns:
+        domain: The domain object with scaled geometry.
+    """
+    # Extract current min and max values for x and y
+    x_min_current = np.min(domain.geometry.x[:, 0])
+    x_max_current = np.max(domain.geometry.x[:, 0])
+    y_min_current = np.min(domain.geometry.x[:, 1])
+    y_max_current = np.max(domain.geometry.x[:, 1])
+
+    # Calculate scaling factors
+    scal_x = (x_max_target - x_min_target) / (x_max_current - x_min_current)
+    scal_y = (y_max_target - y_min_target) / (y_max_current - y_min_current)
+
+    # Apply scaling and shifting
+    domain.geometry.x[:, 0] = x_min_target + (domain.geometry.x[:, 0] - x_min_current) * scal_x
+    domain.geometry.x[:, 1] = y_min_target + (domain.geometry.x[:, 1] - y_min_current) * scal_y
+
+    # Return the updated domain
+    return domain
+
 script_path = os.path.dirname(__file__)
 
 # control parameter
@@ -54,23 +88,23 @@ element = ufl.VectorElement('Lagrange', cell, 1,dim=2)
 mesh = ufl.Mesh(element)
 domain = dlfx.mesh.create_mesh(comm, active_cells, points, mesh)
     
-max_x = np.max(domain.geometry.x[:,0])
-max_y = np.max(domain.geometry.x[:,1])
-min_x = np.min(domain.geometry.x[:,0])
-min_y = np.min(domain.geometry.x[:,1])
+# max_x = np.max(domain.geometry.x[:,0])
+# max_y = np.max(domain.geometry.x[:,1])
+# min_x = np.min(domain.geometry.x[:,0])
+# min_y = np.min(domain.geometry.x[:,1])
     
-# print('Before scaling ...')
-# print(min_x, max_x)
-# print(min_y, max_y)
-# print(min_z, max_z)
-# sys.stdout.flush()
+# # print('Before scaling ...')
+# # print(min_x, max_x)
+# # print(min_y, max_y)
+# # print(min_z, max_z)
+# # sys.stdout.flush()
     
-scal_x = 0.0111
-scal_y = scal_x
-# scal_z = a_edge/(max_z-min_z)
+# scal_x = 0.0111
+# scal_y = scal_x
+# # scal_z = a_edge/(max_z-min_z)
    
-domain.geometry.x[:,0] = (domain.geometry.x[:,0]-min_x)*scal_x
-domain.geometry.x[:,1] = (domain.geometry.x[:,1]-min_y)*scal_y
+# domain.geometry.x[:,0] = (domain.geometry.x[:,0]-min_x)*scal_x
+# domain.geometry.x[:,1] = (domain.geometry.x[:,1]-min_y)*scal_y
 # domain.geometry.x[:,2] = (domain.geometry.x[:,2]-min_z)*scal_z
     
 # max_x = np.max(domain.geometry.x[:,0])
@@ -85,9 +119,17 @@ domain.geometry.x[:,1] = (domain.geometry.x[:,1]-min_y)*scal_y
 # print(min_y, max_y)
 # print(min_z, max_z)
 
+# Define your target bounds
+x_min_target, x_max_target = 0, 2.0
+y_min_target, y_max_target = 0, 1.0
+
+# Scale the domain geometry
+scaled_domain = scale_domain_to_bounds(domain, x_min_target, x_max_target, y_min_target, y_max_target)
+
+
 # write xdmf-file with mesh
 print('Writing '+filename+'.xdmf ...')
     
 with dlfx.io.XDMFFile(comm, os.path.join(script_path,"dlfx_mesh.xdmf"), 'w') as xdmf:
-    xdmf.write_mesh(domain)
+    xdmf.write_mesh(scaled_domain)
     

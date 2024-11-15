@@ -151,13 +151,18 @@ def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: d
 class StaticPhaseFieldProblem2D:
     # Constructor method
     def __init__(self, degradationFunction: Callable,
-                       psisurf: Callable
+                       psisurf: Callable, 
+                    #    domain
                  ):
         self.degradation_function = degradationFunction
 
         # Set all parameters here! Material etc
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
+        # self.z = dlfx.fem.Constant(domain,0.0)
+        # self.Id = ufl.as_matrix([[1,self.z],
+        #             [self.z,1]])
+
         
     def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H: dlfx.fem.Function = None):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any):
@@ -179,22 +184,43 @@ class StaticPhaseFieldProblem2D:
         
         return residuum(u,s,du,ds,sm1)
     
+    def sigma_as_tensor_test(self, u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant ):
+        eps = ufl.sym(ufl.grad(u))
+        # other usefull functions#
+        
+        
+        # I = self.Id
+        val = lam * ufl.Identity(2) + 2*mu*eps
+        return val
+    
     def sigma_degraded(self, u,s,lam,mu, eta):
-        #return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
-        return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
+        #return self.degradation_function(s=s,eta=eta) * self.sigma_as_tensor_test(u,lam,mu)
+        return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
+        # return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
     
     def sigma_degraded_vol_split(self,u,s,lam,mu,eta):
+        def pos(x):
+            return 0.5 * (x + abs(x))
+
+
+        def neg(x):
+            return 0.5 * (x - abs(x))
+        
         K = le.get_K_2D(lam=lam,mu=mu)
         eps = le.eps_as_tensor(u)
+        epsD =  ufl.dev(eps)
         trEps = ufl.tr(eps)
-        dim = ut.get_dimension_of_function(u)
-        sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + self.degradation_function(s=s,eta=eta) \
-            * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + 2.0 * mu * ufl.dev(eps))
+        # dim = ut.get_dimension_of_function(u)
+        
+        # vol_eps = ufl.tr(eps)
+        #sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,ufl.as_ufl(0.0)) * ufl.Identity(dim) #+ self.degradation_function(s=s,eta=eta) * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + 2.0 * mu * epsD)
+        #sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,0.0) * self.Id + self.degradation_function(s=s,eta=eta) * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * self.Id + 2.0 * mu * epsD)
+        sigma_degraded = K * neg(trEps) * ufl.Identity(2)+ self.degradation_function(s=s,eta=eta) * (K * pos(trEps) * ufl.Identity(2) + 2.0 * mu * epsD)
         return sigma_degraded
         
     def psiel_degraded(self,s,eta,u,lam,mu):
-        #return 0.5 * ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),le.eps_as_tensor(u))
-        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return 0.5 * ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),le.eps_as_tensor(u))
+        #return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def psiel_degraded_history_field(self,s,eta,u,lam,mu,H):
         psiel = le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))

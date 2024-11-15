@@ -162,7 +162,8 @@ def write_vector_field(domain: dlfx.mesh.Mesh,
 
     
 def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fields_as_functions, tensor_field_names, outputfile_xdmf_path: str, t: float):
-    TEN = dlfx.fem.functionspace(domain, ("DP", 0, (3, 3)))
+    dim = domain.topology.dim
+    TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
         for n  in range(0,len(tensor_fields_as_functions)):
             tensor_field_function = tensor_fields_as_functions[n]
