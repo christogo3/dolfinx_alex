@@ -195,6 +195,7 @@ def write_vector_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, vector_fiel
 def write_scalar_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, scalar_fields_as_functions, scalar_field_names, outputfile_xdmf_path: str, t: float):
     Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())
     S = dlfx.fem.functionspace(domain, Se)
+    # S= dlfx.fem.functionspace(domain, ("DP", 0, ()))
     xdmf_out = dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a')
     for n  in range(0,len(scalar_fields_as_functions)):
             scalar_field_function = scalar_fields_as_functions[n]

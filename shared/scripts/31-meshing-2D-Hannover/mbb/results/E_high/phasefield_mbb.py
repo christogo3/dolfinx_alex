@@ -149,7 +149,7 @@ points_x = nodes_df[['Points_0']].values
 points_y = nodes_df[['Points_1']].values
 
 # function space using mesh and degree
-Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,)) #displacements
+Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(2,)) #displacements
 Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())# fracture fields
 W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
@@ -215,7 +215,7 @@ def create_emodulus_interpolator(nodes_df):
 E.interpolate(create_emodulus_interpolator(nodes_df=nodes_df))
 
 # TODO remove for varying E
-# E_min = 100000.0
+E_min = 100000.0
 E.x.array[:] = np.full_like(E.x.array[:],E_max)
 
 lam = le.get_lambda(E,nu)
@@ -402,7 +402,8 @@ def after_timestep_success(t,dt,iters):
 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     E.name = "E"
-    pp.write_field(domain,outputfile_xdmf_path,E,t,comm,S)
+    # pp.write_field(domain,outputfile_xdmf_path,E,t,comm,S)
+    pp.write_scalar_fields(domain,comm,[E],["E"],outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     pp.write_tensor_fields(domain,comm,[sigma],["sig"],outputfile_xdmf_path,t)
 
 def after_timestep_restart(t,dt,iters):

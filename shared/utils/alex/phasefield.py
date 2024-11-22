@@ -152,6 +152,7 @@ class StaticPhaseFieldProblem2D:
     # Constructor method
     def __init__(self, degradationFunction: Callable,
                        psisurf: Callable, 
+                       split = False,
                     #    domain
                  ):
         self.degradation_function = degradationFunction
@@ -159,6 +160,7 @@ class StaticPhaseFieldProblem2D:
         # Set all parameters here! Material etc
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
+        self.split = split
         # self.z = dlfx.fem.Constant(domain,0.0)
         # self.Id = ufl.as_matrix([[1,self.z],
         #             [self.z,1]])
@@ -195,7 +197,10 @@ class StaticPhaseFieldProblem2D:
     
     def sigma_degraded(self, u,s,lam,mu, eta):
         #return self.degradation_function(s=s,eta=eta) * self.sigma_as_tensor_test(u,lam,mu)
-        return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
+        if self.split:
+            return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
+        else:
+           return self.degradation_function(s=s,eta=eta) * self.sigma_as_tensor_test(u,lam,mu) 
         # return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
     
     def sigma_degraded_vol_split(self,u,s,lam,mu,eta):

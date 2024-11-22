@@ -126,6 +126,7 @@ plt.title('E Distribution')
 # Save the plot to a PNG file
 output_image_path = os.path.join(script_path,'E_distribution.png') 
 plt.savefig(output_image_path, dpi=300)
+plt.close()
 
 
 
@@ -149,7 +150,7 @@ points_x = nodes_df[['Points_0']].values
 points_y = nodes_df[['Points_1']].values
 
 # function space using mesh and degree
-Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,)) #displacements
+Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(2,)) #displacements
 Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())# fracture fields
 W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
@@ -215,8 +216,8 @@ def create_emodulus_interpolator(nodes_df):
 E.interpolate(create_emodulus_interpolator(nodes_df=nodes_df))
 
 # TODO remove for varying E
-# E_min = 100000.0
-E.x.array[:] = np.full_like(E.x.array[:],E_max)
+E_min = 100000.0
+E.x.array[:] = np.full_like(E.x.array[:],E_min)
 
 lam = le.get_lambda(E,nu)
 mue = le.get_mu(E,nu)
@@ -275,7 +276,7 @@ def before_first_time_step():
     # prepare newton-log-file
     if rank == 0:
         sol.prepare_newton_logfile(logfile_path)
-        # pp.prepare_graphs_output_file(outputfile_graph_path)
+        pp.prepare_graphs_output_file(outputfile_graph_path)
     # prepare xdmf output 
     pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
 
@@ -359,9 +360,25 @@ Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,1.0)
+
+facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0))
+dofs_at_boundary_y = dlfx.fem.locate_dofs_topological(W.sub(0).sub(1), fdim, facets_at_boundary)
+
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,lam,mue,eta)
-    # Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    
+    if len(w.x.array[dofs_at_boundary_y]) > 0:
+        u_y_top_local = w.x.array[dofs_at_boundary_y][0]
+    else:
+        u_y_top_local = 10000000000.0
+    
+    comm.barrier()
+    u_y_top = comm.allreduce(u_y_top_local,MPI.MIN)
+    comm.barrier()
+    
+    if rank==0:
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, u_y_top, Ry_top)
     
     # um1, _ = ufl.split(wm1)
 
@@ -402,7 +419,8 @@ def after_timestep_success(t,dt,iters):
 
     pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
     E.name = "E"
-    pp.write_field(domain,outputfile_xdmf_path,E,t,comm,S)
+    # pp.write_field(domain,outputfile_xdmf_path,E,t,comm,S)
+    pp.write_scalar_fields(domain,comm,[E],["E"],outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     pp.write_tensor_fields(domain,comm,[sigma],["sig"],outputfile_xdmf_path,t)
 
 def after_timestep_restart(t,dt,iters):
@@ -418,7 +436,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        # pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["uy_top", "Ry_top"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(

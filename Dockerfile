@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages
-RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio python_papi pandas scipy
+RUN pip install numpy pyfiglet uvw tqdm vtk pyvista meshio python_papi pandas scipy pygmsh
 RUN pip install --no-binary=h5py h5py
 
 # Set PYTHONPATH to include /home/utils
