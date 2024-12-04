@@ -26,8 +26,8 @@ try:
 except:
     print("Could not parse arguments")
     Nholes = 4
-    dhole = 1.0
-    wsteg = 4.0
+    dhole = 0.1
+    wsteg = 0.1
     e0 = 0.02  # Fine mesh size
     e1 = 0.8  # Coarse mesh size
 
@@ -77,7 +77,20 @@ crack = model.add_line(p8, p9)  # Horizontal crack at y=0
 # Field 1: Distance to holes
 gmsh.model.mesh.field.add("Distance", 1)
 hole_centers = [[w_cell + w_cell / 2.0 + n * w_cell, 0.0, 0.0] for n in range(Nholes)]
-gmsh.model.mesh.field.setNumbers(1, "NodesList", [model.add_point(center, e0)._id for center in hole_centers])
+hole_points = [model.add_point(center, e0)._id for center in hole_centers]
+
+crack_points = []
+num_refinement_points = 50  # Increase this for finer control
+for i in range(num_refinement_points + 1):
+    x_coord = i * l0 / num_refinement_points
+    crack_points.append(model.add_point([x_coord, 0.0, 0.0], e0)._id)
+
+# Combine hole points and crack points for the Distance field
+refinement_points = hole_points + crack_points
+gmsh.model.mesh.field.setNumbers(1, "NodesList", refinement_points)
+# gmsh.model.mesh.field.setNumbers(1, "NodesList", [model.add_point(center, e0)._id for center in hole_centers])
+# gmsh.model.mesh.field.setNumbers(1, "NodesList", refinement_points)
+
 
 # Field 2: Distance to the crack
 gmsh.model.mesh.field.add("Distance", 2)
@@ -99,7 +112,10 @@ gmsh.model.mesh.field.setAsBackgroundMesh(4)
 
 # Synchronize the model and generate the mesh
 model.synchronize()
-model.add_physical(eff_matr, 'eff_matrix')
+model.add_physical(eff_matr[Nholes], 'eff_matrix')
+cells = eff_matr[0:(Nholes)]
+model.add_physical(cells, "cell_matrix")
+
 model.add_physical(crack, 'crack')
 
 model.generate_mesh(dim=2, verbose=True)
@@ -111,8 +127,36 @@ model.__exit__()
 mesh = meshio.read(filename + '.msh')
 nodes = mesh.points[:, 0:2]
 elems = mesh.get_cells_type('triangle')
-elem_data = mesh.cell_data_dict['gmsh:physical']['triangle'] - 1  # Adjusted for physical groups
+elem_data = mesh.cell_data_dict['gmsh:physical']['triangle']-1  # Adjusted for physical groups
 
+unique_entries = set(np.array(elems).flatten())
+
+def filter_points_and_update_cells(cell_array, point_array):
+    # Step 1: Extract the referenced point IDs from the cell array
+    referenced_point_ids = set()
+    for triangle in cell_array:
+        referenced_point_ids.update(triangle)
+    
+    # Step 2: Filter the point array to only include referenced points
+    # Create a new list of points that are referenced
+    referenced_points = [point_array[i] for i in range(len(point_array)) if i in referenced_point_ids]
+    
+    # Create a dictionary that maps the old point IDs to the new ones (the index in the filtered array)
+    old_to_new_index = {old_id: new_id for new_id, old_id in enumerate(referenced_point_ids)}
+    
+    # Step 3: Update the triangle cell array with the new point IDs
+    updated_cell_array = []
+    for triangle in cell_array:
+        updated_triangle = [old_to_new_index[point_id] for point_id in triangle]
+        updated_cell_array.append(updated_triangle)
+    
+    # Return the updated point array and the updated cell array
+    return np.array(referenced_points), np.array(updated_cell_array)
+
+
+nodes, elems = filter_points_and_update_cells(cell_array=elems,point_array=nodes)
+
+# elem_data = np.full_like(elems[:,0],1,dtype=np.int64)
 if mesh_info:
     print('NODES:')
     print(nodes)
@@ -134,6 +178,29 @@ parameters_to_write = {
 
 alex.postprocessing.append_to_file(parameter_path, parameters_to_write)
 
+import dolfinx as dlfx
+# set MPI environment
+comm, rank, size = alex.os.set_mpi()
+mesh_file = "mesh_fracture_adaptive.xdmf"
+
+from collections import Counter
+
+def find_duplicates(points):
+    # Count occurrences of each point
+    point_counts = Counter(tuple(point) for point in points)
+    
+    # Return the points that appear more than once
+    duplicates = [point for point, count in point_counts.items() if count > 1]
+    
+    return duplicates
+
+duplicates = find_duplicates(nodes)
+
+with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
+    mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
 
 
 
+
+a = 1

@@ -110,7 +110,7 @@ t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
 Tend = 10.0 * dt_global.value
 dt_global.value = dt_max_in_critical_area
-dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
+# dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
@@ -142,7 +142,7 @@ ddw = ufl.TrialFunction(W)
 
 # setting K1 so it always breaks
 E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO should be effective elastic parameters
-epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
+epsilon0 = dlfx.fem.Constant(domain, 0.1)
 hh = 0.0 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
@@ -152,7 +152,7 @@ crack_tip_start_location_x = in_crack_length
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
-    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*(y_max_all-y_min_all))
+    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=epsilon.value)
     return np.logical_and(y_log,x_log)
 
 ## define boundary conditions crack
@@ -389,7 +389,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     comm=comm,
     print_bool=True,
     t=t_global,
-    dt_max=dt_max,
+    # dt_max=dt_max,
     trestart=trestart_global,
 )
 
@@ -408,7 +408,6 @@ parameters_to_write = {
         'in_crack_length': in_crack_length,
     }
 
-pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
 
 # copy relevant files
 
@@ -428,6 +427,7 @@ def copy_files_to_directory(files, target_directory):
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
+    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,

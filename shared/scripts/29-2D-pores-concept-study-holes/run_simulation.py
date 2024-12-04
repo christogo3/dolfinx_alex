@@ -142,7 +142,7 @@ ddw = ufl.TrialFunction(W)
 
 # setting K1 so it always breaks
 E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO should be effective elastic parameters
-epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
+epsilon0 = dlfx.fem.Constant(domain, 0.1)
 hh = 0.0 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
 K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
