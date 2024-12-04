@@ -54,7 +54,7 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "Running fracture simulation mpirun..."
-mpirun -np 10 python3 run_simulation.py --mesh_file "$MESH_FILE" --in_crack_length "$LCRACK" --lam_micro_param "$LAM_MICRO_PARAM" --mue_micro_param "$MUE_MICRO_PARAM" --gc_micro_param "$GC_MICRO_PARAM" --eps_param "$EPS_PARAM" --element_order "$ELEMENT_ORDER"
+mpirun -np 8 python3 run_simulation.py --mesh_file "$MESH_FILE" --in_crack_length "$LCRACK" --lam_micro_param "$LAM_MICRO_PARAM" --mue_micro_param "$MUE_MICRO_PARAM" --gc_micro_param "$GC_MICRO_PARAM" --eps_param "$EPS_PARAM" --element_order "$ELEMENT_ORDER"
 
 # Check if the third script executed successfully
 if [ $? -ne 0 ]; then

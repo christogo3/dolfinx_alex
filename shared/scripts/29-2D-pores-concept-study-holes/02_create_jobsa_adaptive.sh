@@ -1,4 +1,4 @@
-!/bin/bash
+#!/bin/bash
 
 # Define the base directory where the simulation folders are located
 # Get the current directory of the script
@@ -18,7 +18,7 @@ BASE_DIR="${HPC_SCRATCH}/${working_dir}"
 
 # Define the directory where the job template is located
 JOB_TEMPLATE_DIR="./00_jobs"
-JOB_TEMPLATE_PATH="${JOB_TEMPLATE_DIR}/job_template.sh"
+JOB_TEMPLATE_PATH="${JOB_TEMPLATE_DIR}/job_template_adaptive.sh"
 
 # Function to extract WSTEG parameter from folder name
 extract_wsteg() {
@@ -36,8 +36,9 @@ generate_job_script() {
     # Fixed values for the placeholders in job_script.sh
     local nholes=4
     local dhole=1.0
-    local e0=0.01
-    local mesh_file="mesh_fracture.xdmf"
+    local e0=0.02
+    local e1=0.6
+    local mesh_file="mesh_fracture_adaptive.xdmf"
     local lam_micro_param=1.0
     local mue_micro_param=1.0
     local gc_micro_param=1.0
@@ -51,13 +52,14 @@ generate_job_script() {
         -e "s|{NHOLES}|${nholes}|g" \
         -e "s|{DHOLE}|${dhole}|g" \
         -e "s|{E0}|${e0}|g" \
+        -e "s|{E1}|${e1}|g" \
         -e "s|{MESH_FILE}|${mesh_file}|g" \
         -e "s|{LAM_MICRO_PARAM}|${lam_micro_param}|g" \
         -e "s|{MUE_MICRO_PARAM}|${mue_micro_param}|g" \
         -e "s|{GC_MICRO_PARAM}|${gc_micro_param}|g" \
         -e "s|{EPS_PARAM}|${eps_param}|g" \
         -e "s|{ELEMENT_ORDER}|${element_order}|g" \
-        "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script.sh"
+        "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script_adaptive.sh"
 }
 
 # Iterate over each simulation folder in the base directory

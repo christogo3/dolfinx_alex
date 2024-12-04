@@ -152,7 +152,7 @@ crack_tip_start_location_x = in_crack_length
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
-    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=epsilon.value)
+    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.1*epsilon.value)
     return np.logical_and(y_log,x_log)
 
 ## define boundary conditions crack

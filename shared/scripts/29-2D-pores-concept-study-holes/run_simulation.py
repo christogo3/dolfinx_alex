@@ -75,6 +75,9 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
 parameters = pp.read_parameters_file(parameter_path)
 la_effective = parameters["lam_effective"]
 mu_effective = parameters["mue_effective"]
+wsteg = parameters["wsteg"]
+dhole = parameters["dhole"]
+w_cell = wsteg + dhole
 
 if rank == 0:
         print(f"Initial crack length: {in_crack_length}")
@@ -145,14 +148,14 @@ E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO sho
 epsilon0 = dlfx.fem.Constant(domain, 0.1)
 hh = 0.0 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
-K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
+K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
 crack_tip_start_location_x = in_crack_length
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
-    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=epsilon.value)
+    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*dhole)
     return np.logical_and(y_log,x_log)
 
 ## define boundary conditions crack
@@ -254,10 +257,7 @@ def get_bcs(t):
     return bcs
 
 
-parameters_read = pp.read_parameters_file(parameter_path)
-wsteg = parameters_read["wsteg"]
-dhole = parameters_read["dhole"]
-w_cell = wsteg + dhole
+
 
 # def in_steg_to_be_measured(x_ct):
 #     #x_center = (w_cell) * 1.5 + dhole/2
@@ -356,7 +356,7 @@ def after_timestep_success(t,dt,iters):
         return 
     
 
-    #pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
@@ -427,10 +427,11 @@ def copy_files_to_directory(files, target_directory):
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
-    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+    #pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,
+        os.path.join(script_path,script_name_without_extension+".py"),
         #mesh_file,  # Add more files as needed
         os.path.join(script_path,"graphs.png"),
         os.path.join(script_path,script_name_without_extension+".xdmf"),

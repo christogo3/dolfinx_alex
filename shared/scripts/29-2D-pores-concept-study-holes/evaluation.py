@@ -48,9 +48,9 @@ script_path = os.path.dirname(__file__)
 data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.75)
+#simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=0.25)
 
-#simulation_data_folder= os.path.join(script_path,"simulation_20241204_010751")
+simulation_data_folder= os.path.join(script_path,"simulation_20241204_173016")
 
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
 parameter_path = os.path.join(simulation_data_folder,"parameters.txt")

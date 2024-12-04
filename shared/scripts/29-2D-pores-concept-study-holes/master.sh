@@ -4,7 +4,7 @@
 #WSTEG_VALUES=(0.05 0.1 0.2 0.4 0.5 1.0)
 
 #WSTEG_VALUES=(0.05 0.075 0.1 0.125 0.15 0.2)
-WSTEG_VALUES=(0.05)
+WSTEG_VALUES=(0.25)
 
 # Other parameters to be kept constant
 MESH_FILE="mesh_fracture.xdmf"

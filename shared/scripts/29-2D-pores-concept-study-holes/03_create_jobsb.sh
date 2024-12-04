@@ -27,7 +27,7 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         time=1440
 
         # Define the path to the job script to be updated
-        job_script_path="${folder_path}/job_script.sh"
+        job_script_path="${folder_path}/job_script_adaptive.sh"
 
         # Update the job script with correct values
         sed -i -e "s|{MEMORY_VALUE}|${memory_value}|g" \
