@@ -49,9 +49,9 @@ try:
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
     args = parser.parse_args()
     mesh_file = args.mesh_file
-    la_param = args.lam_micro_param
-    mu_param = args.mue_micro_param
-    gc_param = args.gc_micro_param
+    la_param = args.lam_param
+    mu_param = args.mue_param
+    gc_param = args.gc_param
     eps_param = args.eps_param
 except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
@@ -60,7 +60,7 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     la_param = 1.0
     mu_param = 1.0
     gc_param = 1.0
-    mesh_file = "mesh.xdmf"
+    mesh_file = "mesh_adaptive.xdmf"
     eps_param = 0.08
     
 
@@ -294,7 +294,7 @@ parameters_to_write = {
         'element_order': 1,
     }
 
-pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+
 
 # copy relevant files
 
@@ -309,16 +309,19 @@ def create_timestamped_directory(base_dir="."):
 def copy_files_to_directory(files, target_directory):
     for file in files:
         if os.path.exists(file):
-            shutil.move(file, target_directory)
+            shutil.copy(file, target_directory)
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
+    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+    
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
         os.path.join(script_path,"graphs.png"),
+        os.path.join(script_path,"run_simulation_disp.py"),
         os.path.join(script_path,script_name_without_extension+".xdmf"),
         os.path.join(script_path,script_name_without_extension+".h5")
     ]

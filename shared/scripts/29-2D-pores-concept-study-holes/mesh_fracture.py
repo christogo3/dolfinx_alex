@@ -101,6 +101,9 @@ nodes = mesh.points[:, 0:2]
 elems = mesh.get_cells_type('triangle')
 elem_data = mesh.cell_data_dict['gmsh:physical']['triangle']-1   # matr.: 0 /incl.: 1
 
+
+unique_entries = set(np.array(elems).flatten())
+
 if mesh_info:
     print('NODES:')
     print(nodes)
@@ -120,4 +123,13 @@ parameters_to_write = {
 
 alex.postprocessing.append_to_file(parameter_path,parameters_to_write)
 
+import dolfinx as dlfx
+mesh_file = "mesh_fracture.xdmf"
+comm, rank, size = alex.os.set_mpi()
 
+with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
+    mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
+    
+
+a = 1

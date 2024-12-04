@@ -49,9 +49,9 @@ try:
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
     args = parser.parse_args()
     mesh_file = args.mesh_file
-    la_param = args.lam_micro_param
-    mu_param = args.mue_micro_param
-    gc_param = args.gc_micro_param
+    la_param = args.lam_param
+    mu_param = args.mue_param
+    gc_param = args.gc_param
     eps_param = args.eps_param
 except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
@@ -60,8 +60,8 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     la_param = 1.0
     mu_param = 1.0
     gc_param = 1.0
-    mesh_file = "mesh.xdmf"
-    eps_param = 0.06
+    mesh_file = "mesh_adaptive.xdmf"
+    eps_param = 0.08
     
 
 with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
@@ -84,7 +84,7 @@ dt_start = 0.001
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
-
+# Tend = 10.0
 
 
 la = dlfx.fem.Constant(domain,la_param) 
@@ -115,7 +115,7 @@ ddw = ufl.TrialFunction(W)
 # setting K1 so it always breaks
 E_mod = alex.linearelastic.get_emod(lam=la.value,mu=mu.value) # TODO should be effective elastic parameters
 # epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
-hh = 0.025 # TODO change
+hh = 0.02 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc.value
 K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
 
@@ -123,7 +123,7 @@ K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
 dhole = 1.0
-crack_tip_start_location_x = 1.0*dhole # center of hole
+crack_tip_start_location_x = 0.5*dhole # center of hole
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
@@ -190,7 +190,6 @@ atol=(x_max_all-x_min_all)*0.000 # for selection of boundary
 
 # surfing BCs
 xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
-xK1 = dlfx.fem.Constant(domain, xtip)
 
 vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
 crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
@@ -347,7 +346,7 @@ parameters_to_write = {
         'element_order': 1,
     }
 
-pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+
 
 # copy relevant files
 
@@ -362,16 +361,19 @@ def create_timestamped_directory(base_dir="."):
 def copy_files_to_directory(files, target_directory):
     for file in files:
         if os.path.exists(file):
-            shutil.move(file, target_directory)
+            shutil.copy(file, target_directory)
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
+    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+    
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
         os.path.join(script_path,"graphs.png"),
+        os.path.join(script_path,"run_simulation_K.py"),
         os.path.join(script_path,script_name_without_extension+".xdmf"),
         os.path.join(script_path,script_name_without_extension+".h5")
     ]

@@ -639,6 +639,12 @@ def append_to_file(filename, parameters, comm=MPI.COMM_WORLD):
             for key, value in parameters.items():
                 file.write(f"{key}={value}\n")
                 
+def write_to_file(filename, parameters, comm=MPI.COMM_WORLD):
+    if comm.Get_rank() == 0:
+        with open(filename, 'w') as file:
+            for key, value in parameters.items():
+                file.write(f"{key}={value}\n")
+                
 def read_parameters_file(file_path):
     """
     Reads a file with key-value pairs separated by '=' and returns a dictionary.

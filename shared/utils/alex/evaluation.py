@@ -1,12 +1,16 @@
 import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, LogLocator
 import os
 import math
 import numpy as np
 import re
 from collections import defaultdict
 from typing import Callable, List, Dict, Tuple
+
+import pandas as pd
+import alex.postprocessing as pp
 
 
 ### AUXILIARY 
@@ -894,3 +898,154 @@ def intersect_dicts(dict1, dict2):
         intersected[key] = sorted(list(set(dict1[key]).intersection(set(dict2[key]))))
     
     return intersected
+
+
+def read_all_simulation_data(base_path, graphs_filename = "run_simulation_graphs.txt", parameter_filename = "parameters.txt"):
+    # List to store tuples of (data, parameters)
+    simulation_results = []
+
+    # Iterate through each item in the base directory
+    for folder_name in os.listdir(base_path):
+        # Check if the folder name starts with "simulation_"
+        if folder_name.startswith("simulation_"):
+            # Define paths for the data and parameter files
+            data_path = os.path.join(base_path, folder_name, graphs_filename)
+            parameter_path = os.path.join(base_path, folder_name, parameter_filename)
+            
+            # Try to read the data and parameter files
+            try:
+                # Read the simulation data
+                data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
+                
+                # Read the parameters
+                parameters = pp.read_parameters_file(parameter_path)
+                
+                # Store the data and parameters together as a tuple
+                simulation_results.append((data, parameters))
+                
+            except Exception as e:
+                print(f"Error reading files in {folder_name}: {e}")
+    
+    return simulation_results
+
+
+def plot_multiple_columns(data_objects, col_x, col_y, output_filename, 
+                          vlines=None, hlines=None, xlabel=None, ylabel=None, 
+                          title=None, legend_labels=None, 
+                          xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
+                          tick_fontsize=14, legend_fontsize=14, figsize=(10, 6), 
+                          usetex=False, log_y=False, use_broad_palette=False):
+    """
+    Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
+    with an optional logarithmic y-axis.
+    
+    Parameters:
+        data_objects (list): List of data objects (DataFrames or dict-like) to be plotted.
+        col_x (str): Column name for the x-axis.
+        col_y (str): Column name for the y-axis.
+        output_filename (str): File name to save the plot.
+        vlines (list of lists): List of vertical line positions for each data object.
+        hlines (list of lists): List of horizontal line positions for each data object.
+        xlabel (str): Label for the x-axis.
+        ylabel (str): Label for the y-axis.
+        title (str): Title of the plot.
+        legend_labels (list): List of labels for the legend, corresponding to each data object.
+        xlabel_fontsize (int): Font size for the x-axis label.
+        ylabel_fontsize (int): Font size for the y-axis label.
+        title_fontsize (int): Font size for the plot title.
+        tick_fontsize (int): Font size for the axis tick labels.
+        legend_fontsize (int): Font size for the legend labels.
+        figsize (tuple): Figure dimensions as (width, height) in inches.
+        usetex (bool): Whether to use LaTeX for rendering text in labels.
+        log_y (bool): Whether to display the y-axis in logarithmic scale.
+        use_broad_palette (bool): Whether to use a broad color palette or a narrow, distinguishable palette.
+    """
+    
+    if usetex:
+        plt.rcParams['text.usetex'] = True
+
+    plt.figure(figsize=figsize)
+    
+    # Choose color palette
+    if use_broad_palette:
+        colors = list(mcolors.CSS4_COLORS.values())  # Broad palette
+    else:
+        colors = plt.cm.tab10.colors  # Distinguishable narrow palette
+    
+    for i, data in enumerate(data_objects):
+        color = colors[i % len(colors)]
+        
+        plt.plot(data[col_x], data[col_y], marker='o', linestyle='-', color=color, 
+                 label=legend_labels[i] if legend_labels else f'Data {i+1}')
+        
+        if vlines and i < len(vlines):
+            for vline in vlines[i]:
+                plt.axvline(x=vline, color=color, linestyle='--', linewidth=1)
+        
+        if hlines and i < len(hlines):
+            for hline in hlines[i]:
+                plt.axhline(y=hline, color=color, linestyle='--', linewidth=1)
+    
+    ax = plt.gca()
+    if log_y:
+        ax.set_yscale('log')
+        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
+        ax.yaxis.set_minor_formatter(plt.NullFormatter())
+    
+    plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
+    plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
+    plt.title(title if title else ' ', fontsize=title_fontsize)
+    plt.legend(fontsize=legend_fontsize)
+    
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
+    if not log_y:
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+    
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
+    
+    plt.savefig(output_filename)
+    plt.close()
+    print(f"Plot saved as {output_filename}")
+    
+    
+def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png'):
+    """
+    Plots multiple lines on the same graph and saves the output to a file.
+    
+    Parameters:
+    - x_values: 2D list or numpy array containing x values for each line (shape: [n_lines, n_points]).
+    - y_values: 2D list or numpy array containing y values for each line (shape: [n_lines, n_points]).
+    - title: Title of the plot (default: '').
+    - x_label: Label for the x-axis (default: '').
+    - y_label: Label for the y-axis (default: '').
+    - legend_labels: List of labels for each line in the legend (default: None).
+    - output_file: File path (with extension) to save the plot (default: 'plot.png').
+    """
+    # Check if the dimensions of x_values and y_values match
+    if len(x_values) != len(y_values):
+        raise ValueError("The number of x and y value sets must match.")
+    
+    # Check if legend_labels are provided, otherwise default to numbered labels
+    if legend_labels is None:
+        legend_labels = [f"Line {i+1}" for i in range(len(x_values))]
+    
+    # Create a new figure
+    plt.figure()
+    
+    # Plot each line
+    for i in range(len(x_values)):
+        plt.plot(x_values[i], y_values[i], label=legend_labels[i])
+    
+    # Set title and axis labels
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    
+    # Add legend
+    plt.legend()
+    
+    # Save the plot to the specified file
+    plt.savefig(output_file)
+    
+    # Close the plot to free up memory
+    plt.close()

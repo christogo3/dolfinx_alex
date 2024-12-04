@@ -49,9 +49,9 @@ try:
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
     args = parser.parse_args()
     mesh_file = args.mesh_file
-    la_param = args.lam_micro_param
-    mu_param = args.mue_micro_param
-    gc_param = args.gc_micro_param
+    la_param = args.lam_param
+    mu_param = args.mue_param
+    gc_param = args.gc_param
     eps_param = args.eps_param
 except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
@@ -60,7 +60,7 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     la_param = 1.0
     mu_param = 1.0
     gc_param = 1.0
-    mesh_file = "mesh.xdmf"
+    mesh_file = "mesh_adaptive_sym.xdmf"
     eps_param = 0.08
     
 
@@ -123,7 +123,7 @@ K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
 
 # define crack by boundary
 dhole = 1.0
-crack_tip_start_location_x = 0.5*dhole # center of hole
+crack_tip_start_location_x = dhole # center of hole
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
@@ -215,7 +215,7 @@ def compute_surf_displacement():
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
-boundary_surfing_bc = bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+boundary_surfing_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_surfing_bc)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary) 
 
@@ -234,6 +234,14 @@ def get_bcs(t):
         bcs.append(pf.irreversibility_bc(domain,W,wm1))
     bcs.append(bc_surf)
     bcs.append(bccrack)
+    
+    uy_bottom = 0.0
+    bc_bottom = bc.define_dirichlet_bc_from_value(domain,uy_bottom,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol),W,0)
+    bcs.append(bc_bottom)
+    
+    # symmetry
+    # bc_left_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_left_boundary_of_box_as_function(domain,comm,atol),W,0)
+    # bcs.append(bc_left_x)
     
 
     return bcs
@@ -298,7 +306,7 @@ def after_timestep_success(t,dt,iters):
         return 
     
 
-    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]
@@ -346,7 +354,7 @@ parameters_to_write = {
         'element_order': 1,
     }
 
-pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+
 
 # copy relevant files
 
@@ -361,17 +369,19 @@ def create_timestamped_directory(base_dir="."):
 def copy_files_to_directory(files, target_directory):
     for file in files:
         if os.path.exists(file):
-            shutil.move(file, target_directory)
+            shutil.copy(file, target_directory)
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
+    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+    
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
         os.path.join(script_path,"graphs.png"),
-        os.path.join(script_path,"run_simulation.py"),
+        os.path.join(script_path,"run_simulation_K_sym.py"),
         os.path.join(script_path,script_name_without_extension+".xdmf"),
         os.path.join(script_path,script_name_without_extension+".h5")
     ]
@@ -383,3 +393,6 @@ if rank == 0:
     # Copy the files
     copy_files_to_directory(files_to_copy, target_directory)
     print("Files copied successfully.")
+    
+    
+
