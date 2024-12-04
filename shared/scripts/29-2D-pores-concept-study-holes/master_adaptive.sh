@@ -4,14 +4,14 @@
 #WSTEG_VALUES=(0.05 0.1 0.2 0.4 0.5 1.0)
 
 #WSTEG_VALUES=(0.05 0.075 0.1 0.125 0.15 0.2)
-WSTEG_VALUES=(1.0)
+WSTEG_VALUES=(0.25)
 
 # Other parameters to be kept constant
 MESH_FILE="mesh_fracture_adaptive.xdmf"
 NHOLES=4
 DHOLE=1.0
 E0=0.02
-E1=0.7
+E1=0.6
 EPS_PARAM=$(awk "BEGIN {print 5 * $E0}")
 # E0=0.01
 # EPS_PARAM=$(awk "BEGIN {print 10 * $E0}") # temporary for small steg width

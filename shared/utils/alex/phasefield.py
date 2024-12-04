@@ -148,7 +148,7 @@ def irreversibility_bc(domain: dlfx.mesh.Mesh, W: dlfx.fem.FunctionSpace, wm1: d
     return bccrack_update
 
 
-class StaticPhaseFieldProblem2D:
+class StaticPhaseFieldProblem2D_split:
     # Constructor method
     def __init__(self, degradationFunction: Callable,
                        psisurf: Callable, 
@@ -230,6 +230,52 @@ class StaticPhaseFieldProblem2D:
     def psiel_degraded_history_field(self,s,eta,u,lam,mu,H):
         psiel = le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
         return self.degradation_function(s,eta) * ufl.conditional(ufl.ge(psiel,H),true_value=psiel,false_value=H)
+    
+    def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+        u, s = ufl.split(w)
+        # Wen = self.degradation_function(s,eta) * self.psiel_undegraded(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
+        eshelby = self.psiel_degraded(s,eta,u,lam,mu) * ufl.Identity(2) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam,mu, eta))
+        return ufl.as_tensor(eshelby)
+    
+    
+    def getGlobalFractureSurface(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure):
+        S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
+        return S
+    
+class StaticPhaseFieldProblem2D:
+    # Constructor method
+    def __init__(self, degradationFunction: Callable,
+                       psisurf: Callable
+                 ):
+        print("HIIiiiiiiiiii!!!!!!!")
+        self.degradation_function = degradationFunction
+
+        # Set all parameters here! Material etc
+        self.psisurf : Callable = psisurf
+        self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
+        
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
+        def residuum(u: any, s: any, du: any, ds: any, sm1: any):
+            pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
+            equi = ufl.derivative(pot, u, du)
+            sdrive = ufl.derivative(pot, s, ds)
+            rate = (s-sm1)/delta_t*ds*ufl.dx
+            Res = iMob*rate+sdrive+equi
+            dResdw = ufl.derivative(Res, w, ddw)
+            return [ Res, dResdw]
+            
+        u, s = ufl.split(w)
+        um1, sm1 = ufl.split(wm1)
+        du, ds = ufl.split(dw)
+        
+        return residuum(u,s,du,ds,sm1)
+    
+    def sigma_degraded(self, u,s,lam,mu, eta):
+        return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
+        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+        
+    def psiel_degraded(self,s,eta,u,lam,mu):
+        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
