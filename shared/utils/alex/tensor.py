@@ -76,3 +76,10 @@ def get_surface_integral_of_tensor_2D(tensor: ufl.classes.ListTensor, n: ufl.Fac
     Jy = (tensor[1,0]*n[0]+tensor[1,1]*n[1])*ds
     Jya = dlfx.fem.assemble_scalar(dlfx.fem.form(Jy))
     return assemble_global_sum_dimX1([Jxa, Jya], comm)
+
+def pos(x):
+    return 0.5 * (x + abs(x))
+
+
+def neg(x):
+    return 0.5 * (x - abs(x))

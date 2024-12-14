@@ -117,9 +117,12 @@ E_mod = alex.linearelastic.get_emod(lam=la.value,mu=mu.value) # TODO should be e
 # epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 hh = 0.02 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc.value
-K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
+# K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
 
+K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(1.0 * 2.5))
+# K1 = dlfx.fem.Constant(domain, 5.0 * math.sqrt(1.0 * 2.5))
 
+# K1 = dlfx.fem.Constant(domain, 10.0 * math.sqrt(1.0 * 2.5))
 
 # define crack by boundary
 dhole = 1.0
@@ -149,7 +152,10 @@ crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_quadratic,
-                                                   psisurf=pf.psisurf_from_function)
+                                                   psisurf=pf.psisurf_from_function,
+                                                   )
+
+#phaseFieldProblem = pf.StaticPhaseFieldProblem2D_split(degradationFunction=pf.degrad_quadratic,psisurf=pf.psisurf_from_function,split=True)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -215,7 +221,12 @@ def compute_surf_displacement():
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
+
+
 boundary_surfing_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+
+#TODO Epsilon = 0.0 gesetzt
+# boundary_surfing_bc = bc.get_leftrighttop_boundary_of_box_as_function(domain,comm,atol=0.0,epsilon=epsilon.value) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_surfing_bc)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary) 
 
@@ -373,15 +384,22 @@ def copy_files_to_directory(files, target_directory):
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
+def move_files_to_directory(files, target_directory):
+    for file in files:
+        if os.path.exists(file):
+            shutil.move(file, target_directory)
+        else:
+            print(f"Warning: File '{file}' does not exist and will not be copied.")
+
+
 if rank == 0:
     pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
     
-    files_to_copy = [
+    files_to_move = [
         parameter_path,
         outputfile_graph_path,
         #mesh_file,  # Add more files as needed
         os.path.join(script_path,"graphs.png"),
-        os.path.join(script_path,"run_simulation_K_sym.py"),
         os.path.join(script_path,script_name_without_extension+".xdmf"),
         os.path.join(script_path,script_name_without_extension+".h5")
     ]
@@ -391,7 +409,8 @@ if rank == 0:
     print(f"Created directory: {target_directory}")
 
     # Copy the files
-    copy_files_to_directory(files_to_copy, target_directory)
+    move_files_to_directory(files_to_move, target_directory)
+    copy_files_to_directory([os.path.join(script_path,"run_simulation_K_sym.py"),], target_directory)
     print("Files copied successfully.")
     
     

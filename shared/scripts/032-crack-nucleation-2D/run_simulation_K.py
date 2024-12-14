@@ -117,7 +117,8 @@ E_mod = alex.linearelastic.get_emod(lam=la.value,mu=mu.value) # TODO should be e
 # epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 hh = 0.02 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc.value
-K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
+#K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
+K1 = dlfx.fem.Constant(domain, 2.0 * math.sqrt(1.0 * 2.5))
 
 
 

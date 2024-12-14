@@ -188,11 +188,12 @@ class StaticPhaseFieldProblem2D_split:
     
     def sigma_as_tensor_test(self, u: dlfx.fem.Function, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant ):
         eps = ufl.sym(ufl.grad(u))
+        trEps = ufl.tr(eps)
         # other usefull functions#
         
         
         # I = self.Id
-        val = lam * ufl.Identity(2) + 2*mu*eps
+        val = lam * trEps * ufl.Identity(2) + 2*mu*eps
         return val
     
     def sigma_degraded(self, u,s,lam,mu, eta):
@@ -204,13 +205,6 @@ class StaticPhaseFieldProblem2D_split:
         # return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
     
     def sigma_degraded_vol_split(self,u,s,lam,mu,eta):
-        def pos(x):
-            return 0.5 * (x + abs(x))
-
-
-        def neg(x):
-            return 0.5 * (x - abs(x))
-        
         K = le.get_K_2D(lam=lam,mu=mu)
         eps = le.eps_as_tensor(u)
         epsD =  ufl.dev(eps)
@@ -220,11 +214,21 @@ class StaticPhaseFieldProblem2D_split:
         # vol_eps = ufl.tr(eps)
         #sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,ufl.as_ufl(0.0)) * ufl.Identity(dim) #+ self.degradation_function(s=s,eta=eta) * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * ufl.Identity(dim) + 2.0 * mu * epsD)
         #sigma_degraded = K * ufl.conditional(ufl.lt(trEps,0.0),trEps,0.0) * self.Id + self.degradation_function(s=s,eta=eta) * ( ufl.conditional(ufl.ge(trEps,0.0),trEps,0.0) * self.Id + 2.0 * mu * epsD)
-        sigma_degraded = K * neg(trEps) * ufl.Identity(2)+ self.degradation_function(s=s,eta=eta) * (K * pos(trEps) * ufl.Identity(2) + 2.0 * mu * epsD)
+        sigma_degraded = K * tensor.neg(trEps) * ufl.Identity(2)+ self.degradation_function(s=s,eta=eta) * (K * tensor.pos(trEps) * ufl.Identity(2) + 2.0 * mu * epsD)
         return sigma_degraded
         
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return 0.5 * ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),le.eps_as_tensor(u))
+        eps = le.eps_as_tensor(u)
+        epsD =  ufl.dev(eps)
+        trEps = ufl.tr(eps)
+        K = le.get_K_2D(lam=lam,mu=mu)
+        
+        if self.split:
+            psi = 0.5 * K * tensor.neg(trEps) ** 2 + self.degradation_function(s,eta) * (0.5 * K * tensor.pos(trEps) ** 2 + mu * ufl.inner(epsD,epsD))
+        else:
+            psi = self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return psi
+        # return 0.5 * ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),le.eps_as_tensor(u))
         #return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def psiel_degraded_history_field(self,s,eta,u,lam,mu,H):
@@ -247,7 +251,6 @@ class StaticPhaseFieldProblem2D:
     def __init__(self, degradationFunction: Callable,
                        psisurf: Callable
                  ):
-        print("HIIiiiiiiiiii!!!!!!!")
         self.degradation_function = degradationFunction
 
         # Set all parameters here! Material etc

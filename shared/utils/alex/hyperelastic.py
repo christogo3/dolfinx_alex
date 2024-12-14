@@ -43,9 +43,9 @@ def P(u: dlfx.fem.Function,psi_fct):
 
 class ElasticProblem:
     # Constructor method
-    def __init__(self):
+    def __init__(self, psi = psi_Neo_Hooke):
         self.traction = 0.0
-        self.psi = psi_Neo_Hooke
+        self.psi = psi
         return 
         
     def prep_newton(self, u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant, 

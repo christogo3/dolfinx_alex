@@ -422,12 +422,12 @@ def create_timestamped_directory(base_dir="."):
 def copy_files_to_directory(files, target_directory):
     for file in files:
         if os.path.exists(file):
-            shutil.move(file, target_directory)
+            shutil.copy(file, target_directory)
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
 if rank == 0:
-    #pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+    pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
     files_to_copy = [
         parameter_path,
         outputfile_graph_path,

@@ -121,7 +121,8 @@ parameters_to_write = {
         'wsteg': wsteg,
     }
 
-alex.postprocessing.append_to_file(parameter_path,parameters_to_write)
+#alex.postprocessing.append_to_file(parameter_path,parameters_to_write)
+alex.postprocessing.write_to_file(parameter_path, parameters_to_write)
 
 import dolfinx as dlfx
 mesh_file = "mesh_fracture.xdmf"

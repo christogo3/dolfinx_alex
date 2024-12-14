@@ -176,7 +176,8 @@ parameters_to_write = {
     'e1': e1
 }
 
-alex.postprocessing.append_to_file(parameter_path, parameters_to_write)
+alex.postprocessing.write_to_file(parameter_path, parameters_to_write)
+#alex.postprocessing.append_to_file(parameter_path, parameters_to_write)
 
 import dolfinx as dlfx
 # set MPI environment

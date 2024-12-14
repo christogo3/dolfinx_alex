@@ -42,7 +42,7 @@ top_rect_bottom_left = [0.0, 0.0, 0.0]  # Bottom-left corner of the top half rec
 top_rectangle = model.add_rectangle(top_rect_bottom_left, width, height / 2, 0)
 
 # Define the full-circle notch
-notch_center = [dhole, 0.0 , 0.0]  # Center of the circle
+notch_center = [dhole*2.5, 0.0 , 0.0]  # Center of the circle
 circle_notch = model.add_disk(notch_center, dhole / 2)
 
 # Subtract the full circle from the top rectangular domain

@@ -140,12 +140,27 @@ def find_max_y_under_x_threshold(df, x_col, y_col, x_threshold):
     
     return max_y_point[x_col], max_y_point[y_col]
 
-
-
+# Needs to be set
+DHOLE = 1.0
+init_crack = DHOLE/2.0
 
 
 script_path = os.path.dirname(__file__)
-simulation_data_folder = os.path.join(script_path,"height_study","simulation_20241128_120124")
+# Define the height_study folder path
+height_study_folder = os.path.join(script_path, "height_study")
+
+# Get a list of all folders in the height_study folder
+all_folders = [f for f in os.listdir(height_study_folder) if os.path.isdir(os.path.join(height_study_folder, f))]
+
+# Find the first folder that starts with "simulation_"
+simulation_folder = next((f for f in all_folders if f.startswith("simulation_")), None)
+
+if simulation_folder:
+    # Construct the full path to the simulation folder
+    simulation_data_folder = os.path.join(height_study_folder, simulation_folder)
+    print(f"Selected simulation folder: {simulation_data_folder}")
+else:
+    print("No folder starting with 'simulation_' found.")
 data_path = os.path.join(simulation_data_folder, 'run_simulation_K_sym_graphs.txt')
 # data_directory = "./"
 
@@ -165,11 +180,29 @@ legend_entries = []
 height_values = []
 initial_crack_length_values = []
 
+def filter_data_to_range_where_A_exceeds_initial_value(filter_data, initial_crack_param, data, param):
+    eps=param["eps"]
+    e0=param["e0"]
+    # A_initial_num = (1.0 + e0 / eps) * initial_crack_param / 2.0  # divided by two since symmetric computation
+    A_initial_num = (1.0 + e0 / eps) * initial_crack_param / 2.0
+    
+    data = filter_data(data,9,A_initial_num * 1.8,9999999.0)
+    
+    t_start_brutal_crack_growth = data.values[0][0]
+    Delta_t_initial_crack_growth = 0.05
+    return data,A_initial_num,t_start_brutal_crack_growth,Delta_t_initial_crack_growth
+
 for sim in simulation_results:
-    data = sim[0]
+    
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
+    data = sim[0]
+    
+    # filter data so data row starts with initial brutal crack growth
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     dhole = param["dhole"]
     height = param["height"]
     height_values.append(height)
@@ -200,7 +233,7 @@ output_file = os.path.join(script_path, "02_height_vs_initial_crack_length.png")
 # ev.plot_multiple_lines(height_values_sorted,initial_crack_length_values_sorted,x_label="$w_s$",y_label="Jx_max",output_file=output_file)
 
 
-def plot_and_save(x, y, filename, title="", xlabel="X", ylabel="Y"):
+def plot_and_save(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y"):
     """
     Plots x and y arrays and saves the plot to a file.
 
@@ -208,15 +241,19 @@ def plot_and_save(x, y, filename, title="", xlabel="X", ylabel="Y"):
     - x (array-like): Array of x values.
     - y (array-like): Array of y values.
     - filename (str): The file path where the plot will be saved (e.g., 'plot.png').
-    - title (str): Title of the plot (default is "X vs Y").
+    - plot_type (str): Type of plot ('line' for line plot, 'dot' for dot plot). Default is 'line'.
+    - title (str): Title of the plot (default is "").
     - xlabel (str): Label for the x-axis (default is "X").
     - ylabel (str): Label for the y-axis (default is "Y").
     """
     # Create a figure and axis object
     plt.figure(figsize=(8, 6))
     
-    # Plot the data
-    plt.plot(x, y, label="Data", color='blue')
+    # Plot the data based on the selected plot type
+    if plot_type == "dot":
+        plt.scatter(x, y, label="Data", color='blue')  # Dot plot
+    else:
+        plt.plot(x, y, label="Data", color='blue')  # Line plot
     
     # Add title and labels
     plt.title(title)
@@ -252,8 +289,11 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     gc = param["Gc_simulation"]
     gc_values.append(gc)
     initial_crack_length_values.append(initial_crack_length)
@@ -290,8 +330,11 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     width = param["width"]
     width_values.append(width)
     initial_crack_length_values.append(initial_crack_length)
@@ -327,8 +370,13 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
+    
+     # filter data so data row starts with initial brutal crack growth
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
     E = le.get_emod(la,mu)
@@ -370,8 +418,11 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     eps = param["eps"]
 
     eps_values.append(eps)
@@ -458,54 +509,111 @@ def scatter_plot_with_classes(
     
     
     
-simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"sigc_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
+# simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"sigc_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
+
+# # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
+# data_to_plot = []
+# legend_entries = []
+# eps_values = []
+# gc_values = []
+# E_values = []
+# sigc_values = []
+# initial_crack_length_values = []
+
+# for sim in simulation_results:
+#     data = sim[0]
+#     param = sim[1]
+#     data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    
+#     initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+#     initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+#     initial_crack_length_values.append(initial_crack_length)
+    
+#     eps = param["eps"]
+#     eps_values.append(eps)
+    
+#     gc = param["Gc_simulation"]
+#     gc_values.append(gc)
+    
+#     la = param["lam_simulation"]
+#     mu = param["mue_simulation"]
+#     E = le.get_emod(la,mu)
+#     E_values.append(E)
+    
+#     sigc = pf.sig_c_quadr_deg(gc,mu,eps)
+#     sigc_values.append(sigc)
+    
+#     data_to_plot.append(data)
+#     legend_entry = f"$eps$: {eps} $gc$: {gc}; $E$: {E}; $sigc$: {sigc};"
+#     legend_entries.append(legend_entry)
+    
+# sorted_indices = sorted(range(len(eps_values)), key=lambda i: eps_values[i])
+# data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
+# legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
+# eps_values_sorted = [eps_values[i] for i in sorted_indices]
+# gc_values_sorted = [gc_values[i] for i in sorted_indices]
+# E_values_sorted = [E_values[i] for i in sorted_indices]
+# sigc_values_sorted = [sigc_values[i] for i in sorted_indices]
+# initial_crack_length_values_sorted = [initial_crack_length_values[i] for i in sorted_indices]
+
+
+
+# output_file = os.path.join(script_path, '10_A_vs_t_all_varying_sigc.png')  
+# ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+#                       col_x=0,
+#                       col_y=9,
+#                       output_filename=output_file,
+#                       legend_labels=legend_entries_sorted,
+#                       xlabel="$t[T]$",ylabel="$A$")
+
+
+# output_file = os.path.join(script_path, '11_cracklength_vs_sigc.png') 
+# scatter_plot_with_classes(sigc_values_sorted,
+#                           initial_crack_length_values_sorted,
+#                           eps_values_sorted,
+#                           gc_values_sorted,
+#                           E_values_sorted,
+#                           "eps",
+#                           "gc",output_file=output_file)
+
+
+simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"nu_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
 
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
-eps_values = []
-gc_values = []
-E_values = []
-sigc_values = []
+nu_values = []  # Collect Poisson ratios
 initial_crack_length_values = []
 
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=0.05)[1]
-    initial_crack_length = initial_crack_length - 0.35 # include effect of initial crack
-    initial_crack_length_values.append(initial_crack_length)
     
-    eps = param["eps"]
-    eps_values.append(eps)
+     # filter data so data row starts with initial brutal crack growth
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
-    gc = param["Gc_simulation"]
-    gc_values.append(gc)
     
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
+    nu = le.get_nu(la, mu)  # Calculate Poisson ratio
+    nu_values.append(nu)
     E = le.get_emod(la,mu)
-    E_values.append(E)
-    
-    sigc = pf.sig_c_quadr_deg(gc,mu,eps)
-    sigc_values.append(sigc)
-    
+    initial_crack_length_values.append(initial_crack_length)
     data_to_plot.append(data)
-    legend_entry = f"$eps$: {eps} $gc$: {gc}; $E$: {E}; $sigc$: {sigc};"
+    legend_entry = f"$\\nu$: {nu:.2f}, $E$: {E:.2e}"
     legend_entries.append(legend_entry)
     
-sorted_indices = sorted(range(len(eps_values)), key=lambda i: eps_values[i])
+sorted_indices = sorted(range(len(nu_values)), key=lambda i: nu_values[i])
 data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
 legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
-eps_values_sorted = [eps_values[i] for i in sorted_indices]
-gc_values_sorted = [gc_values[i] for i in sorted_indices]
-E_values_sorted = [E_values[i] for i in sorted_indices]
-sigc_values_sorted = [sigc_values[i] for i in sorted_indices]
+nu_values_sorted = [nu_values[i] for i in sorted_indices]
 initial_crack_length_values_sorted = [initial_crack_length_values[i] for i in sorted_indices]
 
-
-
-output_file = os.path.join(script_path, '10_A_vs_t_all_varying_sigc.png')  
+# Plot A vs t for varying \nu
+output_file = os.path.join(script_path, '12_A_vs_t_all_varying_nu.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=0,
                       col_y=9,
@@ -513,12 +621,57 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       legend_labels=legend_entries_sorted,
                       xlabel="$t[T]$",ylabel="$A$")
 
+# Plot \nu vs initial crack length
+output_file = os.path.join(script_path, "13_nu_vs_initial_crack_length.png")
+plot_and_save(nu_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$\\nu$",ylabel="initial crack length")
 
-output_file = os.path.join(script_path, '11_cracklength_vs_sigc.png') 
-scatter_plot_with_classes(sigc_values_sorted,
-                          initial_crack_length_values_sorted,
-                          eps_values_sorted,
-                          gc_values_sorted,
-                          E_values_sorted,
-                          "eps",
-                          "gc",output_file=output_file)
+
+
+simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"e_gc_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
+
+# output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
+data_to_plot = []
+legend_entries = []
+E_values = []
+Gc_values = []
+initial_crack_length_values = []
+
+for sim in simulation_results:
+    data = sim[0]
+    param = sim[1]
+    
+    # filter data so data row starts with initial brutal crack growth
+    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    la = param["lam_simulation"]
+    mu = param["mue_simulation"]
+    E = le.get_emod(la,mu)
+    Gc = param["Gc_simulation"]
+    E_values.append(E)
+    Gc_values.append(Gc)
+    initial_crack_length_values.append(initial_crack_length)
+    data_to_plot.append(data)
+    legend_entry = f"$(E, G_c)$: ({E}, {Gc})"
+    legend_entries.append(legend_entry)
+    
+sorted_indices = sorted(range(len(E_values)), key=lambda i: E_values[i])
+data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
+legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
+E_values_sorted = [E_values[i] for i in sorted_indices]
+Gc_values_sorted = [Gc_values[i] for i in sorted_indices]
+E_Gc_values_sorted = [E_values[i]*Gc_values[i] for i in sorted_indices]
+initial_crack_length_values_sorted = [initial_crack_length_values[i] for i in sorted_indices]
+
+
+output_file = os.path.join(script_path, '14_A_vs_t_all_varying_E_Gc.png')  
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+                      col_x=0,
+                      col_y=9,
+                      output_filename=output_file,
+                      legend_labels=legend_entries_sorted,
+                      xlabel="$t[T]$",ylabel="$A$")
+
+output_file = os.path.join(script_path, "15_initial_crack_length_vs_ExGc.png")
+plot_and_save(E_Gc_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="ExGc",ylabel="initial crack length",plot_type="dot")

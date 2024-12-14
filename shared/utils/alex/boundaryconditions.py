@@ -185,6 +185,34 @@ def get_leftright_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.
         return reduce(np.logical_or, boundaries)
     return boundary
 
+def get_leftrighttop_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None, epsilon: float = 0.0) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        xmin = close_func(x[0],x_min_all,atol=atol)
+        xmax = close_func(x[0],x_max_all,atol=atol)
+        ymax = close_func(x[1],y_max_all,atol=atol)
+        boundaries = [xmin, xmax, ymax]
+        
+        applied_at_height = np.greater_equal(x[1],(y_min_all + 3.0 * epsilon))
+        return np.logical_and(reduce(np.logical_or, boundaries),applied_at_height)
+    return boundary
+
+
+def get_2D_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None, epsilon: float = 0.0) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        xmin = close_func(x[0],x_min_all,atol=atol)
+        xmax = close_func(x[0],x_max_all,atol=atol)
+        ymax = close_func(x[1],y_max_all,atol=atol)
+        ymin = close_func(x[1],y_min_all,atol=atol)
+        boundaries = [xmin, xmax, ymax,ymin]
+        
+        y_middle = (y_max_all+y_min_all) / 2.0
+        rangey = 4.0 * epsilon
+        applied_at_height = np.logical_or(np.greater_equal(x[1],(y_middle + rangey)), np.less_equal(x[1],(y_middle - rangey)) )
+        return np.logical_and(reduce(np.logical_or, boundaries),applied_at_height)
+    return boundary
+
 def get_corner_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm) -> Callable:
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):

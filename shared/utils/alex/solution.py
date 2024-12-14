@@ -210,15 +210,17 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
                                              t: dlfx.fem.Constant = None,
                                              dt_max: dlfx.fem.Constant = None,
                                              dt_never_scale_up: bool = False,
-                                             trestart: dlfx.fem.Constant = None):
+                                             trestart: dlfx.fem.Constant = None,
+                                             max_iters = 8,
+                                             min_iters = 4):
     rank = comm.Get_rank()
     
     if print_bool:
         print_total_dofs(w, comm, rank)
     
     # time stepping
-    max_iters = 8
-    min_iters = 4
+    # max_iters = 8
+    # min_iters = 4
     dt_scale_down = 0.5
     dt_scale_up = 2.0
     
