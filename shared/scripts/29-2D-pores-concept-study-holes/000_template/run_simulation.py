@@ -111,7 +111,7 @@ dt_max_in_critical_area = 2.0e-7
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
-Tend = 10.0 * dt_global.value
+# Tend = 10.0 * dt_global.value
 dt_global.value = dt_max_in_critical_area
 # dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
@@ -147,8 +147,9 @@ ddw = ufl.TrialFunction(W)
 E_mod = alex.linearelastic.get_emod(lam=la_effective,mu=mu_effective) # TODO should be effective elastic parameters
 epsilon0 = dlfx.fem.Constant(domain, 0.1)
 hh = 0.0 # TODO change
-Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
-K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
+# Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
+# K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
+K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(1.0 * 2.5))
 
 # define crack by boundary
 crack_tip_start_location_x = in_crack_length
@@ -157,6 +158,9 @@ def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*dhole)
     return np.logical_and(y_log,x_log)
+
+v_crack = 1.0 # const for all simulations
+Tend = (x_max_all-crack_tip_start_location_x) * 1.2 / v_crack
 
 ## define boundary conditions crack
 tdim = domain.topology.dim
@@ -208,7 +212,7 @@ atol=(x_max_all-x_min_all)*0.000 # for selection of boundary
 # surfing BCs
 xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
-v_crack = 1.2*(x_max_all-crack_tip_start_location_x)/Tend
+# v_crack = 1.2*(x_max_all-crack_tip_start_location_x)/Tend
 vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
 crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
