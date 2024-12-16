@@ -26,15 +26,15 @@ try:
 except:
     print("Could not parse arguments")
     Nholes = 4
-    dhole = 0.1
-    wsteg = 0.1
+    dhole = 1.0
+    wsteg = 0.25
     e0 = 0.02  # Fine mesh size
     e1 = 0.8  # Coarse mesh size
 
 w_cell = dhole + wsteg
 h_cell = w_cell
 l0 = (Nholes + 2) * w_cell
-h0 = 2 * w_cell
+h0 = 7.0 # fixed since height determines jump of crack
 
 filename = os.path.join(script_path, script_name_without_extension)
 mesh_info = True
@@ -176,8 +176,8 @@ parameters_to_write = {
     'e1': e1
 }
 
-#alex.postprocessing.append_to_file(parameter_path, parameters_to_write)
 alex.postprocessing.write_to_file(parameter_path, parameters_to_write)
+#alex.postprocessing.append_to_file(parameter_path, parameters_to_write)
 
 import dolfinx as dlfx
 # set MPI environment
@@ -203,5 +203,3 @@ with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_in
 
 
 
-
-a = 1
