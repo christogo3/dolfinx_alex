@@ -149,7 +149,7 @@ epsilon0 = dlfx.fem.Constant(domain, 0.1)
 hh = 0.0 # TODO change
 # Gc_num = (1.0 + hh / epsilon.value ) * gc_micro
 # K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(epsilon0) / math.sqrt(epsilon) * math.sqrt(Gc_num * E_mod))
-K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(1.0 * 2.5))
+K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
 
 # define crack by boundary
 crack_tip_start_location_x = in_crack_length
@@ -160,7 +160,7 @@ def crack(x):
     return np.logical_and(y_log,x_log)
 
 v_crack = 1.0 # const for all simulations
-Tend = (x_max_all-crack_tip_start_location_x) * 1.2 / v_crack
+Tend = (x_max_all-0.0) * 2.0 / v_crack
 
 ## define boundary conditions crack
 tdim = domain.topology.dim
@@ -171,7 +171,7 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
-phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_quadratic,
+phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_cubic,
                                                    psisurf=pf.psisurf_from_function)
 
 timer = dlfx.common.Timer()
@@ -214,7 +214,7 @@ xtip = np.array([0.0,0.0,0.0],dtype=dlfx.default_scalar_type)
 xK1 = dlfx.fem.Constant(domain, xtip)
 # v_crack = 1.2*(x_max_all-crack_tip_start_location_x)/Tend
 vcrack_const = dlfx.fem.Constant(domain, np.array([v_crack,0.0,0.0],dtype=dlfx.default_scalar_type))
-crack_start = dlfx.fem.Constant(domain, np.array([crack_tip_start_location_x,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
+crack_start = dlfx.fem.Constant(domain, np.array([0.0,crack_tip_start_location_y,0.0],dtype=dlfx.default_scalar_type))
 
 [Res, dResdw] = get_residuum_and_gateaux(delta_t=dt_global)
 w_D = dlfx.fem.Function(W) # for dirichlet BCs
@@ -246,7 +246,7 @@ dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_bo
 
 def get_bcs(t):
     bcs = []
-    xtip[0] = crack_tip_start_location_x + v_crack * t
+    xtip[0] = 0.0 + v_crack * t
     xtip[1] = crack_tip_start_location_y
     w_D.sub(0).interpolate(bc_expression)
     bc_surf : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(w_D,dofs_at_boundary)
@@ -306,6 +306,8 @@ def after_timestep_success(t,dt,iters):
     
     A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
     
+    E_el = phaseFieldProblem.get_E_el_global(s,eta,u,la,mu,dx=ufl.dx,comm=comm)
+    
     # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
@@ -327,7 +329,7 @@ def after_timestep_success(t,dt,iters):
     # if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
     if rank == 0:
         print("Crack tip position x: " + str(x_ct))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt, E_el)
 
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
@@ -375,7 +377,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt", "E_el"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(

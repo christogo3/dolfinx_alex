@@ -632,18 +632,20 @@ def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.f
 
 
 
-# store parameters to parameters file
 def append_to_file(filename, parameters, comm=MPI.COMM_WORLD):
     if comm.Get_rank() == 0:
         with open(filename, 'a') as file:
             for key, value in parameters.items():
                 file.write(f"{key}={value}\n")
-                
+                print(f"Appended to {filename}: {key}={value}")  # Debug print with file name
+
 def write_to_file(filename, parameters, comm=MPI.COMM_WORLD):
     if comm.Get_rank() == 0:
         with open(filename, 'w') as file:
             for key, value in parameters.items():
                 file.write(f"{key}={value}\n")
+                print(f"Written to {filename}: {key}={value}")  # Debug print with file name
+
                 
 def read_parameters_file(file_path):
     """

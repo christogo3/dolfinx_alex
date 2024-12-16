@@ -283,6 +283,8 @@ def after_timestep_success(t,dt,iters):
     
     A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
     
+    E_el = phaseFieldProblem.get_E_el_global(s,eta,u,la,mu,dx=ufl.dx,comm=comm)
+    
     # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
@@ -305,7 +307,7 @@ def after_timestep_success(t,dt,iters):
         x_ct = dhole/2
     
     if rank == 0:
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct,xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct,xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt,E_el)
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -332,7 +334,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt", "E_el"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
