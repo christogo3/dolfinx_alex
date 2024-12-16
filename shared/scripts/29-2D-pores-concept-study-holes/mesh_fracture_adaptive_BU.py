@@ -26,15 +26,15 @@ try:
 except:
     print("Could not parse arguments")
     Nholes = 4
-    dhole = 1.0
-    wsteg = 0.25
+    dhole = 0.1
+    wsteg = 0.1
     e0 = 0.02  # Fine mesh size
     e1 = 0.8  # Coarse mesh size
 
 w_cell = dhole + wsteg
 h_cell = w_cell
 l0 = (Nholes + 2) * w_cell
-h0 = 7.0 # fixed since height determines jump of crack
+h0 = 2 * w_cell
 
 filename = os.path.join(script_path, script_name_without_extension)
 mesh_info = True
@@ -203,3 +203,5 @@ with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_in
 
 
 
+
+a = 1

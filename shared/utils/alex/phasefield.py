@@ -12,7 +12,7 @@ def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
     return degrad
 
-def degrad_cubic(s: any, eta: dlfx.fem.Constant, beta=0.01) -> any:
+def degrad_cubic(s: any, eta: dlfx.fem.Constant, beta=0.1) -> any:
     degrad = beta * ((s ** 2) * s - (s ** 2)) + 3.0*(s**2) - 2.0*(s**2)*s + eta
     return degrad
 

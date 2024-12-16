@@ -3,7 +3,7 @@
 # Define parameter ranges or specific values
 DHOLE_VALUES=(1.0)          # Example: hole sizes
 WIDTH_VALUES=(8.0)          # Example: domain widths
-HEIGHT_VALUES=(3.0 4.0 6.0) # Example: domain heights
+HEIGHT_VALUES=(4.0 6.0 8.0) # Example: domain heights
 E0_VALUES=(0.02)            # Example: E0 values
 E1_VALUES=(0.7)             # Example: E1 values
 MESH_FILES=("mesh_adaptive_sym.xdmf")

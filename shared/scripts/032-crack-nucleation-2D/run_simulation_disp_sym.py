@@ -121,7 +121,7 @@ domain.topology.create_connectivity(fdim, tdim)
 
 
 
-phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_quadratic,
+phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction= pf.degrad_cubic,#pf.degrad_quadratic,
                                                    psisurf=pf.psisurf_from_function)
 
 timer = dlfx.common.Timer()

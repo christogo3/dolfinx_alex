@@ -2,13 +2,13 @@
 
 # Define parameter ranges or specific values
 DHOLE_VALUES=(1.0)          # Example: hole sizes
-WIDTH_VALUES=(6.0)          # Example: domain widths
-HEIGHT_VALUES=(7.0) # Example: domain heights
+WIDTH_VALUES=(8.0)          # Example: domain widths
+HEIGHT_VALUES=(12.0) # Example: domain heights
 E0_VALUES=(0.02)            # Example: E0 values
 E1_VALUES=(0.7)             # Example: E1 values
 MESH_FILES=("mesh_adaptive_sym.xdmf")
 GC_VALUES=(2.0)             # Example: Gc values
-# EPS_VALUES=(0.08 0.1 0.12 0.16 0.2 0.3 0.4 0.5)            # Example: Epsilon values
+EPS_VALUES=(0.08 0.1 0.12 0.16 0.2 0.3 0.4 0.5)            # Example: Epsilon values
 ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 
 LAM_MUE_PAIRS=(             # Pairs of lambda and mu

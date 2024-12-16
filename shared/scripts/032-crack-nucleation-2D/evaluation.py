@@ -180,6 +180,19 @@ legend_entries = []
 height_values = []
 initial_crack_length_values = []
 
+def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None,y_col=9):
+    if len(data.values) == 0:
+        return 0.0
+    default_x_threshold = data.values[0,0]+0.1
+    if x_threshold is None:
+        x_threshold = default_x_threshold
+        
+    A_initial_num = data.values[0,y_col]
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=y_col, x_threshold=x_threshold)[1]
+    initial_crack_length = initial_crack_length - A_initial_num
+    return initial_crack_length
+
+
 def filter_data_to_range_where_A_exceeds_initial_value(filter_data, initial_crack_param, data, param):
     eps=param["eps"]
     e0=param["e0"]
@@ -198,11 +211,16 @@ for sim in simulation_results:
     data = sim[0]
     
     # filter data so data row starts with initial brutal crack growth
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     dhole = param["dhole"]
     height = param["height"]
     height_values.append(height)
@@ -286,14 +304,21 @@ legend_entries = []
 gc_values = []
 initial_crack_length_values = []
 
+
+
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     gc = param["Gc_simulation"]
     gc_values.append(gc)
     initial_crack_length_values.append(initial_crack_length)
@@ -330,11 +355,15 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     width = param["width"]
     width_values.append(width)
     initial_crack_length_values.append(initial_crack_length)
@@ -350,13 +379,17 @@ initial_crack_length_values_sorted = [initial_crack_length_values[i] for i in so
 
 
 
-output_file = os.path.join(script_path, '05_A_vs_t_all_varying_width.png')  
+output_file = os.path.join(script_path, '05A_A_vs_t_all_varying_width.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$t[T]$",ylabel="$A$")
+
+
+output_file = os.path.join(script_path, "05B_width_vs_initial_crack_length.png")
+plot_and_save(width_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="width",ylabel="initial crack length")
 
 
 simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"e_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
@@ -372,11 +405,15 @@ for sim in simulation_results:
     param = sim[1]
     
      # filter data so data row starts with initial brutal crack growth
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
     E = le.get_emod(la,mu)
@@ -418,11 +455,16 @@ initial_crack_length_values = []
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=9)
+    
+    
     eps = param["eps"]
 
     eps_values.append(eps)
@@ -591,11 +633,15 @@ for sim in simulation_results:
     param = sim[1]
     
      # filter data so data row starts with initial brutal crack growth
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
     nu = le.get_nu(la, mu)  # Calculate Poisson ratio
@@ -641,10 +687,14 @@ for sim in simulation_results:
     param = sim[1]
     
     # filter data so data row starts with initial brutal crack growth
-    data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
+    # data, A_initial_num, t_start_brutal_crack_growth, Delta_t_initial_crack_growth = filter_data_to_range_where_A_exceeds_initial_value(filter_data, init_crack, data, param)
     
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
-    initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    # initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=9, x_threshold=t_start_brutal_crack_growth+Delta_t_initial_crack_growth)[1]
+    # initial_crack_length = initial_crack_length - A_initial_num # include effect of initial crack
+    crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
+    data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,9999999.0)
+    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
     E = le.get_emod(la,mu)
