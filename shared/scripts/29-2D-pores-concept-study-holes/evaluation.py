@@ -46,7 +46,8 @@ def find_simulation_by_wsteg(path, wsteg_value_in):
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
-data_directory = os.path.join(script_path,'cubic_degrad')
+# data_directory = os.path.join(script_path,'cubic_degrad')
+data_directory = os.path.join(script_path,'adaptive')
 
 
 simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=0.25)
@@ -537,10 +538,10 @@ plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_f
 
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[6], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
+plot_columns(data_without_xct_max[2], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[6], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
+plot_columns(data_without_xct_max[2], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
 plot_multiple_columns(data_objects=data_to_plot_sorted,

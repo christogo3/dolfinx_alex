@@ -27,6 +27,7 @@ WORKDIR /home
 RUN apt-get update && apt-get install -y \
     libgl1 \
     xvfb \
+    texlive \
     && rm -rf /var/lib/apt/lists/*
 
 # Install required Python packages

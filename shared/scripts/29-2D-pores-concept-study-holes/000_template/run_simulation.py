@@ -171,7 +171,7 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
-phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_cubic,
+phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_quadratic,
                                                    psisurf=pf.psisurf_from_function)
 
 timer = dlfx.common.Timer()
