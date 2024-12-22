@@ -32,10 +32,11 @@ generate_job_script() {
     local folder_name=$1
     local job_name=$2
     local wsteg_value=$3
-    local hole_angle=${4:-90}  # Default hole_angle is 45 degrees if not provided
+    
 
     # Fixed values for the placeholders in job_script.sh
     local nholes=4
+    local hole_angle=90  # Default hole_angle is 90 degrees if not provided
     local dhole=1.0
     local e0=0.02
     local e1=0.6
@@ -76,10 +77,10 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         job_name="wsteg_job"
 
         # Optionally set a custom hole angle (change this to your desired value or make it dynamic)
-        hole_angle=60
+        #hole_angle=60
 
         # Call generate_job_script with the folder name, WSTEG value, and hole angle
-        generate_job_script "${folder_name}" "${job_name}" "${wsteg_value}" "${hole_angle}"
+        generate_job_script "${folder_name}" "${job_name}" "${wsteg_value}" #"${hole_angle}"
     fi
 done
 
