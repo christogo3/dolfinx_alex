@@ -145,7 +145,7 @@ model.__exit__()
 mesh = meshio.read(filename + ".msh")
 nodes = mesh.points[:, :2]
 elems = mesh.get_cells_type("triangle")
-elem_data = mesh.cell_data_dict["gmsh:physical"]["triangle"]
+elem_data = mesh.cell_data_dict["gmsh:physical"]["triangle"]-1
 
 def filter_points_and_update_cells(cell_array, point_array):
     referenced_ids = {point_id for triangle in cell_array for point_id in triangle}

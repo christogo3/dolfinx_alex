@@ -69,7 +69,7 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     mu_effective = 1.0
     gc_micro = 1.0
     gc_matrix = gc_micro
-    mesh_file = "mesh_fracture.xdmf"
+    mesh_file = "mesh_fracture_adaptive.xdmf"
     eps_param = 0.1
     
 parameters = pp.read_parameters_file(parameter_path)
