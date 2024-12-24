@@ -35,7 +35,7 @@ except:
     wsteg = 0.25
     e0 = 0.02  # Fine mesh size
     e1 = 0.8  # Coarse mesh size
-    hole_angle_deg = 45  # Default opening angle of the holes in degrees
+    hole_angle_deg = 90  # Default opening angle of the holes in degrees
 
 # Convert angle to radians
 hole_angle_rad = math.radians(hole_angle_deg)
@@ -74,9 +74,9 @@ for n in range(Nholes):
     eff_matr = model.boolean_fragments(eff_matr, cell_matrix_tmp, delete_first=True, delete_other=True)
 
     # Define diamond hole based on opening angle
-    half_length = dhole / 2
-    dx = half_length * math.cos(hole_angle_rad / 2)
-    dy = half_length * math.sin(hole_angle_rad / 2)
+    half_diagonal = dhole / 2.0 
+    dx = half_diagonal 
+    dy = half_diagonal * math.tan(hole_angle_rad / 2)
 
     diamond_vertices = [
         [x_center, y_center - dy, 0],  # Bottom vertex

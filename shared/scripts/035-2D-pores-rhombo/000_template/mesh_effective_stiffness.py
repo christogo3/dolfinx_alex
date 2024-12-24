@@ -24,10 +24,10 @@ try:
     hole_angle_deg = args.hole_angle
 except:
     print("Could not parse arguments")
-    dhole = 0.25
+    dhole = 1.0
     wsteg = 0.1
     e0 = 0.02  # Mesh size
-    hole_angle_deg = 45.0  # Default angle in degrees
+    hole_angle_deg = 90.0  # Default angle in degrees
 
 # Convert angle to radians
 hole_angle_rad = math.radians(hole_angle_deg)
@@ -54,9 +54,9 @@ left_bottom_rectangle = [x_center - w_cell / 2.0, -h_cell / 2, 0]
 matrix = model.add_rectangle(left_bottom_rectangle, w_cell, h_cell, 0)
 
 # Define a diamond shape (rhombus) based on the opening angle
-half_diagonal = dhole / 2.0
-dx = half_diagonal * math.cos(hole_angle_rad / 2)
-dy = half_diagonal * math.sin(hole_angle_rad / 2)
+half_diagonal = dhole / 2.0 
+dx = half_diagonal 
+dy = half_diagonal * math.tan(hole_angle_rad / 2)
 
 diamond_points = [
     model.add_point([x_center, y_center + dy, 0]),  # Top vertex
