@@ -610,8 +610,8 @@ w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
-
-simulation_results = read_all_simulation_data(data_directory)
+data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
+simulation_results = read_all_simulation_data(data_directory_hole)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -706,10 +706,10 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     # Close the plot to free up memory
     plt.close()
     
-output_file = os.path.join(script_path,"KIc_vs_wsteg_varying_stiffness.png")
-plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s$",y_label="KIc",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
-output_file = os.path.join(script_path,"Jx_vs_wsteg_varying_stiffness.png")
-plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s$",y_label="Jx_max",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
+output_file = os.path.join(script_path,"KIc_vs_wsteg_hole&diamond.png")
+plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s$",y_label="KIc",legend_labels=["diamond hole", "circular hole"],output_file=output_file)
+output_file = os.path.join(script_path,"Jx_vs_wsteg_hole&diamond.png")
+plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s$",y_label="Jx_max",legend_labels=["diamond hole", "circular hole"],output_file=output_file)
 
 
 
