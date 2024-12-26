@@ -294,7 +294,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,1.0)
+postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
