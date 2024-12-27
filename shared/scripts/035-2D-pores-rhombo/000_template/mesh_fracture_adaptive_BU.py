@@ -15,7 +15,7 @@ parameter_path = os.path.join(script_path, "parameters.txt")
 # Argument parsing
 parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
 try:
-    parser.add_argument("--nholes", type=int, required=True, help="Number of holes per row")
+    parser.add_argument("--nholes", type=int, required=True, help="Number of holes")
     parser.add_argument("--dhole", type=float, required=True, help="Diagonal length of diamond holes")
     parser.add_argument("--wsteg", type=float, required=True, help="Width of steg")
     parser.add_argument("--e0", type=float, required=True, help="Size of elements")
@@ -32,7 +32,7 @@ except:
     print("Could not parse arguments")
     Nholes = 4
     dhole = 1.0
-    wsteg = 4.0
+    wsteg = 0.25
     e0 = 0.02  # Fine mesh size
     e1 = 0.8  # Coarse mesh size
     hole_angle_deg = 90  # Default opening angle of the holes in degrees
@@ -44,8 +44,8 @@ hole_angle_rad = math.radians(hole_angle_deg)
 w_cell = dhole + wsteg
 h_cell = w_cell
 l0 = (Nholes + 2) * w_cell
-h0 = 20.0  # Adjust height to accommodate 3 rows of holes
-n_rows = 3
+h0 = 7.0  # Fixed height for crack jump
+
 filename = os.path.join(script_path, script_name_without_extension)
 mesh_info = True
 
@@ -66,36 +66,34 @@ outer = model.add_curve_loop([line0, line1, line2, line3])
 eff_matr = model.add_plane_surface(outer)
 
 # Generate unit cells with holes
-for i in range(n_rows):  # Iterate over rows
-    for n in range(Nholes):  # Iterate over columns
-        x_center = w_cell + w_cell / 2.0 + n * w_cell
-        y_center = -(n_rows // 2) * h_cell + i * h_cell
+for n in range(Nholes):
+    x_center = w_cell + w_cell / 2.0 + n * w_cell
+    y_center = 0.0
+    left_bottom_rectangle = [x_center - w_cell / 2.0, -h_cell / 2, 0]
+    cell_matrix_tmp = model.add_rectangle(left_bottom_rectangle, w_cell, h_cell, 0)
+    eff_matr = model.boolean_fragments(eff_matr, cell_matrix_tmp, delete_first=True, delete_other=True)
 
-        left_bottom_rectangle = [x_center - w_cell / 2.0, y_center - h_cell / 2, 0]
-        cell_matrix_tmp = model.add_rectangle(left_bottom_rectangle, w_cell, h_cell, 0)
-        eff_matr = model.boolean_fragments(eff_matr, cell_matrix_tmp, delete_first=True, delete_other=True)
+    # Define diamond hole based on opening angle
+    half_diagonal = dhole / 2.0 
+    dx = half_diagonal 
+    dy = half_diagonal * math.tan(hole_angle_rad / 2)
 
-        # Define diamond hole based on opening angle
-        half_diagonal = dhole / 2.0 
-        dx = half_diagonal 
-        dy = half_diagonal * math.tan(hole_angle_rad / 2)
+    diamond_vertices = [
+        [x_center, y_center - dy, 0],  # Bottom vertex
+        [x_center + dx, y_center, 0],  # Right vertex
+        [x_center, y_center + dy, 0],  # Top vertex
+        [x_center - dx, y_center, 0],  # Left vertex
+    ]
+    diamond_points = [model.add_point(vertex, e0) for vertex in diamond_vertices]
+    diamond_lines = [
+        model.add_line(diamond_points[i], diamond_points[(i + 1) % 4])
+        for i in range(4)
+    ]
+    diamond_loop = model.add_curve_loop(diamond_lines)
+    diamond_surface = model.add_plane_surface(diamond_loop)
 
-        diamond_vertices = [
-            [x_center, y_center - dy, 0],  # Bottom vertex
-            [x_center + dx, y_center, 0],  # Right vertex
-            [x_center, y_center + dy, 0],  # Top vertex
-            [x_center - dx, y_center, 0],  # Left vertex
-        ]
-        diamond_points = [model.add_point(vertex, e0) for vertex in diamond_vertices]
-        diamond_lines = [
-            model.add_line(diamond_points[i], diamond_points[(i + 1) % 4])
-            for i in range(4)
-        ]
-        diamond_loop = model.add_curve_loop(diamond_lines)
-        diamond_surface = model.add_plane_surface(diamond_loop)
-
-        # Subtract diamond hole
-        eff_matr = model.boolean_difference(eff_matr, diamond_surface)
+    # Subtract diamond hole
+    eff_matr = model.boolean_difference(eff_matr, diamond_surface)
 
 # Crack definition
 p8 = model.add_point([0.0, 0.0])
@@ -104,7 +102,7 @@ crack = model.add_line(p8, p9)
 
 # Mesh refinement fields
 gmsh.model.mesh.field.add("Distance", 1)
-hole_centers = [[w_cell + w_cell / 2.0 + n * w_cell, -(3 // 2) * h_cell + i * h_cell, 0.0] for i in range(3) for n in range(Nholes)]
+hole_centers = [[w_cell + w_cell / 2.0 + n * w_cell, 0.0, 0.0] for n in range(Nholes)]
 hole_points = [model.add_point(center, e0)._id for center in hole_centers]
 
 crack_points = [
@@ -131,8 +129,8 @@ gmsh.model.mesh.field.setAsBackgroundMesh(4)
 
 # Assign physical groups
 model.synchronize()
-model.add_physical(eff_matr[Nholes*n_rows], 'eff_matrix')
-cells = eff_matr[0:(Nholes*n_rows)]
+model.add_physical(eff_matr[Nholes], 'eff_matrix')
+cells = eff_matr[0:(Nholes)]
 model.add_physical(cells, "cell_matrix")
 
 model.add_physical(crack, 'crack')
@@ -165,6 +163,7 @@ meshio.write(filename + ".xdmf", cell_mesh)
 # Save parameters
 params = {"nholes": Nholes, "dhole": dhole, "wsteg": wsteg, "e0": e0, "e1": e1, "hole_angle": hole_angle_deg}
 alex.postprocessing.append_to_file(parameter_path, params)
+
 
 
 

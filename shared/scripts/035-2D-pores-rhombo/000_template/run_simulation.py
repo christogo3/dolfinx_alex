@@ -129,8 +129,8 @@ iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1,dim=2) # displacements
 # Te = ufl.FiniteElement("Lagrange", domain.ufl_cell(),1) # fracture fields
 # W = dlfx.fem.FunctionSpace(domain, ufl.MixedElement([Ve, Te]))
-Ve = basix.ufl.element("P", domain.basix_cell(), 2, shape=(domain.geometry.dim,)) #displacements
-Se = basix.ufl.element("P", domain.basix_cell(), 2, shape=())# fracture fields
+Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,)) #displacements
+Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())# fracture fields
 W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 
 # define solution, restart, trial and test space
