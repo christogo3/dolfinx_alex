@@ -35,7 +35,7 @@ generate_job_script() {
     
 
     # Fixed values for the placeholders in job_script.sh
-    local nholes=4
+    local nholes=6
     local hole_angle=90  # Default hole_angle is 90 degrees if not provided
     local dhole=1.0
     local e0=0.02

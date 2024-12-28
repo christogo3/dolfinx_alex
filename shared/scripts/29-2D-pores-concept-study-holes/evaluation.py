@@ -47,7 +47,7 @@ def find_simulation_by_wsteg(path, wsteg_value_in):
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory = os.path.join(script_path,'5holes')
+data_directory = os.path.join(script_path,'multiple_rows')
 
 
 simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=0.25)
