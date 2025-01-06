@@ -20,7 +20,6 @@ WSTEG={WSTEG}
 DHOLE={DHOLE}
 E0={E0}
 E1={E1}
-HOLE_ANGLE={HOLE_ANGLE} # Default angle for the diamond-shaped holes
 MESH_FILE="{MESH_FILE}"
 LAM_MICRO_PARAM={LAM_MICRO_PARAM}
 MUE_MICRO_PARAM={MUE_MICRO_PARAM}
@@ -36,11 +35,11 @@ LCRACK=$(awk "BEGIN {print $WSTEG + $DHOLE}")
 cd $HPC_SCRATCH
 
 # Run the mesh generation and other scripts with --hole_angle parameter
-srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_effective_stiffness.py --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" --hole_angle "$HOLE_ANGLE"
+srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_effective_stiffness.py --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" 
 
 srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/run_effective_stiffness.py --lam_micro_param "$LAM_MICRO_PARAM" --mue_micro_param "$MUE_MICRO_PARAM"
 
-srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_fracture_adaptive.py --nholes "$NHOLES" --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" --e1 "$E1" --hole_angle "$HOLE_ANGLE"
+srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_fracture_adaptive.py --nholes "$NHOLES" --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" --e1 "$E1" 
 
 srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/get_mesh_info.py --mesh_file "$MESH_FILE"
 

@@ -36,7 +36,6 @@ generate_job_script() {
 
     # Fixed values for the placeholders in job_script.sh
     local nholes=6
-    local hole_angle=90  # Default hole_angle is 90 degrees if not provided
     local dhole=1.0
     local e0=0.02
     local e1=0.6
@@ -61,7 +60,6 @@ generate_job_script() {
         -e "s|{GC_MICRO_PARAM}|${gc_micro_param}|g" \
         -e "s|{EPS_PARAM}|${eps_param}|g" \
         -e "s|{ELEMENT_ORDER}|${element_order}|g" \
-        -e "s|{HOLE_ANGLE}|${hole_angle}|g" \
         "${JOB_TEMPLATE_PATH}" > "${BASE_DIR}/${folder_name}/job_script_adaptive.sh"
 }
 
