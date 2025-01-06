@@ -11,13 +11,13 @@ EPS_VALUES=(0.1)            # Example: Epsilon values
 ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 
 # Define tuples of (E, Gc) such that E * Gc = 6.0
-# E_GC_PAIRS=(
-#   "6.0 1.0"   # E=6.0, Gc=1.0
-#   "3.0 2.0"   # E=3.0, Gc=2.0
-#   "2.0 3.0"   # E=2.0, Gc=3.0
-#   "1.5 4.0"   # E=1.5, Gc=4.0
-#   "1.2 5.0"   # E=1.2, Gc=5.0
-# )
+E_GC_PAIRS=(
+  "6.0 1.0"   # E=6.0, Gc=1.0
+  "3.0 2.0"   # E=3.0, Gc=2.0
+  "2.0 3.0"   # E=2.0, Gc=3.0
+  "1.5 4.0"   # E=1.5, Gc=4.0
+  "1.2 5.0"   # E=1.2, Gc=5.0
+)
 
 # Define tuples of (E, Gc) such that E * Gc = 8.0
 # E_GC_PAIRS=(
@@ -28,15 +28,11 @@ ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 # )
 
 # Define tuples of (E, Gc) such that E * Gc = 4.0
-E_GC_PAIRS=(
-  "8.0 1.0"   # E=6.0, Gc=1.0
-  "4.0 2.0"   # E=3.0, Gc=2.0
-  "2.0 4.0"   # E=2.0, Gc=3.0
-  "1.0 8.0"   # E=1.5, Gc=4.0
-  "1.5 4.0" 
-  "6.0 1.0"   # E=6.0, Gc=1.0
-  "2.0 3.0"   # E=2.0, Gc=3.0
-)
+# E_GC_PAIRS=(
+#   # "6.0 1.0"   # E=6.0, Gc=1.0
+#   # "2.0 3.0"   # E=2.0, Gc=3.0
+#   "1.5 4.0"   # E=1.5, Gc=4.0
+# )
 
 # Path to the script.sh (run_simulations.sh)
 SCRIPT="./script.sh"

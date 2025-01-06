@@ -12,7 +12,6 @@ import alex.postprocessing as pp
 import alex.homogenization as hom
 import alex.linearelastic as le
 import math
-import alex.evaluation as ev
 
 
 def find_simulation_by_wsteg(path, wsteg_value_in):
@@ -51,7 +50,7 @@ script_path = os.path.dirname(__file__)
 data_directory = os.path.join(script_path,'multiple_rows')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.0)
+simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=0.25)
 
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
@@ -61,27 +60,8 @@ parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
-# # data_directory_holes = os.path.join(script_path,'..','29-2D-pores-concept-study-holes','multiple_rows')
-# # simulation_data_folder_holes = find_simulation_by_wsteg(data_directory_holes,wsteg_value_in=1.0)
-
-# # #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
-
-# # data_path_holes = os.path.join(simulation_data_folder_holes, 'run_simulation_graphs.txt')
-# # parameter_path_holes = os.path.join(simulation_data_folder_holes,"parameters.txt")
-
-# # Load the data from the text file, skipping the first row
-# data_holes = pd.read_csv(data_path_holes, delim_whitespace=True, header=None, skiprows=1)
-
 # Display the first few rows of the data to understand its structure
 # print(data.head()
-
-starting_hole_to_evaluate = 3
-crack_tip_position_label = "$x_{ct}$"
-label_crack_length = "$A / L$"
-circular_label = "circular"
-diamond_label = "diamond"
-steg_width_label = "$w_s$"
-estimate_label = "estimate"
 
 
 def read_all_simulation_data(base_path):
@@ -256,147 +236,60 @@ def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
     return normalized_data
 
 
-def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, vlines=None, hlines=None, 
-                 xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                 tick_fontsize=16, legend_fontsize=18, figsize=(10, 6), usetex=False, 
-                 font_color="black", line_colors=None, plot_dots=False):
-    """
-    Plots data from specified columns with customization options.
-
-    Parameters:
-    - data: DataFrame containing the data to plot.
-    - col_x: Column name for x-axis.
-    - col_y_list: List of column names for y-axis.
-    - output_filename: Name of the file to save the plot.
-    - legend_labels: List of strings for the legend corresponding to col_y_list.
-    - vlines: List of x-coordinates for vertical lines to draw.
-    - hlines: List of y-coordinates for horizontal lines to draw.
-    - xlabel: Label for x-axis.
-    - ylabel: Label for y-axis.
-    - title: Title of the plot.
-    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
-    - tick_fontsize: Font size for ticks.
-    - legend_fontsize: Font size for legend text.
-    - figsize: Tuple defining figure size.
-    - usetex: Boolean to use LaTeX for text rendering.
-    - font_color: Font color for labels and title.
-    - line_colors: List of colors for each line in col_y_list.
-    - plot_dots: Boolean to toggle plotting dots on the lines.
-    """
-    import matplotlib.pyplot as plt
-
-    plt.figure(figsize=figsize)
-    plt.rc('text', usetex=usetex)
-
-    # Define a greyscale color palette
-    greyscale_palette = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
-
-    # Plot each column in col_y_list
-    for idx, col_y in enumerate(col_y_list):
-        color = greyscale_palette[idx % len(greyscale_palette)]
-        label = legend_labels[idx] if legend_labels and idx < len(legend_labels) else col_y
-        plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=color, label=label)
-
-    # Add vertical lines if specified
-    if vlines:
-        for vline in vlines:
-            plt.axvline(x=vline, color='gray', linestyle='--', linewidth=1)
-
-    # Add horizontal lines if specified
-    if hlines:
-        for hline in hlines:
-            plt.axhline(y=hline, color='gray', linestyle='--', linewidth=1)
-
-    # Set axis labels and title
-    if xlabel:
-        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
-    if ylabel:
-        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
-    if title:
-        plt.title(title, fontsize=title_fontsize, color=font_color)
-
-    # Customize tick parameters
-    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
-
-    # Add legend with custom font size
-    plt.legend(fontsize=legend_fontsize)
-
-    # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
-    plt.close()
-
-
 
 
 def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
                  xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                 tick_fontsize=16, figsize=(10, 6), usetex=False, 
-                 font_color="black", line_color="black", plot_dots=False):
-    """
-    Plots data from two specified columns with customization options.
+                 xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
+                 tick_fontsize=14, figsize=(10, 6), usetex=False):
     
-    Parameters:
-    - data: DataFrame containing the data to plot.
-    - col_x: Column name for x-axis.
-    - col_y: Column name for y-axis.
-    - output_filename: Name of the file to save the plot.
-    - vlines: List of x-coordinates for vertical lines to draw.
-    - hlines: List of y-coordinates for horizontal lines to draw.
-    - xlabel: Label for x-axis.
-    - ylabel: Label for y-axis.
-    - title: Title of the plot.
-    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
-    - tick_fontsize: Font size for ticks.
-    - figsize: Tuple defining figure size.
-    - usetex: Boolean to use LaTeX for text rendering.
-    - font_color: Font color for labels and title.
-    - line_color: Line color for the plot.
-    - plot_dots: Boolean to toggle plotting dots on the line.
-    """
+    # Enable LaTeX rendering if requested
+    if usetex:
+        plt.rcParams['text.usetex'] = True
+
+    # Set figure dimensions
     plt.figure(figsize=figsize)
-    plt.rc('text', usetex=usetex)
     
     # Plot the data
-    plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=line_color, label=col_y)
+    plt.plot(data[col_x], data[col_y], marker='o', linestyle='-')
     
-    # Add vertical lines if specified
-    if vlines:
+    # Set custom labels and title, with specific font sizes
+    plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
+    plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
+    plt.title(title if title else f' ', fontsize=title_fontsize)
+    
+    # Add dashed vertical lines if provided
+    if vlines is not None:
         for vline in vlines:
             plt.axvline(x=vline, color='gray', linestyle='--', linewidth=1)
     
-    # Add horizontal lines if specified
-    if hlines:
+    # Add dashed horizontal lines if provided
+    if hlines is not None:
         for hline in hlines:
             plt.axhline(y=hline, color='gray', linestyle='--', linewidth=1)
     
-    # Set axis labels and title
-    if xlabel:
-        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
-    if ylabel:
-        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
-    if title:
-        plt.title(title, fontsize=title_fontsize, color=font_color)
+    # Set the maximum number of ticks on each axis
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit x-axis to 10 ticks
+    ax.yaxis.set_major_locator(MaxNLocator(nbins=10))  # Limit y-axis to 10 ticks
     
-    # Customize tick parameters
-    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
+    # Set fontsize for axis tick labels
+    ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
-    # Add legend
-    #plt.legend()
-    
-    # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
-    plt.close()
+    # Save the plot as a PNG file
+    plt.savefig(output_filename)
+    plt.close()  # Close the figure to prevent display in some environments
+    print(f"Plot saved as {output_filename}")
 
 def plot_multiple_columns(data_objects, col_x, col_y, output_filename, 
                           vlines=None, hlines=None, xlabel=None, ylabel=None, 
                           title=None, legend_labels=None, 
-                          xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                          tick_fontsize=16, legend_fontsize=16, figsize=(10, 6), 
+                          xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
+                          tick_fontsize=14, legend_fontsize=14, figsize=(10, 6), 
                           usetex=False, log_y=False):
     """
-    Plots multiple datasets with the same x and y columns, using shades of grey for line colors.
+    Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
+    with an optional logarithmic y-axis.
     
     Parameters:
         data_objects (list): List of data objects (DataFrames or dict-like) to be plotted.
@@ -418,6 +311,7 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
         usetex (bool): Whether to use LaTeX for rendering text in labels.
         log_y (bool): Whether to display the y-axis in logarithmic scale.
     """
+    
     # Enable LaTeX rendering if requested
     if usetex:
         plt.rcParams['text.usetex'] = True
@@ -425,28 +319,27 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     # Set figure dimensions
     plt.figure(figsize=figsize)
     
-    # Define a greyscale color palette
-    greyscale_palette = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    # Expand the color palette to support more datasets
+    colors = list(mcolors.CSS4_COLORS.values())  # Use CSS4 color names for a broader palette
     
     for i, data in enumerate(data_objects):
-        # Cycle through the greyscale palette for line colors
-        color = greyscale_palette[i % len(greyscale_palette)]
+        color = colors[i % len(colors)]
         
         # Plot the data
-        plt.plot(data[col_x], data[col_y], marker='.', linestyle='-', color=color, 
+        plt.plot(data[col_x], data[col_y], marker='o', linestyle='-', color=color, 
                  label=legend_labels[i] if legend_labels else f'Data {i+1}')
         
         # Add dashed vertical lines specific to this data object
         if vlines and i < len(vlines):
             for vline in vlines[i]:
-                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
+                plt.axvline(x=vline, color=color, linestyle='--', linewidth=1)
         
         # Add dashed horizontal lines specific to this data object
         if hlines and i < len(hlines):
             for hline in hlines[i]:
-                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
+                plt.axhline(y=hline, color=color, linestyle='--', linewidth=1)
     
-    # Set the y-axis to logarithmic scale if requested
+    # Set the y-axis to logarithmic scale if requested, and add minor ticks for readability
     ax = plt.gca()
     if log_y:
         ax.set_yscale('log')
@@ -470,9 +363,9 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
     # Save the plot as a PNG file
-    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename)
     plt.close()  # Close the figure to prevent display in some environments
-    print(f"Plot saved as {output_filename}") 
+    print(f"Plot saved as {output_filename}")
 
 def hole_positions(Nholes, dhole, wsteg):
     hole_start_positions = []
@@ -516,19 +409,9 @@ hole_positions_out = start_positions + end_positions
 hole_positions_out.sort()
 
 
-output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_holes.png')  
-plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
-                        legend_labels=["$x_{ct}^{sim}$", "$x_{ct}^{K_I}$"],usetex=True, title=" ", plot_dots=True,
-                        xlabel="$t / [ L / v_{K_I} ]$",ylabel=crack_tip_position_label+" $/ L$",)
-
-output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
-plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=True, title=" ", plot_dots=True)
-
-# output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_diamond&holes')
-# ev.plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positions_out, hole_positions_out],legend_labels=[diamond_label, circular_label],usetex=True,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$")
-
-
-
+# Specify the output file path
+output_file = os.path.join(script_path, 'all_Jx_vs_xct_pf.png')
+plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'all_Jx_vs_A_pf.png')
 plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
@@ -539,15 +422,12 @@ plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
-x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
+x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
 low_boun = x_low-wsteg/8
 upper_boun = x_high-wsteg/8
 data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-# data_in_x_range_holes = filter_data_by_column_bounds(data_holes,3,low_bound=low_boun, upper_bound=upper_boun)
 hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
 plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
-
-
 
 output_file = os.path.join(script_path, 'range_Jx_vs_A.png')
 plot_columns(data_in_x_range, 9, 1, output_file,vlines=None,xlabel="A_pf",ylabel="Jx",title="")
@@ -557,10 +437,7 @@ data_shifted = shift_columns(data_in_x_range,[1,9])
 plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title=f"wsteg: {wsteg}")
 
 
-
-
-
-
+# plot all curves
 simulation_results = read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
@@ -576,15 +453,15 @@ for sim in simulation_results:
     wsteg = param["wsteg"]
     wsteg_values.append(wsteg)
 
-  
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
+    
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
     low_boun = x_low-wsteg/8
     upper_boun = x_high-wsteg/8
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
-    legend_entry = steg_width_label+f": {wsteg}$L$"
+    legend_entry = f"$w_s$: {wsteg}"
     legend_entries.append(legend_entry)
     
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -593,123 +470,27 @@ legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
 
 
- 
-
-output_file = os.path.join(script_path, 'PAPER_03_Jx_vs_xct_all_diamond.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')  
+plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=1,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$",
-                      usetex=True)
-
-output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_diamond.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
-                      col_x=0,
-                      col_y=9,
-                      output_filename=output_file,
-                      legend_labels=legend_entries_sorted,
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
-                      usetex=True)
+                      xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$")
 
 output_file = os.path.join(script_path, 'Jx_vs_t_all.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
+plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$t / T$",ylabel="$J_{x} / G_c$")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_all.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=10,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$x_{ct} / L$",ylabel="$dt / T$",
                       log_y=True)
-
-
-
-## Holes
-# simulation_results_holes = read_all_simulation_data(data_directory_holes)
-# data_to_plot = []
-# legend_entries = []
-# wsteg_values_holes = []
-
-# for sim in simulation_results_holes:
-#     data = sim[0]
-#     param = sim[1]
-    
-#     Nholes = int(param["nholes"])
-#     dhole = param["dhole"]
-#     wsteg = param["wsteg"]
-#     wsteg_values_holes.append(wsteg)
-
-    
-#     x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
-#     low_boun = x_low-wsteg/8
-#     upper_boun = x_high-wsteg/8
-#     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-#     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
-    
-#     data_to_plot.append(data_in_x_range)
-#     legend_entry = steg_width_label+f": {wsteg}$L$"
-#     legend_entries.append(legend_entry)
-    
-# sorted_indices_holes = sorted(range(len(wsteg_values_holes)), key=lambda i: wsteg_values_holes[i])
-# data_to_plot_sorted_holes = [data_to_plot[i] for i in sorted_indices_holes]
-# legend_entries_sorted = [legend_entries[i] for i in sorted_indices_holes]
-
-
-
-# output_file = os.path.join(script_path, 'PAPER_04_Jx_vs_xct_all_holes.png')  
-# ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
-#                       col_x=3,
-#                       col_y=1,
-#                       output_filename=output_file,
-#                       legend_labels=legend_entries_sorted,
-#                       xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$",
-#                       usetex=True)
-
-# output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_holes.png')  
-# ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
-#                       col_x=0,
-#                       col_y=9,
-#                       output_filename=output_file,
-#                       legend_labels=legend_entries_sorted,
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
-#                       usetex=True)
-
-
-
-
-# output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_diamond&holes.png')  
-# ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]], # 
-#                       col_x=0,
-#                       col_y=9,
-#                       output_filename=output_file,
-#                       legend_labels=[diamond_label, circular_label],
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
-#                       usetex=True)
-
-# output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
-# ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
-#                       col_x=0,
-#                       col_y=3,
-#                       output_filename=output_file,
-#                       legend_labels=[diamond_label, circular_label],
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel="$x_{ct} / L$",
-#                       usetex=True)
-
-
-
-
-
-
-
-
-
-
-
 
 
 # only crack growth - normalized
@@ -737,7 +518,7 @@ for sim in simulation_results:
     
     
     data_to_plot.append(data_in_x_range_norm)
-    legend_entry = steg_width_label+f": {wsteg}$L$"
+    legend_entry = f"$w_s$: {wsteg}"
     legend_entries.append(legend_entry)
 
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -745,15 +526,15 @@ data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
 legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
 output_file = os.path.join(script_path, 'Jx_vs_xct_in_between_normalized.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="xct_pfm [wsteg]", ylabel="Jx_norm", title="Crack growth in steg")
+plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="xct_pfm [wsteg]", ylabel="Jx_norm", title="Crack growth in steg")
 
 
 output_file = os.path.join(script_path, 'Jx_vs_t_in_between_normalized.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="Jx_norm", title="Crack growth in steg")
+plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="Jx_norm", title="Crack growth in steg")
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized.png')
 data_without_xct_max = [filter_data_by_column_bounds(data,3,low_bound=0.0, upper_bound=0.99) for data in data_to_plot_sorted]   
-ev.plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
+plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
 
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
@@ -763,7 +544,7 @@ output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png
 plot_columns(data_without_xct_max[2], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=10,
                       output_filename=output_file,
@@ -796,8 +577,7 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+1)
-    # x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -830,8 +610,8 @@ w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
-data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
-simulation_results = read_all_simulation_data(data_directory_hole)
+
+simulation_results = read_all_simulation_data(data_directory)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -852,8 +632,7 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    # x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+1)
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -885,15 +664,10 @@ KIc_master.append(KIc_effs_sorted.copy())
 w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 
-wsteg_holes_to_estimate = wsteg_values_sorted.copy()
-Jx_max_holes = Jx_max_values_sorted.copy()
-
-def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png', 
-                        title_fontsize=18, xlabel_fontsize=18, ylabel_fontsize=18, legend_fontsize=16, tick_fontsize=16, 
-                        plot_dots=False, usetex=False):
+def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png'):
     """
     Plots multiple lines on the same graph and saves the output to a file.
-
+    
     Parameters:
     - x_values: 2D list or numpy array containing x values for each line (shape: [n_lines, n_points]).
     - y_values: 2D list or numpy array containing y values for each line (shape: [n_lines, n_points]).
@@ -902,62 +676,40 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     - y_label: Label for the y-axis (default: '').
     - legend_labels: List of labels for each line in the legend (default: None).
     - output_file: File path (with extension) to save the plot (default: 'plot.png').
-    - title_fontsize: Font size for the plot title.
-    - xlabel_fontsize: Font size for the x-axis label.
-    - ylabel_fontsize: Font size for the y-axis label.
-    - legend_fontsize: Font size for the legend labels.
-    - tick_fontsize: Font size for the axis tick labels.
-    - plot_dots: Boolean to toggle plotting dots on the lines.
-    - usetex: Boolean to use LaTeX for rendering text in labels.
     """
-    import matplotlib.pyplot as plt
-
     # Check if the dimensions of x_values and y_values match
     if len(x_values) != len(y_values):
         raise ValueError("The number of x and y value sets must match.")
-
+    
     # Check if legend_labels are provided, otherwise default to numbered labels
     if legend_labels is None:
         legend_labels = [f"Line {i+1}" for i in range(len(x_values))]
-
-    # Enable LaTeX rendering if requested
-    if usetex:
-        plt.rcParams['text.usetex'] = True
-
-    # Define a greyscale color palette
-    greyscale_palette = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
-
+    
     # Create a new figure
     plt.figure()
-
+    
     # Plot each line
     for i in range(len(x_values)):
-        color = greyscale_palette[i % len(greyscale_palette)]
-        plt.plot(x_values[i], y_values[i], marker='.' if plot_dots else None, linestyle='-', color=color, 
-                 label=legend_labels[i])
-
-    # Set title and axis labels with specific font sizes
-    plt.title(title, fontsize=title_fontsize)
-    plt.xlabel(x_label, fontsize=xlabel_fontsize)
-    plt.ylabel(y_label, fontsize=ylabel_fontsize)
-
-    # Customize tick parameters
-    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-
-    # Add legend with custom font size
-    plt.legend(fontsize=legend_fontsize)
-
+        plt.plot(x_values[i], y_values[i], label=legend_labels[i])
+    
+    # Set title and axis labels
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    
+    # Add legend
+    plt.legend()
+    
     # Save the plot to the specified file
-    plt.savefig(output_file, bbox_inches='tight')
-
+    plt.savefig(output_file)
+    
     # Close the plot to free up memory
     plt.close()
-
     
-output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic} / \sqrt{2.0\mu{G}_c}$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
-output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label="$J_{x}^{max} / G_c$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
+output_file = os.path.join(script_path,"KIc_vs_wsteg_varying_stiffness.png")
+plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s$",y_label="KIc",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
+output_file = os.path.join(script_path,"Jx_vs_wsteg_varying_stiffness.png")
+plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s$",y_label="Jx_max",legend_labels=["lam,mue=1.0", "lam,mue=0.5"],output_file=output_file)
 
 
 
@@ -1083,7 +835,7 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     sig_c_2D_val = sig_c_2D(la_local,mu_local,Gc_local,epsilon,1)
     if wsteg / dhole <= 0.01:
         sig_ff = sig_ff_thin_steg(dhole,wsteg,sig_c_2D_val)
-    elif wsteg/dhole <= 4.0:
+    elif wsteg/dhole < 5.0:
         sig_ff = sig_ff_medium_steg(dhole,wsteg,sig_c_2D_val,epsilon)
     else:
         sig_ff = sig_ff_for_isolated_hole(dhole,epsilon,sig_c_2D_val)
@@ -1096,7 +848,7 @@ simulation_results = read_all_simulation_data(data_directory)
 wsteg_values = []
 Gc_eff_est = []
 
-L = 40.0
+L = 60.0
 for sim in simulation_results:
     data = sim[0]
     param = sim[1]
@@ -1132,11 +884,8 @@ wsteg_values_sorted = [wsteg_values[i] for i in sorted_indices]
 
 plot_KIc_vs_wsteg(Gc_eff_est_sorted,wsteg_values_sorted,os.path.join(script_path,"Gc_est_vs_wsteg.png"))
     
-
-output_file = os.path.join(script_path,"PAPER_07_Jx_vs_wsteg_hole&estimate.png")
-plot_multiple_lines([wsteg_holes_to_estimate,wsteg_values_sorted],[Jx_max_holes, Gc_eff_est_sorted],x_label="$w_s / L$",y_label="$J_{x}^{max} / G_c$",legend_labels=[circular_label, estimate_label],output_file=output_file, usetex=True)
-
-
+    
+    
     
     
     

@@ -193,7 +193,7 @@ def get_leftrighttop_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: M
         ymax = close_func(x[1],y_max_all,atol=atol)
         boundaries = [xmin, xmax, ymax]
         
-        applied_at_height = np.greater_equal(x[1],(y_min_all + 3.0 * epsilon))
+        applied_at_height = np.greater_equal(x[1],(y_min_all + 4.0 * epsilon))
         return np.logical_and(reduce(np.logical_or, boundaries),applied_at_height)
     return boundary
 
@@ -208,7 +208,7 @@ def get_2D_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Interco
         boundaries = [xmin, xmax, ymax,ymin]
         
         y_middle = (y_max_all+y_min_all) / 2.0
-        rangey = 2.0 * epsilon
+        rangey = 4.0 * epsilon
         applied_at_height = np.logical_or(np.greater_equal(x[1],(y_middle + rangey)), np.less_equal(x[1],(y_middle - rangey)) )
         return np.logical_and(reduce(np.logical_or, boundaries),applied_at_height)
     return boundary

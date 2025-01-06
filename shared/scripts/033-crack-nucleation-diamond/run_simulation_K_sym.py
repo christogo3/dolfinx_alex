@@ -223,10 +223,10 @@ def compute_surf_displacement():
 bc_expression = dlfx.fem.Expression(compute_surf_displacement(),W.sub(0).element.interpolation_points())
 
 
-boundary_surfing_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+# boundary_surfing_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol*0.0) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 
 #TODO Epsilon = 0.0 gesetzt
-# boundary_surfing_bc = bc.get_leftrighttop_boundary_of_box_as_function(domain,comm,atol=0.0,epsilon=epsilon.value) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
+boundary_surfing_bc = bc.get_leftrighttop_boundary_of_box_as_function(domain,comm,atol=0.0,epsilon=epsilon.value) #bc.get_boundary_for_surfing_boundary_condition_2D(domain,comm,atol=atol,epsilon=epsilon.value) #bc.get_topbottom_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_surfing_bc)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(W.sub(0), fdim, facets_at_boundary) 
 
@@ -271,7 +271,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,1.0)
+postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
@@ -319,7 +319,7 @@ def after_timestep_success(t,dt,iters):
         return 
     
 
-    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]

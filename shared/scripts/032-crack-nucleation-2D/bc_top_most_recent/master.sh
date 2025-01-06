@@ -2,34 +2,28 @@
 
 # Define parameter ranges or specific values
 DHOLE_VALUES=(1.0)          # Example: hole sizes
-WIDTH_VALUES=(8.0)          # Example: domain widths
-HEIGHT_VALUES=(8.0) # Example: domain heights
-E0_VALUES=(0.02)            # Example: E0 values
-E1_VALUES=(0.7)             # Example: E1 values
+WIDTH_VALUES=(6.0)              # Example: domain widths
+HEIGHT_VALUES=(7.0 8.0 10.0)             # Example: domain heights
+E0_VALUES=(0.02)               # Example: E0 values
+E1_VALUES=(0.7)                 # Example: E1 values
 MESH_FILES=("mesh_adaptive_sym.xdmf")
 GC_VALUES=(1.0)             # Example: Gc values
-EPS_VALUES=(0.1)            # Example: Epsilon values
-ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
+EPS_VALUES=(0.1)               # Example: Epsilon values
+ELEMENT_ORDER_VALUES=(1)          # Example: Element orders
 
-LAM_MUE_PAIRS=(             # Pairs of lambda and mu
+# LAM_MUE_PAIRS=(                     # Pairs of lambda and mu
+#   "0.5 0.5"
+#   "1.0 1.0"
+#   "2.0 2.0"
+# )
+
+LAM_MUE_PAIRS=(                     # Pairs of lambda and mu
   "1.0 1.0"
-  "1.5 1.5"
-  "2.0 2.0"
-  "3.0 3.0"
-  "3.5 3.5"
-  "4.0 4.0"
 )
 
-# LAM_MUE_PAIRS=(             # Pairs of lambda and mu
-#   "1.5 1.5"
-# )
 
 # Path to the script.sh (run_simulations.sh)
 SCRIPT="./script.sh"
-
-# Ensure the height_study folder exists
-HEIGHT_STUDY_DIR="./e_study"
-mkdir -p "$HEIGHT_STUDY_DIR"
 
 # Iterate over all combinations of parameters
 for DHOLE in "${DHOLE_VALUES[@]}"; do
@@ -81,17 +75,5 @@ for DHOLE in "${DHOLE_VALUES[@]}"; do
   done
 done
 
-# Move all folders starting with simulation_ into the height_study folder
-for SIM_DIR in ./simulation_*; do
-  # Check if the item exists and is a directory
-  if [[ -e "$SIM_DIR" && -d "$SIM_DIR" ]]; then
-    echo "Moving $SIM_DIR to $HEIGHT_STUDY_DIR"
-    mv "$SIM_DIR" "$HEIGHT_STUDY_DIR"
-  else
-    echo "No directories matching 'simulation_*' found in ./scripts."
-  fi
-done
-
 echo "All simulations completed successfully!"
-
 

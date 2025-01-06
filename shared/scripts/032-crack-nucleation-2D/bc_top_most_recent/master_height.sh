@@ -2,8 +2,8 @@
 
 # Define parameter ranges or specific values
 DHOLE_VALUES=(1.0)          # Example: hole sizes
-WIDTH_VALUES=(8.0)          # Example: domain widths
-HEIGHT_VALUES=(8.0) # Example: domain heights
+WIDTH_VALUES=(12.0)          # Example: domain widths
+HEIGHT_VALUES=(4.0 6.0 8.0 10.0 12.0 14.0 16.0) # Example: domain heights
 E0_VALUES=(0.02)            # Example: E0 values
 E1_VALUES=(0.7)             # Example: E1 values
 MESH_FILES=("mesh_adaptive_sym.xdmf")
@@ -13,22 +13,13 @@ ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 
 LAM_MUE_PAIRS=(             # Pairs of lambda and mu
   "1.0 1.0"
-  "1.5 1.5"
-  "2.0 2.0"
-  "3.0 3.0"
-  "3.5 3.5"
-  "4.0 4.0"
 )
-
-# LAM_MUE_PAIRS=(             # Pairs of lambda and mu
-#   "1.5 1.5"
-# )
 
 # Path to the script.sh (run_simulations.sh)
 SCRIPT="./script.sh"
 
 # Ensure the height_study folder exists
-HEIGHT_STUDY_DIR="./e_study"
+HEIGHT_STUDY_DIR="./height_study"
 mkdir -p "$HEIGHT_STUDY_DIR"
 
 # Iterate over all combinations of parameters

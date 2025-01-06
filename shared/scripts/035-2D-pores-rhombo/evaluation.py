@@ -12,6 +12,7 @@ import alex.postprocessing as pp
 import alex.homogenization as hom
 import alex.linearelastic as le
 import math
+import alex.evaluation as ev
 
 
 def find_simulation_by_wsteg(path, wsteg_value_in):
@@ -42,16 +43,21 @@ def find_simulation_by_wsteg(path, wsteg_value_in):
     # Return None if no directory with the matching wsteg value is found
     return None
 
+def normalize_Jx_to_Gc_num(gc_num_quotient, data):
+    data.iloc[:, 1] = data.iloc[:, 1] / gc_num_quotient
+
+element_size = 0.01
+epsilon_param = 0.1
+gc_num_quotient = (1.0 + element_size / epsilon_param)
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory = os.path.join(script_path,'results')
+data_directory = os.path.join(script_path,'multiple_rows')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=0.25)
-
+simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.0)
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
@@ -59,9 +65,12 @@ parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 
 # Load the data from the text file, skipping the first row
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
+normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
-data_directory_holes = os.path.join(script_path,'..','29-2D-pores-concept-study-holes','adaptive')
-simulation_data_folder_holes = find_simulation_by_wsteg(data_directory_holes,wsteg_value_in=0.25)
+
+data_directory_holes = os.path.join(script_path,'..','29-2D-pores-concept-study-holes','multiple_rows')
+
+simulation_data_folder_holes = find_simulation_by_wsteg(data_directory_holes,wsteg_value_in=1.0)
 
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
@@ -71,8 +80,23 @@ parameter_path_holes = os.path.join(simulation_data_folder_holes,"parameters.txt
 # Load the data from the text file, skipping the first row
 data_holes = pd.read_csv(data_path_holes, delim_whitespace=True, header=None, skiprows=1)
 
+
+normalize_Jx_to_Gc_num(gc_num_quotient, data_holes)
+
+
 # Display the first few rows of the data to understand its structure
 # print(data.head()
+
+starting_hole_to_evaluate = 2
+crack_tip_position_label = "$x_{ct}$"
+label_crack_length = "$A / L$"
+circular_label = "kreisförmig"
+diamond_label = "quadratisch"
+steg_width_label = "$w_s$"
+estimate_label = "estimate"
+t_label = "$t / [ L / v_{bc} ]$"
+J_x_label = "$J_{x} / G_c^{num}$"
+J_x_max_label="$J_{x}^{max} / G_c^{num}$"
 
 
 def read_all_simulation_data(base_path):
@@ -247,13 +271,16 @@ def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
     return normalized_data
 
 
-def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, vlines=None, hlines=None, 
-                 xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                 tick_fontsize=16, figsize=(10, 6), usetex=False, 
-                 font_color="black", line_colors=None, plot_dots=False):
+def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, 
+                            vlines=None, hlines=None, xlabel=None, ylabel=None, 
+                            title=None, xlabel_fontsize=24, ylabel_fontsize=24, 
+                            title_fontsize=24, tick_fontsize=22, legend_fontsize=24, 
+                            figsize=(10, 7), usetex=False, font_color="black", 
+                            line_colors=None, line_styles=None, plot_dots=False, 
+                            x_range=None, y_range=None):
     """
-    Plots data from specified columns with customization options.
+    Plots data from specified columns with customization options, including individual vertical 
+    and horizontal lines for each column, and optional x and y ranges.
 
     Parameters:
     - data: DataFrame containing the data to plot.
@@ -261,42 +288,52 @@ def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_lab
     - col_y_list: List of column names for y-axis.
     - output_filename: Name of the file to save the plot.
     - legend_labels: List of strings for the legend corresponding to col_y_list.
-    - vlines: List of x-coordinates for vertical lines to draw.
-    - hlines: List of y-coordinates for horizontal lines to draw.
+    - vlines: List of lists of x-coordinates for vertical lines for each y-column.
+    - hlines: List of lists of y-coordinates for horizontal lines for each y-column.
     - xlabel: Label for x-axis.
     - ylabel: Label for y-axis.
     - title: Title of the plot.
     - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
     - tick_fontsize: Font size for ticks.
+    - legend_fontsize: Font size for legend text.
     - figsize: Tuple defining figure size.
     - usetex: Boolean to use LaTeX for text rendering.
     - font_color: Font color for labels and title.
     - line_colors: List of colors for each line in col_y_list.
+    - line_styles: List of line styles for each line in col_y_list.
     - plot_dots: Boolean to toggle plotting dots on the lines.
+    - x_range: Tuple specifying the x-axis range as (xmin, xmax). Default is no restriction.
+    - y_range: Tuple specifying the y-axis range as (ymin, ymax). Default is no restriction.
     """
     import matplotlib.pyplot as plt
 
     plt.figure(figsize=figsize)
     plt.rc('text', usetex=usetex)
 
-    # Define a greyscale color palette
-    greyscale_palette = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    # Define default colors and styles if not provided
+    default_colors = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    line_colors = line_colors or default_colors
+    line_styles = line_styles or ['-', '--', '-.', ':']
+
+    # Combine colors and line styles for variation
+    styles = [(color, style) for color in line_colors for style in line_styles]
 
     # Plot each column in col_y_list
     for idx, col_y in enumerate(col_y_list):
-        color = greyscale_palette[idx % len(greyscale_palette)]
+        color, style = styles[idx % len(styles)]
         label = legend_labels[idx] if legend_labels and idx < len(legend_labels) else col_y
-        plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=color, label=label)
+        plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, 
+                 color=color, linestyle=style, label=label)
 
-    # Add vertical lines if specified
-    if vlines:
-        for vline in vlines:
-            plt.axvline(x=vline, color='gray', linestyle='--', linewidth=1)
+        # Add vertical lines for this dataset if specified
+        if vlines and idx < len(vlines):
+            for vline in vlines[idx]:
+                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
 
-    # Add horizontal lines if specified
-    if hlines:
-        for hline in hlines:
-            plt.axhline(y=hline, color='gray', linestyle='--', linewidth=1)
+        # Add horizontal lines for this dataset if specified
+        if hlines and idx < len(hlines):
+            for hline in hlines[idx]:
+                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
 
     # Set axis labels and title
     if xlabel:
@@ -306,15 +343,26 @@ def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_lab
     if title:
         plt.title(title, fontsize=title_fontsize, color=font_color)
 
+    # Apply x and y axis limits if specified
+    if x_range:
+        plt.xlim(x_range)
+    if y_range:
+        plt.ylim(y_range)
+
     # Customize tick parameters
     plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
 
-    # Add legend
-    plt.legend()
+    # Add legend with custom font size
+    plt.legend(fontsize=legend_fontsize)
 
     # Save the plot
     plt.savefig(output_filename, bbox_inches='tight')
     plt.close()
+    print(f"Plot saved as {output_filename}")
+
+
+
+
 
 
 
@@ -428,12 +476,12 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
         # Add dashed vertical lines specific to this data object
         if vlines and i < len(vlines):
             for vline in vlines[i]:
-                plt.axvline(x=vline, color=color, linestyle='--', linewidth=1)
+                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
         
         # Add dashed horizontal lines specific to this data object
         if hlines and i < len(hlines):
             for hline in hlines[i]:
-                plt.axhline(y=hline, color=color, linestyle='--', linewidth=1)
+                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
     
     # Set the y-axis to logarithmic scale if requested
     ax = plt.gca()
@@ -507,20 +555,25 @@ hole_positions_out.sort()
 
 output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_diamond.png')  
 plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
-                        legend_labels=["$x_{pf}$", "$x_{ct}$"],usetex=True, title=" ", plot_dots=True,
-                        xlabel="$t / [ L / v_{K_I} ]$",ylabel="crack tip position $/ L$",)
+                        legend_labels=["$x_{ct}$", "$x_{bc}$"],usetex=True, title=" ", plot_dots=False,
+                        xlabel=  t_label,ylabel=crack_tip_position_label+" $/ L$",
+                        x_range=[-0.1, 20],
+                        # vlines=[hole_positions_out, hole_positions_out]
+                        )
 
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
-plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=True, title=" ", plot_dots=True)
+plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
 output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_diamond&holes')
-plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positions_out, hole_positions_out],legend_labels=["diamond", "circular"],usetex=True,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$")
+ev.plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positions_out, hole_positions_out],
+                         legend_labels=[diamond_label, circular_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
+                         y_range=[0.0, 1.5])
 
 
 
 
 output_file = os.path.join(script_path, 'all_Jx_vs_A_pf.png')
-plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=False, title=" ")
+plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=False, title=" ")
 
 
 output_file = os.path.join(script_path, 'all_A_vs_t_pf.png')
@@ -528,7 +581,7 @@ plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
-x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
+x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
 low_boun = x_low-wsteg/8
 upper_boun = x_high-wsteg/8
 data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -558,6 +611,7 @@ wsteg_values = []
 
 for sim in simulation_results:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     Nholes = int(param["nholes"])
@@ -565,15 +619,15 @@ for sim in simulation_results:
     wsteg = param["wsteg"]
     wsteg_values.append(wsteg)
 
-    
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
+  
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
     low_boun = x_low-wsteg/8
     upper_boun = x_high-wsteg/8
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
-    legend_entry = f"$w_s$: {wsteg}$L$"
+    legend_entry = steg_width_label+f": {wsteg}$L$"
     legend_entries.append(legend_entry)
     
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -585,30 +639,30 @@ legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
  
 
 output_file = os.path.join(script_path, 'PAPER_03_Jx_vs_xct_all_diamond.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=1,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$",
+                      xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True)
 
 output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_diamond.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel="$A / L$",
+                      xlabel=  t_label,ylabel=label_crack_length,
                       usetex=True)
 
 output_file = os.path.join(script_path, 'Jx_vs_t_all.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / T$",ylabel="$J_{x} / G_c$")
+                      xlabel="$t / T$",ylabel=J_x_label)
 
 output_file = os.path.join(script_path, 'dt_vs_xct_all.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=10,
                       output_filename=output_file,
@@ -626,6 +680,7 @@ wsteg_values_holes = []
 
 for sim in simulation_results_holes:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     Nholes = int(param["nholes"])
@@ -634,14 +689,14 @@ for sim in simulation_results_holes:
     wsteg_values_holes.append(wsteg)
 
     
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,3)
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
     low_boun = x_low-wsteg/8
     upper_boun = x_high-wsteg/8
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
     hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
-    legend_entry = f"$w_s$: {wsteg}$L$"
+    legend_entry = steg_width_label+f": {wsteg}$L$"
     legend_entries.append(legend_entry)
     
 sorted_indices_holes = sorted(range(len(wsteg_values_holes)), key=lambda i: wsteg_values_holes[i])
@@ -651,42 +706,43 @@ legend_entries_sorted = [legend_entries[i] for i in sorted_indices_holes]
 
 
 output_file = os.path.join(script_path, 'PAPER_04_Jx_vs_xct_all_holes.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
                       col_x=3,
                       col_y=1,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$",
+                      xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True)
 
 output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_holes.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel="$A / L$",
+                      xlabel=  t_label,ylabel=label_crack_length,
                       usetex=True)
 
 
 
 
 output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_diamond&holes.png')  
-plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]], # 
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]], # 
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
-                      legend_labels=["diamond", "circular hole"],
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel="$A / L$",
-                      usetex=True)
+                      legend_labels=[diamond_label, circular_label],
+                      xlabel=  t_label,ylabel=label_crack_length,
+                      usetex=True,
+                      x_range=[19.5, 22.5])
 
 output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
-plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
                       col_x=0,
                       col_y=3,
                       output_filename=output_file,
-                      legend_labels=["diamond", "circular hole"],
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel="$x_{ct} / L$",
+                      legend_labels=[diamond_label, circular_label],
+                      xlabel=  t_label,ylabel="$x_{ct} / L$",
                       usetex=True)
 
 
@@ -707,6 +763,7 @@ legend_entries = []
 wsteg_values = []
 for sim in simulation_results:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     Nholes = int(param["nholes"])
@@ -726,7 +783,7 @@ for sim in simulation_results:
     
     
     data_to_plot.append(data_in_x_range_norm)
-    legend_entry = f"$w_s$: {wsteg}"
+    legend_entry = steg_width_label+f": {wsteg}$L$"
     legend_entries.append(legend_entry)
 
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
@@ -734,15 +791,15 @@ data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
 legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
 output_file = os.path.join(script_path, 'Jx_vs_xct_in_between_normalized.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="xct_pfm [wsteg]", ylabel="Jx_norm", title="Crack growth in steg")
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=3,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="xct_pfm [wsteg]", ylabel="Jx_norm", title="Crack growth in steg")
 
 
 output_file = os.path.join(script_path, 'Jx_vs_t_in_between_normalized.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="Jx_norm", title="Crack growth in steg")
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="Jx_norm", title="Crack growth in steg")
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized.png')
 data_without_xct_max = [filter_data_by_column_bounds(data,3,low_bound=0.0, upper_bound=0.99) for data in data_to_plot_sorted]   
-plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
+ev.plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,output_filename=output_file,legend_labels=legend_entries_sorted,xlabel="t", ylabel="xct_pfm [wsteg]", title="Crack growth in steg")
 
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
@@ -752,7 +809,7 @@ output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png
 plot_columns(data_without_xct_max[2], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
-plot_multiple_columns(data_objects=data_to_plot_sorted,
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=10,
                       output_filename=output_file,
@@ -772,6 +829,7 @@ wsteg_values = []
 Jx_max_values = []
 for sim in simulation_results:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     Nholes = int(param["nholes"])
@@ -785,7 +843,8 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+1)
+    # x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -818,8 +877,8 @@ w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
-data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
-simulation_results = read_all_simulation_data(data_directory_hole)
+# data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
+simulation_results = read_all_simulation_data(data_directory_holes)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -827,6 +886,7 @@ wsteg_values = []
 Jx_max_values = []
 for sim in simulation_results:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     Nholes = int(param["nholes"])
@@ -840,7 +900,8 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
+    # x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_holes(Nholes,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+1)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -876,7 +937,7 @@ wsteg_holes_to_estimate = wsteg_values_sorted.copy()
 Jx_max_holes = Jx_max_values_sorted.copy()
 
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png', 
-                        title_fontsize=18, xlabel_fontsize=18, ylabel_fontsize=18, legend_fontsize=16, tick_fontsize=16, 
+                        title_fontsize=24, xlabel_fontsize=24, ylabel_fontsize=24, legend_fontsize=24, tick_fontsize=22, 
                         plot_dots=False, usetex=False):
     """
     Plots multiple lines on the same graph and saves the output to a file.
@@ -942,9 +1003,9 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
 
     
 output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic} / \sqrt{2.0\mu{G}_c}$",legend_labels=["diamond hole", "circular hole"],output_file=output_file, usetex=True)
+plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{eff} / \sqrt{2.0\mu{G}_c^{num}}$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label="$J_{x}^{max} / G_c$",legend_labels=["diamond hole", "circular hole"],output_file=output_file, usetex=True)
+plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 
 
 
@@ -1086,6 +1147,7 @@ Gc_eff_est = []
 L = 40.0
 for sim in simulation_results:
     data = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
     
     lam_eff = param["lam_effective"]
@@ -1121,7 +1183,7 @@ plot_KIc_vs_wsteg(Gc_eff_est_sorted,wsteg_values_sorted,os.path.join(script_path
     
 
 output_file = os.path.join(script_path,"PAPER_07_Jx_vs_wsteg_hole&estimate.png")
-plot_multiple_lines([wsteg_holes_to_estimate,wsteg_values_sorted],[Jx_max_holes, Gc_eff_est_sorted],x_label="$w_s / L$",y_label="$J_{x}^{max} / G_c$",legend_labels=["circular hole", "estimate"],output_file=output_file, usetex=True)
+plot_multiple_lines([wsteg_holes_to_estimate,wsteg_values_sorted],[Jx_max_holes, Gc_eff_est_sorted],x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[circular_label, estimate_label],output_file=output_file, usetex=True)
 
 
     

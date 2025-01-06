@@ -12,12 +12,12 @@ EPS_VALUES=(0.1)            # Example: Epsilon values
 ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 
 LAM_MUE_PAIRS=(             # Pairs of lambda and mu
-  # "1.0 1.0"
+  "1.0 1.0"
   "1.5 1.5"
-  # "2.0 2.0"
+  "2.0 2.0"
   "3.0 3.0"
   "3.5 3.5"
-  # "4.0 4.0"
+  "4.0 4.0"
 )
 
 # LAM_MUE_PAIRS=(             # Pairs of lambda and mu
