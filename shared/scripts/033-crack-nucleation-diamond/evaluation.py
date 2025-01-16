@@ -209,17 +209,6 @@ legend_entries = []
 height_values = []
 initial_crack_length_values = []
 
-def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None,y_col=col_crack_length):
-    if len(data.values) == 0:
-        return 0.0
-    default_x_threshold = data.values[0,0]+0.05
-    if x_threshold is None:
-        x_threshold = default_x_threshold
-        
-    A_initial_num = data.values[0,y_col]
-    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=y_col, x_threshold=x_threshold)[1]
-    initial_crack_length = initial_crack_length - A_initial_num
-    return initial_crack_length
 
 
 def filter_data_to_range_where_A_exceeds_initial_value(filter_data, initial_crack_param, data, param):
@@ -249,7 +238,7 @@ for sim in simulation_results:
     crack_length_until_hole = param["width"]/2.0 - DHOLE/2.0
     data = filter_data(data,3,0.0,0.95*param["width"])
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     dhole = param["dhole"]
     height = param["height"]
@@ -328,7 +317,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,2)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     gc = param["Gc_simulation"]
     gc_values.append(gc)
@@ -396,7 +385,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,2)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     width = param["width"]
     width_values.append(width)
@@ -466,7 +455,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,2)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
@@ -534,7 +523,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,5)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     
     eps = param["eps"]
@@ -731,7 +720,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,5)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     la = param["lam_simulation"]
     mu = param["mue_simulation"]
@@ -801,7 +790,7 @@ for sim in simulation_results:
     data = filter_data(data,3,0.0,0.95*param["width"])
     data = remove_first_percentage(data,5)
     data_crack_length = filter_data(data,3,crack_length_until_hole+0.1*DHOLE,param["width"])
-    initial_crack_length = get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length)
+    initial_crack_length = ev.get_initial_crack_length(find_max_y_under_x_threshold, data_crack_length,y_col=col_crack_length)
     
     la = param["lam_simulation"]
     mu = param["mue_simulation"]

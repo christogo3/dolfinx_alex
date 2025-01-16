@@ -1179,17 +1179,39 @@ def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", yla
 
     print(f"Plot saved as {filename}")
     
+# def save_plot_data_to_file(x, y, filename):
+#     """
+#     Save x and y data arrays to a file.
+    
+#     Parameters:
+#         x (array-like): The x values of the plot.
+#         y (array-like): The y values of the plot.
+#         filename (str): The name of the file to save the data to.
+#     """
+#     # Stack the x and y data into a single array and save to a file
+#     data = np.column_stack((x, y))
+#     np.savetxt(filename, data, header="x, y", delimiter=',', comments='')
+
 def save_plot_data_to_file(x, y, filename):
     """
-    Save x and y data arrays to a file.
-    
+    Save x and y data arrays to a file, handling None entries in y data.
+
     Parameters:
         x (array-like): The x values of the plot.
         y (array-like): The y values of the plot.
         filename (str): The name of the file to save the data to.
     """
-    # Stack the x and y data into a single array and save to a file
-    data = np.column_stack((x, y))
+    # Ensure x and y are numpy arrays
+    x = np.array(x)
+    y = np.array(y)
+
+    # Filter out entries where y is None
+    valid_indices = [i for i, yi in enumerate(y) if yi is not None]
+    x_filtered = x[valid_indices]
+    y_filtered = y[valid_indices]
+
+    # Stack the filtered x and y data into a single array and save to a file
+    data = np.column_stack((x_filtered, y_filtered))
     np.savetxt(filename, data, header="x, y", delimiter=',', comments='')
 
 def load_plot_data_from_file(filename):
@@ -1292,3 +1314,74 @@ def plot_multiple_columns_B(data_objects, col_x, col_y, output_filename,
     plt.savefig(output_filename, bbox_inches='tight')
     plt.close()  # Close the figure to prevent display in some environments
     print(f"Plot saved as {output_filename}") 
+    
+    
+def compute_jump_size(x,y):
+    #Calculates the jump size by locating a kink point first.
+    # kink point is located by computing moving averages in intervals of size windowsize 
+    # kink point is the beginning of interval where the moving average of dydx compared to the interval bording 
+    # left on that interval decreases by 75% 
+    # jump size is the difference between y at kink point and y at beginning of data y[0]
+    
+    merged_x = []
+    merged_y = []
+
+    # Loop through the data and merge repeated x-values
+    for i in range(len(x)):
+        if i == 0 or x[i] != x[i-1]:  # Keep the first occurrence of each x
+            merged_x.append(x[i])
+            merged_y.append(y[i])
+
+    # Convert merged data back to numpy arrays
+    merged_x = np.array(merged_x)
+    merged_y = np.array(merged_y)
+    
+    dy = np.diff(merged_y)
+    dx = np.diff(merged_x)
+
+    # Calculate the normalized derivative (rate of change)
+    dydx = dy / dx
+    
+    # Parameters
+    window_size = 10
+    threshold_drop = 0.5  # 50% drop
+
+    # Compute moving averages of the derivative
+    num_intervals = len(dydx) - window_size + 1
+    # moving average interval n starts at x index n
+    moving_averages = np.array([np.mean(dydx[i:i + window_size]) for i in range(num_intervals)])
+
+    drop_index = None
+    for i in range(window_size,len(moving_averages)):
+        average_this_interval = moving_averages[i]
+        average_left_interval = moving_averages[i-window_size]
+        
+        if average_this_interval < (0.5 * average_left_interval):
+            drop_index = i
+            break
+    
+    if drop_index is None:
+        print("WARNING: No kink found")
+        jump_size = None
+    else:
+        kink_index = drop_index
+        jump_size = merged_y[kink_index] - merged_y[0]
+
+    return jump_size
+
+def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None,y_col=9):
+    if len(data.values) == 0:
+        return 0.0
+    default_x_threshold = data.values[0,0]+0.08
+    if x_threshold is None:
+        x_threshold = default_x_threshold
+        
+    A_initial_num = data.values[0,y_col]
+    initial_crack_length = find_max_y_under_x_threshold(df=data, x_col=0, y_col=y_col, x_threshold=x_threshold)[1]
+    initial_crack_length = initial_crack_length - A_initial_num
+    
+    # # TODO change
+    # jump_size = compute_jump_size(data.values[:,0], data.values[:,y_col])
+    # initial_crack_length = jump_size
+    
+    return initial_crack_length

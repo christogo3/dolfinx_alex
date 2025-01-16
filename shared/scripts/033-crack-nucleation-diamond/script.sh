@@ -63,7 +63,7 @@ fi
 # Run the second Python script: run_simulation_K_sym.py
 echo "Running run_simulation_K_sym.py with parameters:"
 echo "--mesh_file $MESH_FILE --lam_param $LAM_PARAM --mue_param $MUE_PARAM --gc_param $GC_PARAM --eps_param $EPS_PARAM --element_order $ELEMENT_ORDER"
-mpirun -np 6 python3 run_simulation_K_sym.py --mesh_file $MESH_FILE --lam_param $LAM_PARAM --mue_param $MUE_PARAM --gc_param $GC_PARAM --eps_param $EPS_PARAM --element_order $ELEMENT_ORDER
+mpirun -np 8 python3 run_simulation_K_sym.py --mesh_file $MESH_FILE --lam_param $LAM_PARAM --mue_param $MUE_PARAM --gc_param $GC_PARAM --eps_param $EPS_PARAM --element_order $ELEMENT_ORDER
 #mpirun -np 10 python3 run_simulation_K.py --mesh_file $MESH_FILE --lam_param $LAM_PARAM --mue_param $MUE_PARAM --gc_param $GC_PARAM --eps_param $EPS_PARAM --element_order $ELEMENT_ORDER
 
 # Check if the second script succeeded
