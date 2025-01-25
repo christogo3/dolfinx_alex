@@ -560,7 +560,6 @@ plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf
 
 
 
-
 simulation_results = read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []

@@ -48,7 +48,8 @@ def normalize_Jx_to_Gc_num(gc_num_quotient, data):
 
 element_size = 0.01
 epsilon_param = 0.1
-gc_num_quotient = (1.0 + element_size / epsilon_param)
+gc_num_quotient = 1.0936 # from analysis w.o. crack# 
+# gc_num_quotient = (1.0 + element_size / epsilon_param)
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
@@ -88,15 +89,15 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_holes)
 # print(data.head()
 
 starting_hole_to_evaluate = 2
-crack_tip_position_label = "$x_{ct}$"
+crack_tip_position_label = "$x_{\mathrm{ct}}$"
 label_crack_length = "$A / L$"
 circular_label = "kreisförmig"
 diamond_label = "quadratisch"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
-t_label = "$t / [ L / v_{bc} ]$"
-J_x_label = "$J_{x} / G_c^{num}$"
-J_x_max_label="$J_{x}^{max} / G_c^{num}$"
+t_label = "$t / [ L / v_{\mathrm{bc}} ]$"
+J_x_label = "$J_{x} / G_c^{\mathrm{num}}$"
+J_x_max_label="$J_{x}^{\mathrm{max}} / G_c^{\mathrm{num}}$"
 
 
 def read_all_simulation_data(base_path):
@@ -366,65 +367,7 @@ def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_lab
 
 
 
-def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
-                 xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                 tick_fontsize=16, figsize=(10, 6), usetex=False, 
-                 font_color="black", line_color="black", plot_dots=False):
-    """
-    Plots data from two specified columns with customization options.
-    
-    Parameters:
-    - data: DataFrame containing the data to plot.
-    - col_x: Column name for x-axis.
-    - col_y: Column name for y-axis.
-    - output_filename: Name of the file to save the plot.
-    - vlines: List of x-coordinates for vertical lines to draw.
-    - hlines: List of y-coordinates for horizontal lines to draw.
-    - xlabel: Label for x-axis.
-    - ylabel: Label for y-axis.
-    - title: Title of the plot.
-    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
-    - tick_fontsize: Font size for ticks.
-    - figsize: Tuple defining figure size.
-    - usetex: Boolean to use LaTeX for text rendering.
-    - font_color: Font color for labels and title.
-    - line_color: Line color for the plot.
-    - plot_dots: Boolean to toggle plotting dots on the line.
-    """
-    plt.figure(figsize=figsize)
-    plt.rc('text', usetex=usetex)
-    
-    # Plot the data
-    plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=line_color, label=col_y)
-    
-    # Add vertical lines if specified
-    if vlines:
-        for vline in vlines:
-            plt.axvline(x=vline, color='gray', linestyle='--', linewidth=1)
-    
-    # Add horizontal lines if specified
-    if hlines:
-        for hline in hlines:
-            plt.axhline(y=hline, color='gray', linestyle='--', linewidth=1)
-    
-    # Set axis labels and title
-    if xlabel:
-        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
-    if ylabel:
-        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
-    if title:
-        plt.title(title, fontsize=title_fontsize, color=font_color)
-    
-    # Customize tick parameters
-    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
-    
-    # Add legend
-    #plt.legend()
-    
-    # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
-    plt.close()
+
 
 def plot_multiple_columns(data_objects, col_x, col_y, output_filename, 
                           vlines=None, hlines=None, xlabel=None, ylabel=None, 
@@ -562,7 +505,7 @@ plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=outpu
                         )
 
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
-plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
+ev.plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
 output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_diamond&holes')
 ev.plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positions_out, hole_positions_out],
@@ -573,11 +516,11 @@ ev.plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positio
 
 
 output_file = os.path.join(script_path, 'all_Jx_vs_A_pf.png')
-plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=False, title=" ")
+ev.plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=False, title=" ")
 
 
 output_file = os.path.join(script_path, 'all_A_vs_t_pf.png')
-plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=f"wsteg: {wsteg}")
+ev.plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=f"wsteg: {wsteg}")
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
@@ -587,16 +530,16 @@ upper_boun = x_high-wsteg/8
 data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
 data_in_x_range_holes = filter_data_by_column_bounds(data_holes,3,low_bound=low_boun, upper_bound=upper_boun)
 hole_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
-plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
+ev.plot_columns(data_in_x_range, 3, 1, output_file,vlines=hole_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
 
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_A.png')
-plot_columns(data_in_x_range, 9, 1, output_file,vlines=None,xlabel="A_pf",ylabel="Jx",title="")
+ev.plot_columns(data_in_x_range, 9, 1, output_file,vlines=None,xlabel="A_pf",ylabel="Jx",title="")
 
 output_file = os.path.join(script_path, 'range_A_vs_t.png')
 data_shifted = shift_columns(data_in_x_range,[1,9])
-plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title=f"wsteg: {wsteg}")
+ev.plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf",title=f"wsteg: {wsteg}")
 
 
 
@@ -803,10 +746,10 @@ ev.plot_multiple_columns(data_objects=data_without_xct_max,col_x=0,col_y=3,outpu
 
 
 output_file = os.path.join(script_path, 'xct_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[2], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
+ev.plot_columns(data_without_xct_max[2], 0, 3, output_file,vlines=None,xlabel="t", ylabel="xct_pfm [wsteg]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'A_vs_t_in_between_normalized_single.png')
-plot_columns(data_without_xct_max[2], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
+ev.plot_columns(data_without_xct_max[2], 0, 9, output_file,vlines=None,xlabel="t", ylabel="A [-]", usetex=False, title=" ")
 
 output_file = os.path.join(script_path, 'dt_vs_xct_in_between.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -820,6 +763,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
+JxXEstar_max_master = []
 
 simulation_results = read_all_simulation_data(data_directory)
 # computing KIc 
@@ -827,6 +771,7 @@ KIc_effs = []
 vol_ratios = []
 wsteg_values = []
 Jx_max_values = []
+JxXEstar_max_values = []
 for sim in simulation_results:
     data = sim[0]
     normalize_Jx_to_Gc_num(gc_num_quotient, data)
@@ -862,10 +807,13 @@ for sim in simulation_results:
     KIc_eff = np.sqrt(Jx_max*E_star) 
     
     KIc_effs.append(KIc_eff)
+    
+    JxXEstar_max_values.append(E_eff*Jx_max)
 
     
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
 Jx_max_values_sorted = [Jx_max_values[i] for i in sorted_indices]
+JxXEstar_max_values_sorted = [JxXEstar_max_values[i] for i in sorted_indices]
 KIc_effs_sorted = [KIc_effs[i] for i in sorted_indices]
 wsteg_values_sorted = [wsteg_values[i] for i in sorted_indices]
 vol_ratios_sorted = [vol_ratios[i] for i in sorted_indices]
@@ -875,6 +823,7 @@ KIc_master.append(KIc_effs_sorted.copy())
 
 w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
+JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
 
 # data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
@@ -884,6 +833,7 @@ KIc_effs = []
 vol_ratios = []
 wsteg_values = []
 Jx_max_values = []
+JxXEstar_max_values = []
 for sim in simulation_results:
     data = sim[0]
     normalize_Jx_to_Gc_num(gc_num_quotient, data)
@@ -919,26 +869,28 @@ for sim in simulation_results:
     KIc_eff = np.sqrt(Jx_max*E_star) 
     
     KIc_effs.append(KIc_eff)
+    JxXEstar_max_values.append(E_eff*Jx_max)
 
     
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
 Jx_max_values_sorted = [Jx_max_values[i] for i in sorted_indices]
+JxXEstar_max_values_sorted = [JxXEstar_max_values[i] for i in sorted_indices]
 KIc_effs_sorted = [KIc_effs[i] for i in sorted_indices]
 wsteg_values_sorted = [wsteg_values[i] for i in sorted_indices]
 vol_ratios_sorted = [vol_ratios[i] for i in sorted_indices]
-
 
 KIc_master.append(KIc_effs_sorted.copy())
 
 w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
+JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
 wsteg_holes_to_estimate = wsteg_values_sorted.copy()
 Jx_max_holes = Jx_max_values_sorted.copy()
 
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png', 
                         title_fontsize=24, xlabel_fontsize=24, ylabel_fontsize=24, legend_fontsize=24, tick_fontsize=22, 
-                        plot_dots=False, usetex=False):
+                        plot_dots=False, usetex=False, show_legend=True):
     """
     Plots multiple lines on the same graph and saves the output to a file.
 
@@ -957,6 +909,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     - tick_fontsize: Font size for the axis tick labels.
     - plot_dots: Boolean to toggle plotting dots on the lines.
     - usetex: Boolean to use LaTeX for rendering text in labels.
+    - show_legend: Boolean to control whether the legend is shown (default: True).
     """
     import matplotlib.pyplot as plt
 
@@ -992,8 +945,9 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     # Customize tick parameters
     plt.tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
-    # Add legend with custom font size
-    plt.legend(fontsize=legend_fontsize)
+    # Add legend if show_legend is True
+    if show_legend:
+        plt.legend(fontsize=legend_fontsize)
 
     # Save the plot to the specified file
     plt.savefig(output_file, bbox_inches='tight')
@@ -1001,12 +955,16 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     # Close the plot to free up memory
     plt.close()
 
+
     
 output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_hole&diamond.png")
 plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{eff} / \sqrt{2.0\mu{G}_c^{num}}$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_hole&diamond.png")
 plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 
+
+output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_hole&diamond.png")
+plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 
 
  
@@ -1188,4 +1146,51 @@ plot_multiple_lines([wsteg_holes_to_estimate,wsteg_values_sorted],[Jx_max_holes,
 
     
     
+
+# Effective Youngs modulus study
+simulation_results = read_all_simulation_data(data_directory_holes)
+E_star_holes = []
+wsteg_values = []
+for sim in simulation_results:
+    param = sim[1]
+    lam_eff = param["lam_eff_simulation"]
+    mue_eff = param["mue_eff_simulation"]
+    wsteg = param["wsteg"]
+    wsteg_values.append(wsteg)
     
+    E_eff = le.get_emod(lam_eff,mue_eff)
+    nu_eff = le.get_nu(lam_eff,mue_eff)
+    E_star = E_eff/ (1-nu_eff**2)
+    E_star_holes.append(E_star)
+
+sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
+wsteg_values_sorted_holes = [wsteg_values[i] for i in sorted_indices]
+E_star_holes = [E_star_holes[i] for i in sorted_indices]
+
+
+simulation_results = read_all_simulation_data(data_directory)
+E_star_diamond = []
+wsteg_values = []
+for sim in simulation_results:
+    param = sim[1]
+    lam_eff = param["lam_eff_simulation"]
+    mue_eff = param["mue_eff_simulation"]
+    wsteg = param["wsteg"]
+    wsteg_values.append(wsteg)
+    
+    E_eff = le.get_emod(lam_eff,mue_eff)
+    nu_eff = le.get_nu(lam_eff,mue_eff)
+    E_star = E_eff/ (1-nu_eff**2)
+    E_star_diamond.append(E_star)
+
+sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
+wsteg_values_sorted_diamond = [wsteg_values[i] for i in sorted_indices]
+E_star_diamond = [E_star_diamond[i] for i in sorted_indices]
+
+output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_hole&diamond.png")
+plot_multiple_lines([wsteg_values_sorted_holes,wsteg_values_sorted_diamond],[E_star_holes, E_star_diamond],x_label="$w_s / L$",y_label="$ E^{'}_{\mathrm{eff}} / \mu$",legend_labels=[circular_label, diamond_label],output_file=output_file, usetex=True)
+
+# only works if same number of wsteg for both
+E_star_ratio = [E_star_holes[i] / E_star_diamond[i] for i in range(len(E_star_holes))]
+output_file = os.path.join(script_path,"PAPER_09_Estar_ratio_vs_wsteg_hole&diamond.png")
+plot_multiple_lines([wsteg_values_sorted_holes],[E_star_ratio],x_label="$w_s / L$",y_label="$ E^{'{\mathrm{kreis}}}_{\mathrm{eff}} / E^{'\mathrm{quad}}_{\mathrm{eff}}$",output_file=output_file, usetex=True, show_legend=False)

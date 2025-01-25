@@ -1385,3 +1385,75 @@ def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None
     # initial_crack_length = jump_size
     
     return initial_crack_length
+
+
+def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
+                 xlabel=None, ylabel=None, title=None, 
+                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
+                 tick_fontsize=16, figsize=(10, 6), usetex=False, 
+                 font_color="black", line_color="black", plot_dots=False, 
+                 x_range=None, y_range=None):
+    """
+    Plots data from two specified columns with customization options.
+
+    Parameters:
+    - data: DataFrame containing the data to plot.
+    - col_x: Column name for x-axis.
+    - col_y: Column name for y-axis.
+    - output_filename: Name of the file to save the plot.
+    - vlines: List of x-coordinates for vertical lines to draw.
+    - hlines: List of y-coordinates for horizontal lines to draw.
+    - xlabel: Label for x-axis.
+    - ylabel: Label for y-axis.
+    - title: Title of the plot.
+    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
+    - tick_fontsize: Font size for ticks.
+    - figsize: Tuple defining figure size.
+    - usetex: Boolean to use LaTeX for text rendering.
+    - font_color: Font color for labels and title.
+    - line_color: Line color for the plot.
+    - plot_dots: Boolean to toggle plotting dots on the line.
+    - x_range: Tuple defining the range for the x-axis (min, max).
+    - y_range: Tuple defining the range for the y-axis (min, max).
+    """
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=figsize)
+    plt.rc('text', usetex=usetex)
+
+    # Plot the data
+    plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=line_color, label=col_y)
+
+    # Add vertical lines if specified
+    if vlines:
+        for vline in vlines:
+            plt.axvline(x=vline, color='gray', linestyle='--', linewidth=1)
+
+    # Add horizontal lines if specified
+    if hlines:
+        for hline in hlines:
+            plt.axhline(y=hline, color='gray', linestyle='--', linewidth=1)
+
+    # Set axis labels and title
+    if xlabel:
+        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
+    if ylabel:
+        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
+    if title:
+        plt.title(title, fontsize=title_fontsize, color=font_color)
+
+    # Set axis ranges if specified
+    if x_range:
+        plt.xlim(x_range)
+    if y_range:
+        plt.ylim(y_range)
+
+    # Customize tick parameters
+    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
+
+    # Add legend (if needed, uncomment below)
+    # plt.legend()
+
+    # Save the plot
+    plt.savefig(output_filename, bbox_inches='tight')
+    plt.close()

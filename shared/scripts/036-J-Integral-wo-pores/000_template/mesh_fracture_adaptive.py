@@ -80,7 +80,8 @@ crack = model.add_line(p8, p9)
 
 # Mesh refinement fields
 gmsh.model.mesh.field.add("Distance", 1)
-refinement_points = [model.add_point([w_cell + w_cell / 2.0 + n * w_cell, -(n_rows // 2) * h_cell + i * h_cell, 0.0], e0)._id for i in range(n_rows) for n in range(Nholes)]
+#refinement_points = [model.add_point([w_cell + w_cell / 2.0 + n * w_cell, -(n_rows // 2) * h_cell + i * h_cell, 0.0], e0)._id for i in range(n_rows) for n in range(Nholes)]
+refinement_points = []
 
 crack_points = [
     model.add_point([i * l0 / 50, 0.0, 0.0], e0)._id
@@ -99,8 +100,8 @@ gmsh.model.mesh.field.add("Threshold", 4)
 gmsh.model.mesh.field.setNumber(4, "InField", 3)
 gmsh.model.mesh.field.setNumber(4, "SizeMin", e0)
 gmsh.model.mesh.field.setNumber(4, "SizeMax", e1)
-gmsh.model.mesh.field.setNumber(4, "DistMin", dhole / 2)
-gmsh.model.mesh.field.setNumber(4, "DistMax", w_cell)
+gmsh.model.mesh.field.setNumber(4, "DistMin", 1.5*dhole / 2)
+gmsh.model.mesh.field.setNumber(4, "DistMax", 1.5*w_cell)
 
 gmsh.model.mesh.field.setAsBackgroundMesh(4)
 
