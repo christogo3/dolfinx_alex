@@ -31,7 +31,7 @@ extract_wsteg() {
 calculate_crack_y() {
     local wsteg=$1
     local offset=0.5  # Example offset value, modify as needed
-    local crack_y=$(awk "BEGIN {print $wsteg / 2 + $offset}")
+    local crack_y=$(awk "BEGIN {printf \"%.6f\", $wsteg / 2 + $offset}")
     echo "$crack_y"
 }
 
