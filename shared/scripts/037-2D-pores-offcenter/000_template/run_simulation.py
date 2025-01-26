@@ -50,6 +50,7 @@ try:
     parser.add_argument("--gc_micro_param", type=float, required=True, help="Gc micro parameter")
     parser.add_argument("--eps_param", type=float, required=True, help="Epsilon factor parameter")
     parser.add_argument("--element_order", type=int, required=True, help="Element order")
+    parser.add_argument("--crack_y", type=float, default=0.0, help="Y-position of the crack")
     args = parser.parse_args()
     mesh_file = args.mesh_file
     in_crack_length = args.in_crack_length
@@ -58,6 +59,7 @@ try:
     gc_micro = args.gc_micro_param
     gc_matrix = gc_micro
     eps_param = args.eps_param
+    crack_y = args.crack_y  # Y-position of the crack
 except (argparse.ArgumentError, SystemExit, Exception) as e:
     if rank == 0:
         print("Could not parse arguments")
@@ -71,6 +73,7 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     gc_matrix = gc_micro
     mesh_file = "mesh_fracture.xdmf"
     eps_param = 0.1
+    crack_y = 0.0  # Y-position of the crack
     
 parameters = pp.read_parameters_file(parameter_path)
 la_effective = parameters["lam_effective"]
@@ -153,7 +156,7 @@ K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
 
 # define crack by boundary
 crack_tip_start_location_x = in_crack_length
-crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
+crack_tip_start_location_y = crack_y #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
     y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*dhole)

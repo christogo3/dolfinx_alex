@@ -24,7 +24,7 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         # Set fixed values for memory, processors, and time
         memory_value=4000
         processor_number=32
-        time=1440
+        time=4000
 
         # Define the path to the job script to be updated
         job_script_path="${folder_path}/job_script_adaptive.sh"

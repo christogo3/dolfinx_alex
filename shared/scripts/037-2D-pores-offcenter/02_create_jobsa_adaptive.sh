@@ -27,11 +27,20 @@ extract_wsteg() {
     echo "$wsteg_value"
 }
 
+# Function to calculate CRACK_Y dynamically
+calculate_crack_y() {
+    local wsteg=$1
+    local offset=0.5  # Example offset value, modify as needed
+    local crack_y=$(awk "BEGIN {print $wsteg / 2 + $offset}")
+    echo "$crack_y"
+}
+
 # Function to generate a job script for a given simulation folder
 generate_job_script() {
     local folder_name=$1
     local job_name=$2
     local wsteg_value=$3
+    local crack_y=$4
 
     # Fixed values for the placeholders in job_script.sh
     local nholes=6
@@ -49,6 +58,7 @@ generate_job_script() {
     sed -e "s|{FOLDER_NAME}|${folder_name}|g" \
         -e "s|{JOB_NAME}|${job_name}|g" \
         -e "s|{WSTEG}|${wsteg_value}|g" \
+        -e "s|{CRACK_Y}|${crack_y}|g" \
         -e "s|{NHOLES}|${nholes}|g" \
         -e "s|{DHOLE}|${dhole}|g" \
         -e "s|{E0}|${e0}|g" \
@@ -70,13 +80,17 @@ for folder_path in "${BASE_DIR}"/simulation_*; do
         # Extract WSTEG value from folder name
         wsteg_value=$(extract_wsteg "${folder_name}")
 
+        # Calculate CRACK_Y based on WSTEG
+        crack_y=$(calculate_crack_y "${wsteg_value}")
+
         # Set job name (can be based on WSTEG or some other criteria, here just using "wsteg_job")
         job_name="wsteg_job"
 
-        # Call generate_job_script with the folder name and WSTEG value
-        generate_job_script "${folder_name}" "${job_name}" "${wsteg_value}"
+        # Call generate_job_script with the folder name, WSTEG, and CRACK_Y value
+        generate_job_script "${folder_name}" "${job_name}" "${wsteg_value}" "${crack_y}"
     fi
 done
+
 
 
 

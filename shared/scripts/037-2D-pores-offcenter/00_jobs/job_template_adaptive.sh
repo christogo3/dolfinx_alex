@@ -25,13 +25,14 @@ MESH_FILE="{MESH_FILE}"
 LAM_MICRO_PARAM={LAM_MICRO_PARAM}
 MUE_MICRO_PARAM={MUE_MICRO_PARAM}
 GC_MICRO_PARAM={GC_MICRO_PARAM}
-
+CRACK_Y=$(CRACK_Y)
 
 # Calculate EPS_PARAM as 6 times E0 using awk if not provided by user
 EPS_PARAM={EPS_PARAM}
 ELEMENT_ORDER={ELEMENT_ORDER}
 
 LCRACK=$(awk "BEGIN {print $WSTEG + $DHOLE}")
+
 
 
 # Navigate to $HPC_SCRATCH
@@ -41,7 +42,7 @@ srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directo
 
 srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/run_effective_stiffness.py --lam_micro_param "$LAM_MICRO_PARAM" --mue_micro_param "$MUE_MICRO_PARAM"
 
-srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_fracture_adaptive.py --nholes "$NHOLES" --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" --e1 "$E1"
+srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/mesh_fracture_adaptive.py --nholes "$NHOLES" --dhole "$DHOLE" --wsteg "$WSTEG" --e0 "$E0" --e1 "$E1" --crack_y "$CRACK_Y"
 
 srun -n 1 apptainer exec --bind $HOME/dolfinx_alex/shared:/home,$working_directory:/work $HOME/dolfinx_alex/alex-dolfinx.sif python3 $working_directory/get_mesh_info.py --mesh_file "$MESH_FILE"
 
