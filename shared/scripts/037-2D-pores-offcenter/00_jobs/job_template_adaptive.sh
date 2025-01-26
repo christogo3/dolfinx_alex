@@ -4,15 +4,15 @@
 #SBATCH -t {TIME}  # "minutes", "minutes:seconds", "hours:minutes:seconds", "days-hours", "days-hours:minutes" and "days-hours:minutes:seconds"
 #SBATCH --mem-per-cpu={MEMORY_VALUE}
 #SBATCH -n {PROCESSOR_NUMBER}
-#SBATCH -e /work/scratch/as12vapa/29-2D-pores-concept-study-holes/{FOLDER_NAME}/%x.err.%j
-#SBATCH -o /work/scratch/as12vapa/29-2D-pores-concept-study-holes/{FOLDER_NAME}/%x.out.%j
+#SBATCH -e /work/scratch/as12vapa/037-2D-pores-offcenter/{FOLDER_NAME}/%x.err.%j
+#SBATCH -o /work/scratch/as12vapa/037-2D-pores-offcenter/{FOLDER_NAME}/%x.out.%j
 #SBATCH --mail-type=End
 #SBATCH -C i01
 
 # Set the working directory name
 working_folder_name="{FOLDER_NAME}"  # Change this to your desired folder name
 # Create the working directory under $HPC_SCRATCH
-working_directory="$HPC_SCRATCH/29-2D-pores-concept-study-holes/$working_folder_name"
+working_directory="$HPC_SCRATCH/037-2D-pores-offcenter/$working_folder_name"
 
 
 # Default values for parameters
