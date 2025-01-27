@@ -116,9 +116,15 @@ dt_global.value = dt_max_in_critical_area
 # dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
 
-la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
-mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
-gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_micro, micro_material_cells, effective_material_cells)
+# la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
+# mu = het.set_cell_function_heterogeneous_material(domain,mu_micro, mu_effective, micro_material_cells, effective_material_cells)
+# gc = het.set_cell_function_heterogeneous_material(domain,gc_micro, gc_micro, micro_material_cells, effective_material_cells)
+
+
+la = dlfx.fem.Constant(domain,la_micro)
+mu = dlfx.fem.Constant(domain,mu_micro)
+gc = dlfx.fem.Constant(domain,gc_micro)
+
 
 eta = dlfx.fem.Constant(domain, 0.00001)
 epsilon = dlfx.fem.Constant(domain, eps_param)

@@ -28,11 +28,11 @@ try:
     e1 = args.e1  # Coarse mesh size
 except:
     print("Could not parse arguments")
-    Nholes = 4
+    Nholes = 6
     dhole = 1.0
-    wsteg = 4.0
+    wsteg = 1.0
     e0 = 0.02  # Fine mesh size
-    e1 = 0.8  # Coarse mesh size
+    e1 = 0.6  # Coarse mesh size
 
 # Derived geometry parameters
 w_cell = dhole + wsteg
