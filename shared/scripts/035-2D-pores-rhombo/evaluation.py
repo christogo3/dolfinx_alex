@@ -49,7 +49,7 @@ def normalize_Jx_to_Gc_num(gc_num_quotient, data):
 element_size = 0.01
 epsilon_param = 0.1
 gc_num_quotient = 1.0936 # from analysis w.o. crack# 
-# gc_num_quotient = (1.0 + element_size / epsilon_param)
+# gc_num_quotient = (1.0 + element_size / (4.0 * epsilon_param)
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
@@ -100,33 +100,7 @@ J_x_label = "$J_{x} / G_c^{\mathrm{num}}$"
 J_x_max_label="$J_{x}^{\mathrm{max}} / G_c^{\mathrm{num}}$"
 
 
-def read_all_simulation_data(base_path):
-    # List to store tuples of (data, parameters)
-    simulation_results = []
 
-    # Iterate through each item in the base directory
-    for folder_name in os.listdir(base_path):
-        # Check if the folder name starts with "simulation_"
-        if folder_name.startswith("simulation_"):
-            # Define paths for the data and parameter files
-            data_path = os.path.join(base_path, folder_name, "run_simulation_graphs.txt")
-            parameter_path = os.path.join(base_path, folder_name, "parameters.txt")
-            
-            # Try to read the data and parameter files
-            try:
-                # Read the simulation data
-                data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
-                
-                # Read the parameters
-                parameters = pp.read_parameters_file(parameter_path)
-                
-                # Store the data and parameters together as a tuple
-                simulation_results.append((data, parameters))
-                
-            except Exception as e:
-                print(f"Error reading files in {folder_name}: {e}")
-    
-    return simulation_results
 
 
 def filter_data_by_column_bounds(data, column_index, low_bound, upper_bound):
@@ -274,9 +248,9 @@ def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
 
 def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, 
                             vlines=None, hlines=None, xlabel=None, ylabel=None, 
-                            title=None, xlabel_fontsize=24, ylabel_fontsize=24, 
-                            title_fontsize=24, tick_fontsize=22, legend_fontsize=24, 
-                            figsize=(10, 7), usetex=False, font_color="black", 
+                            title=None, xlabel_fontsize=30, ylabel_fontsize=30, 
+                            title_fontsize=28, tick_fontsize=24, legend_fontsize=30, 
+                            figsize=(10, 8), usetex=False, font_color="black", 
                             line_colors=None, line_styles=None, plot_dots=False, 
                             x_range=None, y_range=None):
     """
@@ -546,7 +520,7 @@ ev.plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A
 
 
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -616,7 +590,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 
 
 ## Holes
-simulation_results_holes = read_all_simulation_data(data_directory_holes)
+simulation_results_holes = ev.read_all_simulation_data(data_directory_holes)
 data_to_plot = []
 legend_entries = []
 wsteg_values_holes = []
@@ -670,7 +644,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
 
 
 output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_diamond&holes.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]], # 
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1-1]], # 
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
@@ -680,7 +654,7 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
                       x_range=[19.5, 22.5])
 
 output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1-1]],
                       col_x=0,
                       col_y=3,
                       output_filename=output_file,
@@ -765,7 +739,7 @@ w_steg_master = []
 Jx_max_master = []
 JxXEstar_max_master = []
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -827,7 +801,7 @@ JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
 
 # data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
-simulation_results = read_all_simulation_data(data_directory_holes)
+simulation_results = ev.read_all_simulation_data(data_directory_holes)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -1089,7 +1063,7 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     sig_c_2D_val = sig_c_2D(la_local,mu_local,Gc_local,epsilon,1)
     if wsteg / dhole <= 0.01:
         sig_ff = sig_ff_thin_steg(dhole,wsteg,sig_c_2D_val)
-    elif wsteg/dhole <= 4.0:
+    elif wsteg/dhole <= 6.0:
         sig_ff = sig_ff_medium_steg(dhole,wsteg,sig_c_2D_val,epsilon)
     else:
         sig_ff = sig_ff_for_isolated_hole(dhole,epsilon,sig_c_2D_val)
@@ -1098,11 +1072,11 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     return Gc_eff(E_star,L,sig_ff)
        
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 wsteg_values = []
 Gc_eff_est = []
 
-L = 40.0
+L = 27.0
 for sim in simulation_results:
     data = sim[0]
     normalize_Jx_to_Gc_num(gc_num_quotient, data)
@@ -1148,7 +1122,7 @@ plot_multiple_lines([wsteg_holes_to_estimate,wsteg_values_sorted],[Jx_max_holes,
     
 
 # Effective Youngs modulus study
-simulation_results = read_all_simulation_data(data_directory_holes)
+simulation_results = ev.read_all_simulation_data(data_directory_holes)
 E_star_holes = []
 wsteg_values = []
 for sim in simulation_results:
@@ -1168,7 +1142,7 @@ wsteg_values_sorted_holes = [wsteg_values[i] for i in sorted_indices]
 E_star_holes = [E_star_holes[i] for i in sorted_indices]
 
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 E_star_diamond = []
 wsteg_values = []
 for sim in simulation_results:

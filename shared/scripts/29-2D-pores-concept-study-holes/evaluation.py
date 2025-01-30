@@ -84,33 +84,7 @@ steg_width_label = "$w_s$"
 estimate_label = "estimate"
 
 
-def read_all_simulation_data(base_path):
-    # List to store tuples of (data, parameters)
-    simulation_results = []
 
-    # Iterate through each item in the base directory
-    for folder_name in os.listdir(base_path):
-        # Check if the folder name starts with "simulation_"
-        if folder_name.startswith("simulation_"):
-            # Define paths for the data and parameter files
-            data_path = os.path.join(base_path, folder_name, "run_simulation_graphs.txt")
-            parameter_path = os.path.join(base_path, folder_name, "parameters.txt")
-            
-            # Try to read the data and parameter files
-            try:
-                # Read the simulation data
-                data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
-                
-                # Read the parameters
-                parameters = pp.read_parameters_file(parameter_path)
-                
-                # Store the data and parameters together as a tuple
-                simulation_results.append((data, parameters))
-                
-            except Exception as e:
-                print(f"Error reading files in {folder_name}: {e}")
-    
-    return simulation_results
 
 
 def filter_data_by_column_bounds(data, column_index, low_bound, upper_bound):
@@ -128,6 +102,8 @@ def filter_data_by_column_bounds(data, column_index, low_bound, upper_bound):
     - pd.DataFrame: A new DataFrame with only the rows where the specified column's values
                     are within the given bounds.
     """
+     # Extract the column
+    column_data = data.iloc[:, column_index]
     # Apply the filter condition
     filtered_data = data[(data.iloc[:, column_index] >= low_bound) & (data.iloc[:, column_index] <= upper_bound)]
     
@@ -323,7 +299,7 @@ def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_lab
     plt.legend(fontsize=legend_fontsize)
 
     # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename, bbox_inches='tight',dpi=300)
     plt.close()
 
 
@@ -386,14 +362,14 @@ def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None,
     #plt.legend()
     
     # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename, bbox_inches='tight',dpi=300)
     plt.close()
 
 def plot_multiple_columns(data_objects, col_x, col_y, output_filename, 
                           vlines=None, hlines=None, xlabel=None, ylabel=None, 
                           title=None, legend_labels=None, 
-                          xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                          tick_fontsize=16, legend_fontsize=16, figsize=(10, 6), 
+                          xlabel_fontsize=24, ylabel_fontsize=24, title_fontsize=24, 
+                          tick_fontsize=22, legend_fontsize=22, figsize=(10, 6), 
                           usetex=False, log_y=False):
     """
     Plots multiple datasets with the same x and y columns, using shades of grey for line colors.
@@ -470,7 +446,7 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
     # Save the plot as a PNG file
-    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename, bbox_inches='tight',dpi=300)
     plt.close()  # Close the figure to prevent display in some environments
     print(f"Plot saved as {output_filename}") 
 
@@ -560,7 +536,7 @@ plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A_pf
 
 
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -774,7 +750,7 @@ KIc_master  = []
 w_steg_master = []
 Jx_max_master = []
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -830,7 +806,7 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
 data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
-simulation_results = read_all_simulation_data(data_directory_hole)
+simulation_results = ev.read_all_simulation_data(data_directory_hole)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -947,7 +923,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     plt.legend(fontsize=legend_fontsize)
 
     # Save the plot to the specified file
-    plt.savefig(output_file, bbox_inches='tight')
+    plt.savefig(output_file, bbox_inches='tight',dpi=300)
 
     # Close the plot to free up memory
     plt.close()
@@ -972,7 +948,7 @@ def plot_KIc_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, output_path):
     plt.grid(True)
     
     # Save the plot to the specified path without displaying it interactively
-    plt.savefig(output_path, format='png')
+    plt.savefig(output_path, format='png',dpi=300)
     plt.close()  # Close the plot to prevent it from displaying interactively
 
 
@@ -1027,7 +1003,7 @@ def plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted, wsteg_values_sorted, vol_ra
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
     # Save the plot to the specified path
-    plt.savefig(output_path, format='png')
+    plt.savefig(output_path, format='png',dpi=300)
     plt.close()  # Close the plot to prevent interactive display
     print(f"Plot saved as {output_path}")
 
@@ -1091,7 +1067,7 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     return Gc_eff(E_star,L,sig_ff)
        
 
-simulation_results = read_all_simulation_data(data_directory)
+simulation_results = ev.read_all_simulation_data(data_directory)
 wsteg_values = []
 Gc_eff_est = []
 

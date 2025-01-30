@@ -9,6 +9,7 @@ E1_VALUES=(0.7)             # Example: E1 values
 MESH_FILES=("mesh_adaptive_sym.xdmf")
 #GC_VALUES=(12.0)             # Example: Gc values
 GC_VALUES=(1.0 2.0 4.0 6.0 8.0 10.0 12.0 16.0)             # Example: Gc values
+# GC_VALUES=(6.0) 
 EPS_VALUES=(0.1)            # Example: Epsilon values
 ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 

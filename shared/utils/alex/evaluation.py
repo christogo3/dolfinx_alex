@@ -13,6 +13,10 @@ import pandas as pd
 import alex.postprocessing as pp
 
 
+def get_gc_num(gc,hh,eps):
+    # M. Bohnen Seite 17
+    return gc*(1.0 + hh / (4.0*eps))
+
 ### AUXILIARY 
 def compute_gc_num(mesh_name, gc, eps_factor, h_all, reference_L_global):
     """
@@ -26,7 +30,7 @@ def compute_gc_num(mesh_name, gc, eps_factor, h_all, reference_L_global):
     """
     h_value = h_all[mesh_name]
     eps =  get_eps(reference_L_global, eps_factor)
-    return gc * (1.0 + h_value / ( eps * 4.0))
+    return get_gc_num(gc,h_value,eps) 
 
 def get_gc_num_for_key(key, h_all, reference_L_global):
     params = extract_parameters(key)
@@ -317,7 +321,7 @@ def plot_results(results_dict, keys, column_index, save_path, scaling_factors=No
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Save the plot to disk
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()  # Close the plot to free up memory
     
 # Example function modified for your specific plotting needs
@@ -399,7 +403,7 @@ def plot_max_Jx_vs_sig_c(results_dict, keys, plot_title, save_path, reference_L_
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Save the plot
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()
     
 
@@ -483,7 +487,7 @@ def plot_max_Jx_vs_data(results_dict, keys, xdata_function, xdata_label, data_la
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Save the plot
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()    
 
     
@@ -589,7 +593,7 @@ def plot_max_Jx_vs_pore_size_eps_ratio_multiple(
     plt.legend(handles=handles, loc='best', fontsize=legend_label_size)
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()
 
 
@@ -674,7 +678,7 @@ def plot_results_2yaxis(results_dict, keys, column_indices, save_path, scaling_f
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Save the plot to disk
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()  # Close the plot to free up memory
     
 def plot_gc_num_vs_gc(keys, h_all, save_path, reference_L_global, mesh_colors):
@@ -746,7 +750,7 @@ def plot_gc_num_vs_gc(keys, h_all, save_path, reference_L_global, mesh_colors):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     
     # Save the plot
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()
     
     
@@ -791,7 +795,7 @@ def plot_eps_h_ratio(keys, h_all, reference_L_global, mesh_colors, output_file, 
     
     plt.grid(True)
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    plt.savefig(output_file)
+    plt.savefig(output_file,dpi=300)
     plt.close()
     
     
@@ -815,7 +819,7 @@ def plot_ratio_pore_size_eps(results_dict, save_path, reference_L_global, pore_s
     plt.grid(True)
     
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()
 
 
@@ -840,7 +844,7 @@ def plot_ratio_pore_size_h(results_dict, save_path, h_all, pore_size_all, mesh_c
     plt.grid(True)
     
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    plt.savefig(save_path)
+    plt.savefig(save_path,dpi=300)
     plt.close()
 
 
@@ -1027,11 +1031,11 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     
     
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', 
-                        legend_labels=None, output_file='plot.png', figsize=(10, 6), 
+                        legend_labels=None, output_file='plot.png', figsize=(10, 8), 
                         usetex=True, log_y=False, use_broad_palette=False, 
                         x_range=None, y_range=None, use_bw_palette=True, show_markers=False, 
-                        xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                        tick_fontsize=16, legend_fontsize=16):
+                        xlabel_fontsize=28, ylabel_fontsize=28, title_fontsize=24, 
+                        tick_fontsize=26, legend_fontsize=26):
     """
     Plots multiple lines on the same graph with additional customization options and saves the plot to a file.
     
@@ -1109,7 +1113,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     # Save the plot to the specified file
-    plt.savefig(output_file)
+    plt.savefig(output_file,dpi=300)
 
     # Close the plot to free up memory
     plt.close()
@@ -1174,7 +1178,7 @@ def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", yla
     plt.tick_params(axis='both', which='major', labelsize=tick_fontsize)
 
     # Save the plot to a file
-    plt.savefig(filename)
+    plt.savefig(filename,dpi=300)
     plt.close()
 
     print(f"Plot saved as {filename}")
@@ -1311,7 +1315,7 @@ def plot_multiple_columns_B(data_objects, col_x, col_y, output_filename,
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
     
     # Save the plot as a PNG file
-    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename, bbox_inches='tight',dpi=300)
     plt.close()  # Close the figure to prevent display in some environments
     print(f"Plot saved as {output_filename}") 
     
@@ -1389,8 +1393,8 @@ def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None
 
 def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
                  xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=18, 
-                 tick_fontsize=16, figsize=(10, 6), usetex=False, 
+                 xlabel_fontsize=22, ylabel_fontsize=22, title_fontsize=22, 
+                 tick_fontsize=20, figsize=(10, 6), usetex=False, 
                  font_color="black", line_color="black", plot_dots=False, 
                  x_range=None, y_range=None):
     """
@@ -1457,3 +1461,35 @@ def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None,
     # Save the plot
     plt.savefig(output_filename, bbox_inches='tight')
     plt.close()
+
+
+
+
+def read_all_simulation_data(base_path):
+    simulation_results = []
+
+    for folder_name in os.listdir(base_path):
+        if folder_name.startswith("simulation_"):
+            data_path = os.path.join(base_path, folder_name, "run_simulation_graphs.txt")
+            parameter_path = os.path.join(base_path, folder_name, "parameters.txt")
+
+            try:
+                # Read the file as strings first
+                data = pd.read_csv(
+                    data_path, 
+                    delim_whitespace=True, 
+                    header=None, 
+                    skiprows=1, 
+                    dtype=str
+                )
+                
+                # Convert to numeric, coercing errors (replaces non-numeric with NaN)
+                data = data.apply(pd.to_numeric, errors='coerce')
+                
+                parameters = pp.read_parameters_file(parameter_path)
+                simulation_results.append((data, parameters))
+
+            except Exception as e:
+                print(f"Error reading files in {folder_name}: {e}")
+
+    return simulation_results

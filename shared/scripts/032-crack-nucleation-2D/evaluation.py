@@ -24,6 +24,8 @@ import numpy as np
 import seaborn as sns
 from matplotlib.lines import Line2D
 
+from scipy.optimize import fsolve
+
 def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
                  xlabel=None, ylabel=None, title=None, 
                  xlabel_fontsize=16, ylabel_fontsize=16, title_fontsize=18, 
@@ -166,8 +168,9 @@ diamond_folder_name = "033-crack-nucleation-diamond"
 height_label = "$h_d$"
 width_label = "$w_d$"
 initial_crack_label = "$\Delta{a}$"
-circular_label = "circular hole"
-diamond_label = "diamond hole"
+circular_label = "kreisförmig"
+diamond_label = "quadratisch"
+guess_label = "Abschätzung"
 
 
 # col_crack_length = 3
@@ -565,14 +568,68 @@ data_file_name = "09.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(eps_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
+# PREPARE GUESS
+def compute_da(epsilon, C1, C2, a):
+    """
+    Compute da for a given epsilon, C1, C2, and a.
+
+    Solves the equation:
+    0.5 * C1 / epsilon = 0.5 * C2 / (a + da) + da
+    """
+    lhs = 0.5 * C1 / epsilon
+
+    def equation(da):
+        return lhs - (0.5 * C2 / (a + da) + da)
+
+    # Use numerical root finding to solve for da
+    da_initial_guess = 0.1  # Initial guess for da
+    da_solution, = fsolve(equation, da_initial_guess)
+    return da_solution
+
+def get_da_vs_epsilon(epsilon_values, C1, C2, a):
+    """
+    Compute da values for a range of epsilon values and return them.
+
+    Parameters:
+        epsilon_values: Array of epsilon values (positive only).
+        C1, C2, a: Parameters in the equation.
+
+    Returns:
+        epsilon_values: Input epsilon values (unchanged).
+        da_values: Corresponding computed da values.
+    """
+    da_values = []
+    for epsilon in epsilon_values:
+        if epsilon > 0:  # Avoid division by zero
+            da = compute_da(epsilon, C1, C2, a)
+            da_values.append(da)
+        else:
+            da_values.append(np.nan)  # Handle invalid values
+    return epsilon_values, da_values
+
+C1 = 0.08
+C2 = 0.25 #0.00001
+aa = 4.5
+
+# Epsilon range
+epsilon_min = 0.08
+epsilon_max = 0.5
+num_points = 20
+
+epsilon_values_guess = np.linspace(epsilon_min, epsilon_max, num_points)
+
+# Compute da values
+epsilon_values_guess, init_crack_length_guess = get_da_vs_epsilon(epsilon_values_guess, C1, C2, aa)
+
+
 data_file_circular = output_file
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
 output_file = os.path.join(script_path,"09B_eps_vs_initial_crack_length_circluar&diamond.png")
-ev.plot_multiple_lines([data_circular, data_diamond], 
-                       [init_crack_length_circular, init_crack_length_diamond],
-                       legend_labels=[circular_label, diamond_label],
+ev.plot_multiple_lines([data_circular, data_diamond,epsilon_values_guess], 
+                       [init_crack_length_circular, init_crack_length_diamond,init_crack_length_guess],
+                       legend_labels=[circular_label, diamond_label, guess_label],
                        x_label="$\epsilon$ / $L$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file)
 # def scatter_plot_with_classes(

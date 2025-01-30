@@ -55,14 +55,14 @@ simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
 parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 
-J_x_label = "$J_{x} / G_c^{\mathrm{num}}$"
+J_x_label = "$J_{x} / G_c$"
 
 data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 
 Jx_max = np.max(data[1])
 print(f"Jx_max: {Jx_max}")
 
-gc_num_quotient = (1.0+0.01/0.1)
+gc_num_quotient = 1.0
 def normalize_Jx_to_Gc_num(gc_num_quotient, data):
     data.iloc[:, 1] = data.iloc[:, 1] / gc_num_quotient
 normalize_Jx_to_Gc_num(gc_num_quotient, data)

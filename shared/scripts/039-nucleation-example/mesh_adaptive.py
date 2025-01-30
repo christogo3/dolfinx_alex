@@ -28,8 +28,8 @@ try:
 except:
     print("Could not parse arguments. Using default values.")
     dhole = 1.0
-    width = 10.0
-    height = 5.0
+    width = 6.0
+    height = 4.0
     e0 = 0.02  # Fine mesh size
     e1 = 0.6   # Coarse mesh size
 

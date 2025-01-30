@@ -83,35 +83,9 @@ if rank == 0:
         print(f"Initial crack length: {in_crack_length}")
 
 
-
-# Parameter
-L = 16.0    # Länge des Rechtecks in x-Richtung
-H = 2.0    # Höhe des Rechtecks in y-Richtung
-hx = 0.02   # Größe der Elemente in x-Richtung
-hy = 0.02   # Größe der Elemente in y-Richtung
-
-# Anzahl der Elemente in x- und y-Richtung
-Nx = int(L / hx)
-Ny = int(H / hy)
-
-# Koordinaten des Rechtecks (um y=0 zentriert)
-x_min = 0.0
-x_max = L
-y_min = -H / 2
-y_max = H / 2
-
-# Erstelle das rechteckige Netz mit quadratischen Zellen
-domain = dlfx.mesh.create_rectangle(
-    MPI.COMM_WORLD,
-    points=[[x_min, y_min], [x_max, y_max]],
-    n=(Nx, Ny),
-    cell_type=dlfx.mesh.CellType.quadrilateral
-)
-
-
-# with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
-#     domain = mesh_inp.read_mesh(name="Grid")
-#     mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
+with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
+    mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
     
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
@@ -127,8 +101,8 @@ effective_material_marker = 0
 
 
 
-# micro_material_cells = mesh_tags.find(micro_material_marker)
-# effective_material_cells = mesh_tags.find(effective_material_marker)
+micro_material_cells = mesh_tags.find(micro_material_marker)
+effective_material_cells = mesh_tags.find(effective_material_marker)
 
 
 # Simulation parameters ####
@@ -188,7 +162,7 @@ crack_tip_start_location_x = in_crack_length
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
-    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*1.0)
+    y_log = np.isclose(x[1],crack_tip_start_location_y,atol=0.01*dhole)
     return np.logical_and(y_log,x_log)
 
 v_crack = 1.0 # const for all simulations

@@ -69,49 +69,27 @@ except (argparse.ArgumentError, SystemExit, Exception) as e:
     mu_effective = 1.0
     gc_micro = 1.0
     gc_matrix = gc_micro
-    mesh_file = "mesh_fracture.xdmf"
+    mesh_file = "mesh_adaptive.xdmf"
     eps_param = 0.1
     
-parameters = pp.read_parameters_file(parameter_path)
-la_effective = parameters["lam_effective"]
-mu_effective = parameters["mue_effective"]
-wsteg = parameters["wsteg"]
-dhole = parameters["dhole"]
-w_cell = wsteg + dhole
+# parameters = pp.read_parameters_file(parameter_path)
+# la_effective = parameters["lam_effective"]
+# mu_effective = parameters["mue_effective"]
+# wsteg = 1.0
+# dhole = parameters["dhole"]
+# w_cell = wsteg + dhole
 
 if rank == 0:
         print(f"Initial crack length: {in_crack_length}")
 
 
 
-# Parameter
-L = 16.0    # Länge des Rechtecks in x-Richtung
-H = 2.0    # Höhe des Rechtecks in y-Richtung
-hx = 0.02   # Größe der Elemente in x-Richtung
-hy = 0.02   # Größe der Elemente in y-Richtung
-
-# Anzahl der Elemente in x- und y-Richtung
-Nx = int(L / hx)
-Ny = int(H / hy)
-
-# Koordinaten des Rechtecks (um y=0 zentriert)
-x_min = 0.0
-x_max = L
-y_min = -H / 2
-y_max = H / 2
-
-# Erstelle das rechteckige Netz mit quadratischen Zellen
-domain = dlfx.mesh.create_rectangle(
-    MPI.COMM_WORLD,
-    points=[[x_min, y_min], [x_max, y_max]],
-    n=(Nx, Ny),
-    cell_type=dlfx.mesh.CellType.quadrilateral
-)
 
 
-# with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
-#     domain = mesh_inp.read_mesh(name="Grid")
-#     mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
+
+with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
+    domain = mesh_inp.read_mesh(name="Grid")
+    mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
     
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
@@ -184,7 +162,7 @@ hh = 0.0 # TODO change
 K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
 
 # define crack by boundary
-crack_tip_start_location_x = in_crack_length
+crack_tip_start_location_x = -0.01
 crack_tip_start_location_y = 0.0 #(y_max_all + y_min_all) / 2.0
 def crack(x):
     x_log = x[0] < (crack_tip_start_location_x)
