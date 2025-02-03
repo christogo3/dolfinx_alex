@@ -644,7 +644,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
 
 
 output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_diamond&holes.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1-1]], # 
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]], # 
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
@@ -654,7 +654,7 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
                       x_range=[19.5, 22.5])
 
 output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1-1]],
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
                       col_x=0,
                       col_y=3,
                       output_filename=output_file,
