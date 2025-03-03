@@ -163,14 +163,14 @@ init_crack = DHOLE/2.0
 col_crack_length = 9
 label_crack_length = "$A / L$"
 
-diamond_folder_name = "033-crack-nucleation-diamond"
+diamond_folder_name = "033-crack-nucleation-diamond-PAPER"
 
 height_label = "$h_d$"
 width_label = "$w_d$"
 initial_crack_label = "$\Delta{a}$"
-circular_label = "kreisförmig"
-diamond_label = "quadratisch"
-guess_label = "Abschätzung"
+circular_label = "circular"
+diamond_label = "quadratic"
+guess_label = "estimate"
 
 
 # col_crack_length = 3
@@ -265,17 +265,26 @@ initial_crack_length_values_sorted = [initial_crack_length_values[i] for i in so
 
 
 output_file = os.path.join(script_path, '01_A_vs_t_all_varying_height.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
-                      col_x=0,
-                      col_y=col_crack_length,
-                      output_filename=output_file,
-                      legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
-                      usetex=True,
-                      use_bw_palette=True,
-                      show_markers=False,
-                      x_range=[-0.1, 6.0],
-                      y_range=[1.0,5.5])
+ev.plot_multiple_columns(
+    data_objects=data_to_plot_sorted,
+    col_x=0,
+    col_y=col_crack_length,
+    output_filename=output_file,
+    legend_labels=legend_entries_sorted,
+    xlabel="$t / ( L / v_{ct})$",
+    ylabel=label_crack_length,
+    usetex=True,
+    use_bw_palette=True,
+    show_markers=False,
+    x_range=[-0.1, 6.0],
+    y_range=[1.0, 5.5],
+    arrow_x=1.4,  # X position of the arrow
+    arrow_y_start=3.2,  # Start Y position of the arrow
+    arrow_y_end=4.04,  # End Y position of the arrow
+    arrow_color="red",  # Arrow color
+    arrow_linewidth=2,  # Arrow line width
+    arrowhead_size=30  # Arrowhead size
+)
 
 output_file = os.path.join(script_path, "02_height_vs_initial_crack_length.png")
 # ev.plot_multiple_lines(height_values_sorted,initial_crack_length_values_sorted,title="",x_label="height",y_label="initial crack length / $L$",output_file=output_file)
@@ -368,7 +377,7 @@ ev.plot_multiple_lines([data_circular, data_diamond],
                        legend_labels=[circular_label, diamond_label],
                        x_label="$G_c / G_c^{{0}}$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file,
-                       x_range=[0.0, 12.0])
+                       x_range=[0.0, 10.0])
 
 
 

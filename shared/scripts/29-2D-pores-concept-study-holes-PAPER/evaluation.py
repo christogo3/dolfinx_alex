@@ -577,7 +577,9 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$",
-                      usetex=True)
+                      usetex=True,
+                      use_colors=True,
+                      markers_only=True)
 
 output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_diamond.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -805,7 +807,7 @@ w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 
 
-data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes","5holes")
+data_directory_hole = os.path.join(script_path,"..","29-2D-pores-concept-study-holes-PAPER","5holes")
 simulation_results = ev.read_all_simulation_data(data_directory_hole)
 # computing KIc 
 KIc_effs = []

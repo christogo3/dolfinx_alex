@@ -69,7 +69,7 @@ data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
 
-data_directory_holes = os.path.join(script_path,'..','29-2D-pores-concept-study-holes','multiple_rows')
+data_directory_holes = os.path.join(script_path,'..','29-2D-pores-concept-study-holes-PAPER','multiple_rows')
 
 simulation_data_folder_holes = find_simulation_by_wsteg(data_directory_holes,wsteg_value_in=1.0)
 
@@ -91,8 +91,8 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_holes)
 starting_hole_to_evaluate = 2
 crack_tip_position_label = "$x_{\mathrm{ct}}$"
 label_crack_length = "$A / L$"
-circular_label = "kreisförmig"
-diamond_label = "quadratisch"
+circular_label = "circular"
+diamond_label = "quadratic"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
 t_label = "$t / [ L / v_{\mathrm{bc}} ]$"
@@ -246,94 +246,7 @@ def normalize_column_to_scale(data, column_to_normalize, x_upper, x_lower):
     return normalized_data
 
 
-def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, 
-                            vlines=None, hlines=None, xlabel=None, ylabel=None, 
-                            title=None, xlabel_fontsize=30, ylabel_fontsize=30, 
-                            title_fontsize=28, tick_fontsize=24, legend_fontsize=30, 
-                            figsize=(10, 8), usetex=False, font_color="black", 
-                            line_colors=None, line_styles=None, plot_dots=False, 
-                            x_range=None, y_range=None):
-    """
-    Plots data from specified columns with customization options, including individual vertical 
-    and horizontal lines for each column, and optional x and y ranges.
 
-    Parameters:
-    - data: DataFrame containing the data to plot.
-    - col_x: Column name for x-axis.
-    - col_y_list: List of column names for y-axis.
-    - output_filename: Name of the file to save the plot.
-    - legend_labels: List of strings for the legend corresponding to col_y_list.
-    - vlines: List of lists of x-coordinates for vertical lines for each y-column.
-    - hlines: List of lists of y-coordinates for horizontal lines for each y-column.
-    - xlabel: Label for x-axis.
-    - ylabel: Label for y-axis.
-    - title: Title of the plot.
-    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
-    - tick_fontsize: Font size for ticks.
-    - legend_fontsize: Font size for legend text.
-    - figsize: Tuple defining figure size.
-    - usetex: Boolean to use LaTeX for text rendering.
-    - font_color: Font color for labels and title.
-    - line_colors: List of colors for each line in col_y_list.
-    - line_styles: List of line styles for each line in col_y_list.
-    - plot_dots: Boolean to toggle plotting dots on the lines.
-    - x_range: Tuple specifying the x-axis range as (xmin, xmax). Default is no restriction.
-    - y_range: Tuple specifying the y-axis range as (ymin, ymax). Default is no restriction.
-    """
-    import matplotlib.pyplot as plt
-
-    plt.figure(figsize=figsize)
-    plt.rc('text', usetex=usetex)
-
-    # Define default colors and styles if not provided
-    default_colors = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
-    line_colors = line_colors or default_colors
-    line_styles = line_styles or ['-', '--', '-.', ':']
-
-    # Combine colors and line styles for variation
-    styles = [(color, style) for color in line_colors for style in line_styles]
-
-    # Plot each column in col_y_list
-    for idx, col_y in enumerate(col_y_list):
-        color, style = styles[idx % len(styles)]
-        label = legend_labels[idx] if legend_labels and idx < len(legend_labels) else col_y
-        plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, 
-                 color=color, linestyle=style, label=label)
-
-        # Add vertical lines for this dataset if specified
-        if vlines and idx < len(vlines):
-            for vline in vlines[idx]:
-                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
-
-        # Add horizontal lines for this dataset if specified
-        if hlines and idx < len(hlines):
-            for hline in hlines[idx]:
-                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
-
-    # Set axis labels and title
-    if xlabel:
-        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
-    if ylabel:
-        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
-    if title:
-        plt.title(title, fontsize=title_fontsize, color=font_color)
-
-    # Apply x and y axis limits if specified
-    if x_range:
-        plt.xlim(x_range)
-    if y_range:
-        plt.ylim(y_range)
-
-    # Customize tick parameters
-    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
-
-    # Add legend with custom font size
-    plt.legend(fontsize=legend_fontsize)
-
-    # Save the plot
-    plt.savefig(output_filename, bbox_inches='tight')
-    plt.close()
-    print(f"Plot saved as {output_filename}")
 
 
 
@@ -471,7 +384,7 @@ hole_positions_out.sort()
 
 
 output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_diamond.png')  
-plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
+ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
                         legend_labels=["$x_{ct}$", "$x_{bc}$"],usetex=True, title=" ", plot_dots=False,
                         xlabel=  t_label,ylabel=crack_tip_position_label+" $/ L$",
                         x_range=[-0.1, 20],
@@ -481,10 +394,14 @@ plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=outpu
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
 ev.plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
-output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_diamond&holes')
-ev.plot_multiple_columns([data, data_holes],3,1,output_file,vlines=[hole_positions_out, hole_positions_out],
+output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_diamond_holes.png')
+ev.plot_multiple_columns([data, data_holes],3,1,output_file,
+                        vlines=[hole_positions_out, hole_positions_out],
                          legend_labels=[diamond_label, circular_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                         y_range=[0.0, 1.5])
+                         y_range=[0.0, 1.5],
+                        markers_only=True,marker_size=4,
+                        use_colors=True
+                         )
 
 
 
@@ -562,7 +479,9 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                      usetex=True)
+                      usetex=True,
+                      use_colors=True,
+                      markers_only=True)
 
 output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_diamond.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -629,7 +548,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                      usetex=True)
+                      usetex=True,markers_only=True,use_colors=True)
 
 output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_holes.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted_holes,
@@ -651,7 +570,14 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
                       legend_labels=[diamond_label, circular_label],
                       xlabel=  t_label,ylabel=label_crack_length,
                       usetex=True,
-                      x_range=[19.5, 22.5])
+                      x_range=[19.5, 22.5],
+                          arrow_x=20.33,  # X position of the arrow
+    arrow_y_start=16.4,  # Start Y position of the arrow
+    arrow_y_end=17.85,  # End Y position of the arrow
+    arrow_color="red",  # Arrow color
+    arrow_linewidth=2,  # Arrow line width
+    arrowhead_size=30  # Arrowhead size)
+)
 
 output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
 ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_holes[len(data_to_plot_sorted_holes)-1]],
@@ -862,36 +788,20 @@ JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 wsteg_holes_to_estimate = wsteg_values_sorted.copy()
 Jx_max_holes = Jx_max_values_sorted.copy()
 
-def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png', 
-                        title_fontsize=24, xlabel_fontsize=24, ylabel_fontsize=24, legend_fontsize=24, tick_fontsize=22, 
-                        plot_dots=False, usetex=False, show_legend=True):
-    """
-    Plots multiple lines on the same graph and saves the output to a file.
+import matplotlib.pyplot as plt
 
-    Parameters:
-    - x_values: 2D list or numpy array containing x values for each line (shape: [n_lines, n_points]).
-    - y_values: 2D list or numpy array containing y values for each line (shape: [n_lines, n_points]).
-    - title: Title of the plot (default: '').
-    - x_label: Label for the x-axis (default: '').
-    - y_label: Label for the y-axis (default: '').
-    - legend_labels: List of labels for each line in the legend (default: None).
-    - output_file: File path (with extension) to save the plot (default: 'plot.png').
-    - title_fontsize: Font size for the plot title.
-    - xlabel_fontsize: Font size for the x-axis label.
-    - ylabel_fontsize: Font size for the y-axis label.
-    - legend_fontsize: Font size for the legend labels.
-    - tick_fontsize: Font size for the axis tick labels.
-    - plot_dots: Boolean to toggle plotting dots on the lines.
-    - usetex: Boolean to use LaTeX for rendering text in labels.
-    - show_legend: Boolean to control whether the legend is shown (default: True).
+def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', legend_labels=None, output_file='plot.png',
+                         title_fontsize=24, xlabel_fontsize=24, ylabel_fontsize=24, legend_fontsize=24, tick_fontsize=22,
+                         plot_dots=False, usetex=False, show_legend=True):
     """
-    import matplotlib.pyplot as plt
-
+    Plots multiple lines on the same graph and saves the output to a file, ensuring two lines are differentiated
+    first by line style and then by color.
+    """
     # Check if the dimensions of x_values and y_values match
     if len(x_values) != len(y_values):
         raise ValueError("The number of x and y value sets must match.")
 
-    # Check if legend_labels are provided, otherwise default to numbered labels
+    # Default legend labels if not provided
     if legend_labels is None:
         legend_labels = [f"Line {i+1}" for i in range(len(x_values))]
 
@@ -899,16 +809,18 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     if usetex:
         plt.rcParams['text.usetex'] = True
 
-    # Define a greyscale color palette
-    greyscale_palette = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    # Define line styles and colors
+    line_styles = ['-', '--']  # Solid and dashed for first two lines
+    colors = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
 
     # Create a new figure
     plt.figure()
 
     # Plot each line
     for i in range(len(x_values)):
-        color = greyscale_palette[i % len(greyscale_palette)]
-        plt.plot(x_values[i], y_values[i], marker='.' if plot_dots else None, linestyle='-', color=color, 
+        linestyle = line_styles[i] if i < len(line_styles) else '-'
+        color = colors[i % len(colors)]
+        plt.plot(x_values[i], y_values[i], marker='.' if plot_dots else None, linestyle=linestyle, color=color, 
                  label=legend_labels[i])
 
     # Set title and axis labels with specific font sizes
@@ -930,15 +842,18 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
     plt.close()
 
 
+
     
 output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{eff} / \sqrt{2.0\mu{G}_c^{num}}$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True,
+)
+
 output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 
 
 output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_hole&diamond.png")
-plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
 
 
  

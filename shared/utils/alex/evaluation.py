@@ -939,95 +939,107 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
                           xlabel_fontsize=24, ylabel_fontsize=24, title_fontsize=24, 
                           tick_fontsize=22, legend_fontsize=22, figsize=(10, 7), 
                           usetex=False, log_y=False, use_broad_palette=False,
-                          x_range=None, y_range=None, use_bw_palette=True, show_markers=False):
+                          x_range=None, y_range=None, use_bw_palette=True, 
+                          use_colors=False, show_markers=False, markers_only=False, marker_size=6,
+                          arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
+                          arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10):
     """
     Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
-    with an optional logarithmic y-axis.
-
-    Parameters:
-        data_objects (list): List of data objects (DataFrames or dict-like) to be plotted.
-        col_x (str): Column name for the x-axis.
-        col_y (str): Column name for the y-axis.
-        output_filename (str): File name to save the plot.
-        vlines (list of lists): List of vertical line positions for each data object.
-        hlines (list of lists): List of horizontal line positions for each data object.
-        xlabel (str): Label for the x-axis.
-        ylabel (str): Label for the y-axis.
-        title (str): Title of the plot.
-        legend_labels (list): List of labels for the legend, corresponding to each data object.
-        xlabel_fontsize (int): Font size for the x-axis label.
-        ylabel_fontsize (int): Font size for the y-axis label.
-        title_fontsize (int): Font size for the plot title.
-        tick_fontsize (int): Font size for the axis tick labels.
-        legend_fontsize (int): Font size for the legend labels.
-        figsize (tuple): Figure dimensions as (width, height) in inches.
-        usetex (bool): Whether to use LaTeX for rendering text in labels.
-        log_y (bool): Whether to display the y-axis in logarithmic scale.
-        use_broad_palette (bool): Whether to use a broad color palette or a narrow, distinguishable palette.
-        x_range (tuple): Tuple specifying the x-axis range as (xmin, xmax). Default is no restriction.
-        y_range (tuple): Tuple specifying the y-axis range as (ymin, ymax). Default is no restriction.
-        use_bw_palette (bool): Whether to use a black-and-white palette with different line styles or shades of grey.
-        show_markers (bool): Whether to display markers on the plot lines.
+    with an optional logarithmic y-axis. Saves the plot as PNG, PGF, and PDF for LaTeX integration.
+    
+    Allows adding a vertical double-tipped arrow with customizable position, length, and color.
+    
+    arrow_x: float or None - X position of the arrow
+    arrow_y_start: float or None - Y starting position of the arrow
+    arrow_y_end: float or None - Y ending position of the arrow
+    arrow_color: str - Color of the arrow
+    arrow_linewidth: float - Line width of the arrow
+    arrowhead_size: float - Size of arrowheads
     """
-
+    
     if usetex:
         plt.rcParams['text.usetex'] = True
-
+        plt.rcParams['pgf.texsystem'] = 'pdflatex'
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['pgf.rcfonts'] = False
+    
     plt.figure(figsize=figsize)
-
-    if use_bw_palette:
-        # Define greys and line styles
-        greys = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    
+    if use_bw_palette and not use_colors:
+        greys = ['black', 'dimgray', 'dimgrey', 'darkgray', 'silver', 'lightgray']
         linestyles = ['-', '--', '-.', ':']
-        colors_and_styles = [(g, ls) for g in greys for ls in linestyles]
-    elif use_broad_palette:
-        colors = list(mcolors.CSS4_COLORS.values())  # Broad palette
+        colors = greys
+    elif use_broad_palette or use_colors:
+        colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'cyan', 'magenta', 'yellow']
         linestyles = ['-']
-        colors_and_styles = [(c, '-') for c in colors]
     else:
-        colors = plt.cm.tab10.colors  # Distinguishable narrow palette
+        colors = list(plt.cm.tab10.colors)
         linestyles = ['-']
-        colors_and_styles = [(c, '-') for c in colors]
-
+    
+    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h']
+    
     for i, data in enumerate(data_objects):
-        color, linestyle = colors_and_styles[i % len(colors_and_styles)]
-
-        plt.plot(data[col_x], data[col_y], marker='.' if show_markers else None, linestyle=linestyle, color=color, 
+        color = colors[i % len(colors)]
+        linestyle = linestyles[i % len(linestyles)]
+        marker = markers[i % len(markers)] if show_markers or markers_only else None
+        
+        plt.plot(data[col_x], data[col_y], 
+                 marker=marker, 
+                 markersize=marker_size,
+                 linestyle='None' if markers_only else linestyle, 
+                 color=color, 
                  label=legend_labels[i] if legend_labels else f'Data {i+1}')
 
         if vlines and i < len(vlines):
             for vline in vlines[i]:
-                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
+                plt.axvline(x=vline, color="black", linestyle='--', linewidth=0.5)
 
         if hlines and i < len(hlines):
             for hline in hlines[i]:
-                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
-
+                plt.axhline(y=hline, color="black", linestyle='--', linewidth=0.5)
+    
     ax = plt.gca()
     if log_y:
         ax.set_yscale('log')
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
         ax.yaxis.set_minor_formatter(plt.NullFormatter())
-
+    
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
-
+    
     plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
     plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
     plt.title(title if title else ' ', fontsize=title_fontsize)
     plt.legend(fontsize=legend_fontsize)
-
+    
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
     if not log_y:
         ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
-
+    
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-
+    
+    # Add vertical double-tipped arrow if specified
+    if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
+        plt.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
+                     arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
+    
+    # Save as PNG
     plt.savefig(output_filename)
+    
+    # Save as PGF for LaTeX
+    pgf_filename = output_filename.replace('.png', '.pgf')
+    plt.savefig(pgf_filename)
+    
+    # Save as PDF for LaTeX
+    pdf_filename = output_filename.replace('.png', '.pdf')
+    plt.savefig(pdf_filename)
+    
     plt.close()
-    print(f"Plot saved as {output_filename}")
+    print(f"Plot saved as {output_filename}, {pgf_filename}, and {pdf_filename}")
+
+
     
     
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', 
@@ -1035,38 +1047,19 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
                         usetex=True, log_y=False, use_broad_palette=False, 
                         x_range=None, y_range=None, use_bw_palette=True, show_markers=False, 
                         xlabel_fontsize=28, ylabel_fontsize=28, title_fontsize=24, 
-                        tick_fontsize=26, legend_fontsize=26):
+                        tick_fontsize=26, legend_fontsize=26,
+                        arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
+                        arrow_color="black", arrow_linewidth=1.5):
     """
-    Plots multiple lines on the same graph with additional customization options and saves the plot to a file.
-    
-    Parameters:
-    - x_values: 2D list or numpy array containing x values for each line (shape: [n_lines, n_points]).
-    - y_values: 2D list or numpy array containing y values for each line (shape: [n_lines, n_points]).
-    - title: Title of the plot (default: '').
-    - x_label: Label for the x-axis (default: '').
-    - y_label: Label for the y-axis (default: '').
-    - legend_labels: List of labels for each line in the legend (default: None).
-    - output_file: File path (with extension) to save the plot (default: 'plot.png').
-    - figsize: Figure dimensions as (width, height) in inches (default: (10, 6)).
-    - usetex: Whether to use LaTeX for rendering text in labels (default: False).
-    - log_y: Whether to display the y-axis in logarithmic scale (default: False).
-    - use_broad_palette: Whether to use a broad color palette or a narrow, distinguishable palette (default: False).
-    - x_range: Tuple specifying the x-axis range as (xmin, xmax) (default: None).
-    - y_range: Tuple specifying the y-axis range as (ymin, ymax) (default: None).
-    - use_bw_palette: Whether to use a black-and-white palette with different line styles or shades of grey (default: True).
-    - show_markers: Whether to display markers on the plot lines (default: False).
-    - xlabel_fontsize: Font size for the x-axis label (default: 18).
-    - ylabel_fontsize: Font size for the y-axis label (default: 18).
-    - title_fontsize: Font size for the plot title (default: 18).
-    - tick_fontsize: Font size for the axis tick labels (default: 16).
-    - legend_fontsize: Font size for the legend labels (default: 16).
+    Plots multiple lines on the same graph with additional customization options, including an optional double-tipped arrow.
+    Saves the plot to both PNG and PGF files.
     """
     
     if usetex:
         plt.rcParams['text.usetex'] = True
-
+    
     plt.figure(figsize=figsize)
-
+    
     # Choose palette and line styles based on user options
     if use_bw_palette:
         greys = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
@@ -1080,26 +1073,26 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
         colors = plt.cm.tab10.colors  # Distinguishable narrow palette
         linestyles = ['-']
         colors_and_styles = [(c, '-') for c in colors]
-
+    
     # Plot each line with custom color, style, and markers if requested
     for i in range(len(x_values)):
         color, linestyle = colors_and_styles[i % len(colors_and_styles)]
         plt.plot(x_values[i], y_values[i], marker='.' if show_markers else None, linestyle=linestyle, color=color, 
                  label=legend_labels[i] if legend_labels else f'Line {i+1}')
-
+    
     # Optionally add x and y axis ranges
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
-
+    
     # Optionally set y-axis to logarithmic scale
     if log_y:
         ax = plt.gca()
         ax.set_yscale('log')
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
         ax.yaxis.set_minor_formatter(plt.NullFormatter())
-
+    
     # Set labels and title with custom font sizes
     plt.xlabel(x_label, fontsize=xlabel_fontsize)
     plt.ylabel(y_label, fontsize=ylabel_fontsize)
@@ -1107,17 +1100,24 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
     
     # Add legend if there are labels
     plt.legend(fontsize=legend_fontsize)
-
+    
     # Customize tick labels size
     ax = plt.gca()
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-
-    # Save the plot to the specified file
-    plt.savefig(output_file,dpi=300)
-
+    
+    # Add vertical double-tipped arrow if specified
+    if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
+        plt.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
+                     arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
+    
+    # Save the plot to PNG and PGF
+    plt.savefig(output_file, dpi=300)
+    pgf_file = output_file.replace('.png', '.pgf')
+    plt.savefig(pgf_file)
+    
     # Close the plot to free up memory
     plt.close()
-    print(f"Plot saved as {output_file}")
+    print(f"Plot saved as {output_file} and {pgf_file}")
     
     
 def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y",
@@ -1465,31 +1465,155 @@ def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None,
 
 
 
-def read_all_simulation_data(base_path):
+# def read_all_simulation_data(base_path):
+#     simulation_results = []
+
+#     for folder_name in os.listdir(base_path):
+#         if folder_name.startswith("simulation_"):
+#             data_path = os.path.join(base_path, folder_name, "run_simulation_graphs.txt")
+#             parameter_path = os.path.join(base_path, folder_name, "parameters.txt")
+
+#             try:
+#                 # Read the file as strings first
+#                 data = pd.read_csv(
+#                     data_path, 
+#                     delim_whitespace=True, 
+#                     header=None, 
+#                     skiprows=1, 
+#                     dtype=str
+#                 )
+                
+#                 # Convert to numeric, coercing errors (replaces non-numeric with NaN)
+#                 data = data.apply(pd.to_numeric, errors='coerce')
+                
+#                 parameters = pp.read_parameters_file(parameter_path)
+#                 simulation_results.append((data, parameters))
+
+#             except Exception as e:
+#                 print(f"Error reading files in {folder_name}: {e}")
+
+#     return simulation_results
+
+
+
+def read_all_simulation_data(base_path, graphs_filename = "run_simulation_graphs.txt", parameter_filename = "parameters.txt"):
+    # List to store tuples of (data, parameters)
     simulation_results = []
 
+    # Iterate through each item in the base directory
     for folder_name in os.listdir(base_path):
+        # Check if the folder name starts with "simulation_"
         if folder_name.startswith("simulation_"):
-            data_path = os.path.join(base_path, folder_name, "run_simulation_graphs.txt")
-            parameter_path = os.path.join(base_path, folder_name, "parameters.txt")
-
+            # Define paths for the data and parameter files
+            data_path = os.path.join(base_path, folder_name, graphs_filename)
+            parameter_path = os.path.join(base_path, folder_name, parameter_filename)
+            
+            # Try to read the data and parameter files
             try:
-                # Read the file as strings first
-                data = pd.read_csv(
-                    data_path, 
-                    delim_whitespace=True, 
-                    header=None, 
-                    skiprows=1, 
-                    dtype=str
-                )
+                # Read the simulation data
+                data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
                 
-                # Convert to numeric, coercing errors (replaces non-numeric with NaN)
-                data = data.apply(pd.to_numeric, errors='coerce')
-                
+                # Read the parameters
                 parameters = pp.read_parameters_file(parameter_path)
+                
+                # Store the data and parameters together as a tuple
                 simulation_results.append((data, parameters))
-
+                
             except Exception as e:
                 print(f"Error reading files in {folder_name}: {e}")
-
+    
     return simulation_results
+
+
+
+def plot_columns_multiple_y(data, col_x, col_y_list, output_filename, legend_labels=None, 
+                            vlines=None, hlines=None, xlabel=None, ylabel=None, 
+                            title=None, xlabel_fontsize=30, ylabel_fontsize=30, 
+                            title_fontsize=28, tick_fontsize=24, legend_fontsize=30, 
+                            figsize=(10, 8), usetex=False, font_color="black", 
+                            line_colors=None, line_styles=None, plot_dots=False, 
+                            x_range=None, y_range=None):
+    """
+    Plots data from specified columns with customization options, including individual vertical 
+    and horizontal lines for each column, and optional x and y ranges.
+
+    Parameters:
+    - data: DataFrame containing the data to plot.
+    - col_x: Column name for x-axis.
+    - col_y_list: List of column names for y-axis.
+    - output_filename: Name of the file to save the plot (usually ending in .png).
+    - legend_labels: List of strings for the legend corresponding to col_y_list.
+    - vlines: List of lists of x-coordinates for vertical lines for each y-column.
+    - hlines: List of lists of y-coordinates for horizontal lines for each y-column.
+    - xlabel: Label for x-axis.
+    - ylabel: Label for y-axis.
+    - title: Title of the plot.
+    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
+    - tick_fontsize: Font size for ticks.
+    - legend_fontsize: Font size for legend text.
+    - figsize: Tuple defining figure size.
+    - usetex: Boolean to use LaTeX for text rendering.
+    - font_color: Font color for labels and title.
+    - line_colors: List of colors for each line in col_y_list.
+    - line_styles: List of line styles for each line in col_y_list.
+    - plot_dots: Boolean to toggle plotting dots on the lines.
+    - x_range: Tuple specifying the x-axis range as (xmin, xmax). Default is no restriction.
+    - y_range: Tuple specifying the y-axis range as (ymin, ymax). Default is no restriction.
+    """
+    
+    plt.figure(figsize=figsize)
+    plt.rc('text', usetex=usetex)
+    plt.rc('pgf', texsystem='pdflatex')  # Ensure PGF compatibility
+
+    # Define default colors and styles if not provided
+    default_colors = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
+    line_colors = line_colors or default_colors
+    line_styles = line_styles or ['-', '--', '-.', ':']
+
+    # Combine colors and line styles for variation
+    styles = [(color, style) for color in line_colors for style in line_styles]
+
+    # Plot each column in col_y_list
+    for idx, col_y in enumerate(col_y_list):
+        color, style = styles[idx % len(styles)]
+        label = legend_labels[idx] if legend_labels and idx < len(legend_labels) else col_y
+        plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, 
+                 color=color, linestyle=style, label=label)
+
+        # Add vertical lines for this dataset if specified
+        if vlines and idx < len(vlines):
+            for vline in vlines[idx]:
+                plt.axvline(x=vline, color=color, linestyle='--', linewidth=0.5)
+
+        # Add horizontal lines for this dataset if specified
+        if hlines and idx < len(hlines):
+            for hline in hlines[idx]:
+                plt.axhline(y=hline, color=color, linestyle='--', linewidth=0.5)
+
+    # Set axis labels and title
+    if xlabel:
+        plt.xlabel(xlabel, fontsize=xlabel_fontsize, color=font_color)
+    if ylabel:
+        plt.ylabel(ylabel, fontsize=ylabel_fontsize, color=font_color)
+    if title:
+        plt.title(title, fontsize=title_fontsize, color=font_color)
+
+    # Apply x and y axis limits if specified
+    if x_range:
+        plt.xlim(x_range)
+    if y_range:
+        plt.ylim(y_range)
+
+    # Customize tick parameters
+    plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
+
+    # Add legend with custom font size
+    plt.legend(fontsize=legend_fontsize)
+
+    # Save the plot as PNG and PGF for LaTeX
+    pgf_filename = output_filename.replace(".png", ".pgf")
+    plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(pgf_filename, bbox_inches='tight')
+    plt.close()
+    
+    print(f"Plot saved as {output_filename} and {pgf_filename}")

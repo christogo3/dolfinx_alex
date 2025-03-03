@@ -16,7 +16,7 @@ def read_data(file_path):
                 data.append([float(value) for value in line.split()])
     return np.array(data)
 
-def plot_columns(folder_paths, x_col, y_col, output_path, x_label='', y_label='', title='', font_size=12):
+def plot_columns(folder_paths, x_col, y_col, output_path, x_label='', y_label='', title='', font_size=20):
     """
     Reads data from phasefield_mbb_graphs.txt in the given folders and plots the specified columns.
     
@@ -28,9 +28,10 @@ def plot_columns(folder_paths, x_col, y_col, output_path, x_label='', y_label=''
         x_label (str): Label for the x-axis.
         y_label (str): Label for the y-axis.
         title (str): Title of the plot.
-        font_size (int): Font size for the labels and title.
+        font_size (int): Font size for the labels and title (default: 20).
     """
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 9))
+    plt.rcParams.update({'font.size': font_size})  # Set default font size for all text elements
     
     for folder_path in folder_paths:
         file_path = os.path.join(folder_path, 'phasefield_mbb_graphs.txt')
@@ -44,16 +45,13 @@ def plot_columns(folder_paths, x_col, y_col, output_path, x_label='', y_label=''
         else:
             print(f"File not found: {file_path}")
     
-    plt.xlabel(x_label, fontsize=font_size)
-    plt.ylabel(y_label, fontsize=font_size)
-    plt.title(title, fontsize=font_size)
+    plt.xlabel(x_label, fontsize=font_size + 2)
+    plt.ylabel(y_label, fontsize=font_size + 2)
+    plt.title(title, fontsize=font_size + 4)
     plt.legend(fontsize=font_size)
-    plt.grid(True)
-    plt.tight_layout()
     
-    # Save the plot to the specified output path
     plt.savefig(output_path)
-    plt.close()
+    plt.show()
 
 script_path = os.path.dirname(__file__)
 output_file = os.path.join(script_path,"Ry_vs_uy_top.png")
@@ -66,7 +64,7 @@ plot_columns(
     y_col=2,  # Example: third data column
     output_path=output_file,
     x_label='u_y',
-    y_label='Ry',
+    y_label='R_y',
     title='',
-    font_size=14
+    font_size=30
 )
