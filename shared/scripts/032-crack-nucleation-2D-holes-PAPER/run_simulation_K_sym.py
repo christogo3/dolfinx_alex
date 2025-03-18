@@ -113,16 +113,17 @@ dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
 # setting K1 so it always breaks
-E_mod = alex.linearelastic.get_emod(lam=la.value,mu=mu.value) # TODO should be effective elastic parameters
 # epsilon0 = dlfx.fem.Constant(domain, (y_max_all-y_min_all) / 50.0)
 hh = 0.02 # TODO change
 Gc_num = (1.0 + hh / epsilon.value ) * gc.value
-# K1 = dlfx.fem.Constant(domain, 1.5 * math.sqrt(Gc_num * E_mod))
 
-K1 = dlfx.fem.Constant(domain, 2.5 * math.sqrt(1.0 * 2.5))
-# K1 = dlfx.fem.Constant(domain, 5.0 * math.sqrt(1.0 * 2.5))
+Gc_ref = 1.0
+mu_ref = 1.0
+K1_bc = dlfx.fem.Constant(domain, 2.5 * math.sqrt(Gc_ref * 2.5 * mu_ref))
 
-# K1 = dlfx.fem.Constant(domain, 10.0 * math.sqrt(1.0 * 2.5))
+nu_bc = 0.25
+E_bc = 2.5
+mu_bc = E_bc / (2.0 * (1.0+nu_bc))
 
 # define crack by boundary
 dhole = 1.0
@@ -215,8 +216,8 @@ def compute_surf_displacement():
     r = ufl.sqrt(ufl.inner(dx,dx) + ufl.inner(dy,dy))
     theta = ufl.atan2(dy, dx)
     
-    u_x = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.cos(0.5 * theta)
-    u_y = K1 / (2.0 * mu * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu - ufl.cos(theta)) * ufl.sin(0.5 * theta)
+    u_x = K1_bc / (2.0 * mu_bc * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu_bc - ufl.cos(theta)) * ufl.cos(0.5 * theta)
+    u_y = K1_bc / (2.0 * mu_bc * math.sqrt(2.0 * math.pi))  * ufl.sqrt(r) * (3.0 - 4.0 * nu_bc - ufl.cos(theta)) * ufl.sin(0.5 * theta)
     u_z = ufl.as_ufl(0.0)
     return ufl.as_vector([u_x, u_y]) # only 2 components in 2D
 
@@ -271,7 +272,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,1.0)
+postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
@@ -319,7 +320,7 @@ def after_timestep_success(t,dt,iters):
         return 
     
 
-    # pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
+    pp.write_phasefield_mixed_solution(domain,outputfile_xdmf_path, w, t, comm)
 
 def after_timestep_restart(t,dt,iters):
     w.x.array[:] = wrestart.x.array[:]

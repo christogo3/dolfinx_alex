@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Paths to subfolders
-SUBFOLDER1="032-crack-nucleation-2D"
-SUBFOLDER2="033-crack-nucleation-diamond"
+SUBFOLDER1="032-crack-nucleation-2D-PAPER"
+SUBFOLDER2="033-crack-nucleation-diamond-PAPER"
 
 # Script names
 SCRIPT1="master_all.sh"

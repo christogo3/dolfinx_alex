@@ -172,6 +172,8 @@ circular_label = "circular"
 diamond_label = "quadratic"
 guess_label = "estimate"
 
+velocity_bc_label = "$\dot{x}^{bc}$"
+
 
 # col_crack_length = 3
 # label_crack_length = "$x_{ct} / L$"
@@ -271,7 +273,7 @@ ev.plot_multiple_columns(
     col_y=col_crack_length,
     output_filename=output_file,
     legend_labels=legend_entries_sorted,
-    xlabel="$t / ( L / v_{ct})$",
+    xlabel="$t / ( L / $" + velocity_bc_label,
     ylabel=label_crack_length,
     usetex=True,
     use_bw_palette=True,
@@ -355,7 +357,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       usetex=True,
                       use_bw_palette=True,
                       show_markers=False)
@@ -375,9 +377,10 @@ output_file = os.path.join(script_path,"04B_gc_vs_initial_crack_length_circluar&
 ev.plot_multiple_lines([data_circular, data_diamond], 
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
-                       x_label="$G_c / G_c^{{0}}$",y_label=initial_crack_label+" / $L$",
+                       x_label="$G_c / G_c^{\mathrm{ref}}$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file,
-                       x_range=[0.0, 10.0])
+                       x_range=[0.0, 10.0],
+                       y_range=[0.0,0.6])
 
 
 
@@ -425,7 +428,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length, usetex=True,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length, usetex=True,
                       use_bw_palette=True,
                       x_range=[-0.1,2.5],
                       y_range=[1.0, 3.5])
@@ -497,7 +500,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       x_range=[-0.1, 4.8])
 
 output_file = os.path.join(script_path, "07_E_vs_initial_crack_length.png")
@@ -516,7 +519,7 @@ ev.plot_multiple_lines([data_circular, data_diamond],
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
                        x_label="$E / \mu$",y_label=initial_crack_label+" / $L$",
-                       output_file=output_file)
+                       output_file=output_file,y_range=[0.0, 0.6])
 
 
 
@@ -565,7 +568,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       x_range=[-0.1, 4.0],
                       y_range=[1.0,3.5])
 
@@ -585,10 +588,10 @@ def compute_da(epsilon, C1, C2, a):
     Solves the equation:
     0.5 * C1 / epsilon = 0.5 * C2 / (a + da) + da
     """
-    lhs = 0.5 * C1 / epsilon
+    lhs =  C1 / epsilon
 
     def equation(da):
-        return lhs - (0.5 * C2 / (a + da) + da)
+        return lhs - (C2 / (a + da) + da)
 
     # Use numerical root finding to solve for da
     da_initial_guess = 0.1  # Initial guess for da
@@ -616,8 +619,8 @@ def get_da_vs_epsilon(epsilon_values, C1, C2, a):
             da_values.append(np.nan)  # Handle invalid values
     return epsilon_values, da_values
 
-C1 = 0.08
-C2 = 0.25 #0.00001
+C1 = 0.04
+C2 = 0.125 #0.00001
 aa = 4.5
 
 # Epsilon range
@@ -756,7 +759,7 @@ ev.plot_multiple_lines([data_circular, data_diamond,epsilon_values_guess],
 #                       col_y=9,
 #                       output_filename=output_file,
 #                       legend_labels=legend_entries_sorted,
-#                       xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length)
+#                       xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length)
 
 
 # output_file = os.path.join(script_path, '11_cracklength_vs_sigc.png') 
@@ -816,7 +819,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       y_range=[1.0, 3.5],
                       x_range=[-0.1, 4.0])
 
@@ -889,7 +892,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       y_range=[1.0, 3.5],
                       x_range=[-0.1, 4.0])
 

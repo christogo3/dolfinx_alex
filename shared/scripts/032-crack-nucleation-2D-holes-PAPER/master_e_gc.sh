@@ -27,16 +27,24 @@ ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 #   "1.0 8.0"   # E=1.5, Gc=4.0
 # )
 
-# Define tuples of (E, Gc) such that E * Gc = 4.0
+# # Define tuples of (E, Gc) such that E * Gc = 4.0
+# E_GC_PAIRS=(
+#   "8.0 1.0"   # E=6.0, Gc=1.0
+#   "4.0 2.0"   # E=3.0, Gc=2.0
+#   "2.0 4.0"   # E=2.0, Gc=3.0
+#   "1.0 8.0"   # E=1.5, Gc=4.0
+#   "1.5 4.0" 
+#   "6.0 1.0"   # E=6.0, Gc=1.0
+#   "2.0 3.0"   # E=2.0, Gc=3.0
+# )
 E_GC_PAIRS=(
-  "8.0 1.0"   # E=6.0, Gc=1.0
-  "4.0 2.0"   # E=3.0, Gc=2.0
-  "2.0 4.0"   # E=2.0, Gc=3.0
-  "1.0 8.0"   # E=1.5, Gc=4.0
-  "1.5 4.0" 
-  "6.0 1.0"   # E=6.0, Gc=1.0
-  "2.0 3.0"   # E=2.0, Gc=3.0
+  "2.5 1.0"   # E=2.5, Gc=1.0
+  "2.0 1.25"  # E=2.0, Gc=1.25
+  "1.5 1.67"  # E=1.5, Gc=1.67
+  "1.25 2.0"  # E=1.25, Gc=2.0
+  "1.0 2.5"   # E=1.0, Gc=2.5
 )
+
 
 # Path to the script.sh (run_simulations.sh)
 SCRIPT="./script.sh"

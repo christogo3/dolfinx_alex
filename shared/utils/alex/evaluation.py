@@ -1044,49 +1044,48 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', 
                         legend_labels=None, output_file='plot.png', figsize=(10, 8), 
-                        usetex=True, log_y=False, use_broad_palette=False, 
-                        x_range=None, y_range=None, use_bw_palette=True, show_markers=False, 
+                        usetex=True, log_y=False, 
+                        x_range=None, y_range=None, show_markers=False, 
                         xlabel_fontsize=28, ylabel_fontsize=28, title_fontsize=24, 
                         tick_fontsize=26, legend_fontsize=26,
                         arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
-                        arrow_color="black", arrow_linewidth=1.5):
+                        arrow_color="black", arrow_linewidth=1.5,
+                        line_colors=None, line_styles=None):
     """
-    Plots multiple lines on the same graph with additional customization options, including an optional double-tipped arrow.
-    Saves the plot to both PNG and PGF files.
+    Plots multiple lines on the same graph with additional customization options,
+    including an optional double-tipped arrow. Saves the plot to both PNG and PGF files.
+    Allows specifying colors and line styles for each line.
     """
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    from matplotlib.ticker import LogLocator
     
     if usetex:
         plt.rcParams['text.usetex'] = True
     
     plt.figure(figsize=figsize)
     
-    # Choose palette and line styles based on user options
-    if use_bw_palette:
-        greys = ['black', 'dimgray', 'gray', 'darkgray', 'silver']
-        linestyles = ['-', '--', '-.', ':']
-        colors_and_styles = [(g, ls) for g in greys for ls in linestyles]
-    elif use_broad_palette:
-        colors = list(mcolors.CSS4_COLORS.values())  # Broad palette
-        linestyles = ['-']
-        colors_and_styles = [(c, '-') for c in colors]
-    else:
-        colors = plt.cm.tab10.colors  # Distinguishable narrow palette
-        linestyles = ['-']
-        colors_and_styles = [(c, '-') for c in colors]
+    # Default color and linestyle options if none are provided
+    default_colors = plt.cm.tab10.colors  # Distinguishable colors
+    default_linestyles = ['-', '--', '-.', ':']
     
-    # Plot each line with custom color, style, and markers if requested
+    # Assign colors and styles based on input or default values
     for i in range(len(x_values)):
-        color, linestyle = colors_and_styles[i % len(colors_and_styles)]
-        plt.plot(x_values[i], y_values[i], marker='.' if show_markers else None, linestyle=linestyle, color=color, 
+        color = line_colors[i] if line_colors and i < len(line_colors) else default_colors[i % len(default_colors)]
+        linestyle = line_styles[i] if line_styles and i < len(line_styles) else default_linestyles[i % len(default_linestyles)]
+        
+        plt.plot(x_values[i], y_values[i], 
+                 marker='.' if show_markers else None, 
+                 linestyle=linestyle, color=color, 
                  label=legend_labels[i] if legend_labels else f'Line {i+1}')
     
-    # Optionally add x and y axis ranges
+    # Set axis ranges if specified
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
     
-    # Optionally set y-axis to logarithmic scale
+    # Set y-axis to logarithmic scale if requested
     if log_y:
         ax = plt.gca()
         ax.set_yscale('log')
@@ -1118,6 +1117,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
     # Close the plot to free up memory
     plt.close()
     print(f"Plot saved as {output_file} and {pgf_file}")
+
     
     
 def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y",
@@ -1391,39 +1391,28 @@ def get_initial_crack_length(find_max_y_under_x_threshold, data,x_threshold=None
     return initial_crack_length
 
 
-def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None, 
-                 xlabel=None, ylabel=None, title=None, 
-                 xlabel_fontsize=22, ylabel_fontsize=22, title_fontsize=22, 
-                 tick_fontsize=20, figsize=(10, 6), usetex=False, 
-                 font_color="black", line_color="black", plot_dots=False, 
+def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None,
+                 xlabel=None, ylabel=None, title=None,
+                 xlabel_fontsize=22, ylabel_fontsize=22, title_fontsize=22,
+                 tick_fontsize=20, figsize=(10, 6), usetex=False,
+                 font_color="black", line_color="black", plot_dots=False,
                  x_range=None, y_range=None):
     """
-    Plots data from two specified columns with customization options.
-
-    Parameters:
-    - data: DataFrame containing the data to plot.
-    - col_x: Column name for x-axis.
-    - col_y: Column name for y-axis.
-    - output_filename: Name of the file to save the plot.
-    - vlines: List of x-coordinates for vertical lines to draw.
-    - hlines: List of y-coordinates for horizontal lines to draw.
-    - xlabel: Label for x-axis.
-    - ylabel: Label for y-axis.
-    - title: Title of the plot.
-    - xlabel_fontsize, ylabel_fontsize, title_fontsize: Font sizes for respective labels and title.
-    - tick_fontsize: Font size for ticks.
-    - figsize: Tuple defining figure size.
-    - usetex: Boolean to use LaTeX for text rendering.
-    - font_color: Font color for labels and title.
-    - line_color: Line color for the plot.
-    - plot_dots: Boolean to toggle plotting dots on the line.
-    - x_range: Tuple defining the range for the x-axis (min, max).
-    - y_range: Tuple defining the range for the y-axis (min, max).
+    Plots data from two specified columns with customization options and saves as PNG and PGF.
     """
     import matplotlib.pyplot as plt
+    import matplotlib as mpl
+
+    # Enable LaTeX rendering for PGF output
+    mpl.use("pgf")
+    mpl.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        "text.usetex": usetex,
+        "font.family": "serif",
+        "pgf.rcfonts": False,
+    })
 
     plt.figure(figsize=figsize)
-    plt.rc('text', usetex=usetex)
 
     # Plot the data
     plt.plot(data[col_x], data[col_y], marker='.' if plot_dots else None, color=line_color, label=col_y)
@@ -1455,11 +1444,9 @@ def plot_columns(data, col_x, col_y, output_filename, vlines=None, hlines=None,
     # Customize tick parameters
     plt.tick_params(axis='both', which='major', labelsize=tick_fontsize, labelcolor=font_color)
 
-    # Add legend (if needed, uncomment below)
-    # plt.legend()
-
-    # Save the plot
+    # Save the plot in both PNG and PGF formats
     plt.savefig(output_filename, bbox_inches='tight')
+    plt.savefig(output_filename.replace('.png', '.pgf'), bbox_inches='tight')
     plt.close()
 
 

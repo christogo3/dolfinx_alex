@@ -67,7 +67,7 @@ def normalize_Jx_to_Gc_num(gc_num_quotient, data):
     data.iloc[:, 1] = data.iloc[:, 1] / gc_num_quotient
 normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
-output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
+output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf_2.png')
 ev.plot_columns(data, 3, 1, output_file,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False, y_range=[0.0,1.2])
 
 

@@ -12,13 +12,14 @@ EPS_VALUES=(0.1)            # Example: Epsilon values
 ELEMENT_ORDER_VALUES=(1)    # Example: Element orders
 
 LAM_MUE_PAIRS=(
-  "0.0 3.0"      # nu=0.0
-  "0.682 2.7273" # nu=0.1
-  "1.667 2.5"    # nu=0.2
-  "3.461 2.3077" # nu=0.3
-  "8.569 2.1429" # nu=0.4
-  "15.284 2.0833" # nu=0.45
+  "0.000 1.250"    # nu=0.0
+  "0.284 1.136"    # nu=0.1
+  "0.694 1.042"    # nu=0.2
+  "1.000 1.000"    # nu=0.25
+  "1.442 0.962"    # nu=0.3
+  "3.571 0.893"    # nu=0.4
 )
+
 
 # Path to the script.sh (run_simulations.sh)
 SCRIPT="./script.sh"

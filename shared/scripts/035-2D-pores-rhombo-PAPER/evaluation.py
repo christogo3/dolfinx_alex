@@ -98,7 +98,7 @@ estimate_label = "estimate"
 t_label = "$t / [ L / v_{\mathrm{bc}} ]$"
 J_x_label = "$J_{x} / G_c^{\mathrm{num}}$"
 J_x_max_label="$J_{x}^{\mathrm{max}} / G_c^{\mathrm{num}}$"
-
+velocity_bc_label = "$\dot{x}^{bc}$"
 
 
 
@@ -1077,7 +1077,7 @@ wsteg_values_sorted_diamond = [wsteg_values[i] for i in sorted_indices]
 E_star_diamond = [E_star_diamond[i] for i in sorted_indices]
 
 output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_hole&diamond.png")
-plot_multiple_lines([wsteg_values_sorted_holes,wsteg_values_sorted_diamond],[E_star_holes, E_star_diamond],x_label="$w_s / L$",y_label="$ E^{'}_{\mathrm{eff}} / \mu$",legend_labels=[circular_label, diamond_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines([wsteg_values_sorted_holes,wsteg_values_sorted_diamond],[E_star_holes, E_star_diamond],x_label="$w_s / L$",y_label="$ E^{'}_{\mathrm{eff}} / \mu$",legend_labels=[circular_label, diamond_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
 
 # only works if same number of wsteg for both
 E_star_ratio = [E_star_holes[i] / E_star_diamond[i] for i in range(len(E_star_holes))]

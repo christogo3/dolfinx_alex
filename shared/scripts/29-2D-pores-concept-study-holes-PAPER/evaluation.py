@@ -82,6 +82,7 @@ circular_label = "circular"
 diamond_label = "diamond"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
+velocity_bc_label = "$\dot{x}^{bc}$"
 
 
 
@@ -495,7 +496,7 @@ hole_positions_out.sort()
 output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_holes.png')  
 plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
                         legend_labels=["$x_{ct}^{sim}$", "$x_{ct}^{K_I}$"],usetex=True, title=" ", plot_dots=True,
-                        xlabel="$t / [ L / v_{K_I} ]$",ylabel=crack_tip_position_label+" $/ L$",)
+                        xlabel="$t / ( L / $" + velocity_bc_label,ylabel=crack_tip_position_label+" $/ L$",)
 
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
 plot_columns(data, 3, 1, output_file,vlines=hole_positions_out,xlabel="$x_{ct} / L$",ylabel="$J_{x} / G_c$", usetex=True, title=" ", plot_dots=True)
@@ -587,7 +588,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=9,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       usetex=True)
 
 output_file = os.path.join(script_path, 'Jx_vs_t_all.png')  
@@ -653,7 +654,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 #                       col_y=9,
 #                       output_filename=output_file,
 #                       legend_labels=legend_entries_sorted,
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
+#                       xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
 #                       usetex=True)
 
 
@@ -665,7 +666,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 #                       col_y=9,
 #                       output_filename=output_file,
 #                       legend_labels=[diamond_label, circular_label],
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel=label_crack_length,
+#                       xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
 #                       usetex=True)
 
 # output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_diamond&holes.png')  
@@ -674,7 +675,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 #                       col_y=3,
 #                       output_filename=output_file,
 #                       legend_labels=[diamond_label, circular_label],
-#                       xlabel="$t / [ L / v_{K_I} ]$",ylabel="$x_{ct} / L$",
+#                       xlabel="$t / ( L / $" + velocity_bc_label,ylabel="$x_{ct} / L$",
 #                       usetex=True)
 
 

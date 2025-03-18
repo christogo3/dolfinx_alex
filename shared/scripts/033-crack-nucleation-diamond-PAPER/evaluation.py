@@ -161,13 +161,15 @@ init_crack = DHOLE/2.0
 col_crack_length = 9
 label_crack_length = "$A / L$"
 
-diamond_folder_name = "033-crack-nucleation-diamond"
+diamond_folder_name = "033-crack-nucleation-diamond-PAPER"
+circular_holes_folder_name = "032-crack-nucleation-2D-holes-PAPER"
 
 height_label = "$h_d$"
 width_label = "$w_d$"
 initial_crack_label = "$\Delta{a}$"
 circular_label = "circular hole"
-diamond_label = "diamond hole"
+diamond_label = "quadratic hole"
+velocity_bc_label = "$\dot{x}^{bc}$"
 
 
 # col_crack_length = 3
@@ -262,7 +264,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $"+ velocity_bc_label,ylabel=label_crack_length,
                       usetex=True,
                       use_bw_palette=True,
                       show_markers=False,
@@ -283,7 +285,7 @@ data_file_name = "02.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(height_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 height_circular, init_crack_height_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 height_diamond, init_crack_height_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -323,7 +325,7 @@ for sim in simulation_results:
     gc_values.append(gc)
     initial_crack_length_values.append(initial_crack_length)
     data_to_plot.append(data)
-    legend_entry = f"$G_c$: {gc}$G_c^{{0}}$"
+    legend_entry = f"$G_c$: {gc}"+"$G_c^{\text{ref}}$"
     legend_entries.append(legend_entry)
     
 sorted_indices = sorted(range(len(gc_values)), key=lambda i: gc_values[i])
@@ -338,19 +340,19 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       usetex=True,
                       use_bw_palette=True,
                       show_markers=False)
 
 output_file = os.path.join(script_path, "04_gc_vs_initial_crack_length.png")
-ev.plot_single_line(gc_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$G_c / G_c^{{0}}$",ylabel=(initial_crack_label + " / $L$"),usetex=True,y_range=[0.0,0.8],x_range=[-0.1, 12.0])
+ev.plot_single_line(gc_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$G_c / G_c^{\text{ref}}$",ylabel=(initial_crack_label + " / $L$"),usetex=True,y_range=[0.0,0.8],x_range=[-0.1, 12.0])
 
 data_file_name = "04.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(gc_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -358,7 +360,7 @@ output_file = os.path.join(script_path,"04B_gc_vs_initial_crack_length_circluar&
 ev.plot_multiple_lines([data_circular, data_diamond], 
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
-                       x_label="$G_c / G_c^{{0}}$",y_label=initial_crack_label+" / $L$",
+                       x_label="$G_c / G_c^{\text{ref}}$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file,
                        x_range=[0.0, 12.0])
 
@@ -408,7 +410,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length, usetex=True,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length, usetex=True,
                       use_bw_palette=True,
                       x_range=[-0.1,2.5],
                       y_range=[1.0, 3.5])
@@ -421,7 +423,7 @@ data_file_name = "05.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(width_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -480,17 +482,17 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       x_range=[-0.1, 4.8])
 
 output_file = os.path.join(script_path, "07_E_vs_initial_crack_length.png")
-ev.plot_single_line(E_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$E / \mu$",ylabel=initial_crack_label+" / $L$", y_range=[0.0, 0.6])
+ev.plot_single_line(E_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$E / \mu^{\text{ref}}$",ylabel=initial_crack_label+" / $L$", y_range=[0.0, 0.6])
 
 data_file_name = "07.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(E_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -498,8 +500,9 @@ output_file = os.path.join(script_path,"07B_E_vs_initial_crack_length_circluar&d
 ev.plot_multiple_lines([data_circular, data_diamond], 
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
-                       x_label="$E / \mu$",y_label=initial_crack_label+" / $L$",
-                       output_file=output_file)
+                       x_label="$E / \mu^{\text{ref}}$",y_label=initial_crack_label+" / $L$",
+                       output_file=output_file,
+                       y_range=[0.0, 0.6])
 
 
 
@@ -548,7 +551,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       x_range=[-0.1, 4.0],
                       y_range=[1.0,3.5])
 
@@ -560,7 +563,7 @@ data_file_name = "09.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(eps_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
 
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -568,7 +571,7 @@ output_file = os.path.join(script_path,"09B_eps_vs_initial_crack_length_circluar
 ev.plot_multiple_lines([data_circular, data_diamond], 
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
-                       x_label="eps / $L$",y_label=initial_crack_label+" / $L$",
+                       x_label="$\epsilon$ / $L$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file)
 # def scatter_plot_with_classes(
 #     x_values, y_values, 
@@ -685,7 +688,7 @@ ev.plot_multiple_lines([data_circular, data_diamond],
 #                       col_y=9,
 #                       output_filename=output_file,
 #                       legend_labels=legend_entries_sorted,
-#                       xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length)
+#                       xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length)
 
 
 # output_file = os.path.join(script_path, '11_cracklength_vs_sigc.png') 
@@ -745,7 +748,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       y_range=[1.0, 3.5],
                       x_range=[-0.1, 4.0])
 
@@ -756,7 +759,7 @@ ev.plot_single_line(nu_values_sorted,initial_crack_length_values_sorted,output_f
 data_file_name = "13.data"
 output_file = os.path.join(script_path, data_file_name)
 ev.save_plot_data_to_file(nu_values_sorted,y=initial_crack_length_values_sorted,filename=output_file)
-data_file_circular = output_file
+data_file_circular = os.path.join(script_path,"..", circular_holes_folder_name ,data_file_name)
 data_circular, init_crack_length_circular = ev.load_plot_data_from_file(data_file_circular)
 data_file_diamond = os.path.join(script_path,"..", diamond_folder_name ,data_file_name)
 data_diamond, init_crack_length_diamond = ev.load_plot_data_from_file(data_file_diamond)
@@ -800,7 +803,7 @@ for sim in simulation_results:
     Gc_values.append(Gc)
     initial_crack_length_values.append(initial_crack_length)
     data_to_plot.append(data)
-    legend_entry = f"$(E, G_c)$: {E:.1f}$\mu$, {Gc:.1f}$G_c^0$)"
+    legend_entry = f"$(E, G_c)$: {E:.1f}$\mu$, {Gc:.1f}"+"$G_c^{\text{ref}}$)"
     legend_entries.append(legend_entry)
     
 sorted_indices = sorted(range(len(E_values)), key=lambda i: E_values[i])
@@ -818,12 +821,12 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_y=col_crack_length,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel="$t / ( L / v_{ct})$",ylabel=label_crack_length,
+                      xlabel="$t / ( L / $" + velocity_bc_label,ylabel=label_crack_length,
                       y_range=[1.0, 3.5],
                       x_range=[-0.1, 4.0])
 
 output_file = os.path.join(script_path, "15_initial_crack_length_vs_ExGc.png")
-ev.plot_single_line(E_Gc_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$EG_c / (\mu{G_c^0})$",ylabel=initial_crack_label+" / $L$",plot_type="dot",y_range=[0.0, 0.6])
+ev.plot_single_line(E_Gc_values_sorted,initial_crack_length_values_sorted,output_file,xlabel="$EG_c / (\mu{G_c^{\text{ref}}})$",ylabel=initial_crack_label+" / $L$",plot_type="dot",y_range=[0.0, 0.6])
 
 data_file_name = "15.data"
 output_file = os.path.join(script_path, data_file_name)
