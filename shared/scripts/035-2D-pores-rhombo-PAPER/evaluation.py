@@ -95,7 +95,7 @@ circular_label = "circular"
 diamond_label = "quadratic"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
-t_label = "$t / [ L / v_{\mathrm{bc}} ]$"
+t_label = "$t / [ L / {\dot{x}}_{\mathrm{bc}} ]$"
 J_x_label = "$J_{x} / G_c^{\mathrm{num}}$"
 J_x_max_label="$J_{x}^{\mathrm{max}} / G_c^{\mathrm{num}}$"
 velocity_bc_label = "$\dot{x}^{bc}$"
@@ -383,10 +383,10 @@ hole_positions_out = start_positions + end_positions
 hole_positions_out.sort()
 
 
-output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_diamond.png')  
+output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_diamond.png')   
 ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
-                        legend_labels=["$x_{ct}$", "$x_{bc}$"],usetex=True, title=" ", plot_dots=False,
-                        xlabel=  t_label,ylabel=crack_tip_position_label+" $/ L$",
+                        legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
+                        xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
                         x_range=[-0.1, 20],
                         # vlines=[hole_positions_out, hole_positions_out]
                         )
@@ -849,7 +849,24 @@ ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_
 )
 
 output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_hole&diamond.png")
-ev.plot_multiple_lines(w_steg_master,Jx_max_master,x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[diamond_label, circular_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines(
+    x_values=w_steg_master,
+    y_values=Jx_max_master,
+    x_label="$w_s / L$",
+    y_label=J_x_max_label,
+    legend_labels=[diamond_label, circular_label],
+    output_file=output_file,
+    usetex=True,
+    markers_only=False,
+    use_colors=True,
+    marker_size=6,
+    xlabel_fontsize=36,
+    ylabel_fontsize=36,
+    legend_fontsize=36,
+    tick_fontsize=34,
+    title_fontsize=24,
+    bold_text=True
+)
 
 
 output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_hole&diamond.png")
@@ -1077,7 +1094,7 @@ wsteg_values_sorted_diamond = [wsteg_values[i] for i in sorted_indices]
 E_star_diamond = [E_star_diamond[i] for i in sorted_indices]
 
 output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_hole&diamond.png")
-ev.plot_multiple_lines([wsteg_values_sorted_holes,wsteg_values_sorted_diamond],[E_star_holes, E_star_diamond],x_label="$w_s / L$",y_label="$ E^{'}_{\mathrm{eff}} / \mu$",legend_labels=[circular_label, diamond_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
+ev.plot_multiple_lines([wsteg_values_sorted_holes,wsteg_values_sorted_diamond],[E_star_holes, E_star_diamond],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[circular_label, diamond_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
 
 # only works if same number of wsteg for both
 E_star_ratio = [E_star_holes[i] / E_star_diamond[i] for i in range(len(E_star_holes))]

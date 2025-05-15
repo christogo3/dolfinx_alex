@@ -299,7 +299,7 @@
 \definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
 \pgfsetstrokecolor{textcolor}%
 \pgfsetfillcolor{textcolor}%
-\pgftext[x=0.686279in,y=3.960000in,,bottom,rotate=90.000000]{\color{textcolor}{\rmfamily\fontsize{28.000000}{33.600000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}$\Delta{a}$ / $L$}}%
+\pgftext[x=0.686279in,y=3.960000in,,bottom,rotate=90.000000]{\color{textcolor}{\rmfamily\fontsize{28.000000}{33.600000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}$(\Delta{a} / 2)$ / $L$}}%
 \end{pgfscope}%
 \begin{pgfscope}%
 \pgfpathrectangle{\pgfqpoint{1.250000in}{0.880000in}}{\pgfqpoint{7.750000in}{6.160000in}}%

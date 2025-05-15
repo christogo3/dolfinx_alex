@@ -44,6 +44,9 @@ def find_simulation_by_wsteg(path, wsteg_value_in):
     return None
 
 
+t_label = "$t / [ L / {\dot{x}}_{\mathrm{bc}} ]$"
+crack_tip_position_label = "$x_{\mathrm{ct}}$"
+
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
@@ -71,3 +74,10 @@ output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf_2.png')
 ev.plot_columns(data, 3, 1, output_file,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False, y_range=[0.0,1.2])
 
 
+output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_griffith.png')  
+ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
+                        legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
+                        xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
+                        x_range=[-0.1, 20],
+                        # vlines=[hole_positions_out, hole_positions_out]
+                        )

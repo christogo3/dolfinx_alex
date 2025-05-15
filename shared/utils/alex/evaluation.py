@@ -1043,82 +1043,113 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     
     
 def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', 
-                        legend_labels=None, output_file='plot.png', figsize=(10, 8), 
-                        usetex=True, log_y=False, 
-                        x_range=None, y_range=None, show_markers=False, 
-                        xlabel_fontsize=28, ylabel_fontsize=28, title_fontsize=24, 
-                        tick_fontsize=26, legend_fontsize=26,
+                        legend_labels=None, output_file='plot.png', figsize=(10, 7), 
+                        usetex=False, log_y=False, 
+                        x_range=None, y_range=None, 
+                        xlabel_fontsize=24, ylabel_fontsize=24, title_fontsize=24, 
+                        tick_fontsize=22, legend_fontsize=22,
+                        show_markers=False, markers_only=False, marker_size=6,
                         arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
-                        arrow_color="black", arrow_linewidth=1.5,
-                        line_colors=None, line_styles=None):
+                        arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10,
+                        use_bw_palette=True, use_colors=False, use_broad_palette=False,
+                        line_colors=None, line_styles=None,
+                        bold_text=False):
     """
-    Plots multiple lines on the same graph with additional customization options,
-    including an optional double-tipped arrow. Saves the plot to both PNG and PGF files.
-    Allows specifying colors and line styles for each line.
+    Styled multi-line plot with consistent visual settings. Outputs PNG, PGF, and PDF.
+    
+    Parameters
+    ----------
+    bold_text : bool
+        If True, all labels, ticks, and legend will use bold font.
     """
     import matplotlib.pyplot as plt
-    import matplotlib.colors as mcolors
-    from matplotlib.ticker import LogLocator
-    
+    from matplotlib.ticker import LogLocator, MaxNLocator
+
     if usetex:
         plt.rcParams['text.usetex'] = True
-    
+        plt.rcParams['pgf.texsystem'] = 'pdflatex'
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['pgf.rcfonts'] = False
+
     plt.figure(figsize=figsize)
-    
-    # Default color and linestyle options if none are provided
-    default_colors = plt.cm.tab10.colors  # Distinguishable colors
-    default_linestyles = ['-', '--', '-.', ':']
-    
-    # Assign colors and styles based on input or default values
+
+    # Colors and styles
+    if use_bw_palette and not use_colors:
+        colors = ['black', 'dimgray', 'dimgrey', 'darkgray', 'silver', 'lightgray']
+        linestyles = ['-', '--', '-.', ':']
+    elif use_broad_palette or use_colors:
+        colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'cyan', 'magenta', 'yellow']
+        linestyles = ['-']
+    else:
+        colors = list(plt.cm.tab10.colors)
+        linestyles = ['-']
+
+    markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h']
+
     for i in range(len(x_values)):
-        color = line_colors[i] if line_colors and i < len(line_colors) else default_colors[i % len(default_colors)]
-        linestyle = line_styles[i] if line_styles and i < len(line_styles) else default_linestyles[i % len(default_linestyles)]
-        
-        plt.plot(x_values[i], y_values[i], 
-                 marker='.' if show_markers else None, 
-                 linestyle=linestyle, color=color, 
-                 label=legend_labels[i] if legend_labels else f'Line {i+1}')
-    
-    # Set axis ranges if specified
+        color = line_colors[i] if line_colors and i < len(line_colors) else colors[i % len(colors)]
+        linestyle = line_styles[i] if line_styles and i < len(line_styles) else linestyles[i % len(linestyles)]
+        marker = markers[i % len(markers)] if show_markers or markers_only else None
+
+        label = (
+            f"$\\mathbf{{{legend_labels[i]}}}$" if legend_labels and bold_text and usetex 
+            else f"\\textbf{{{legend_labels[i]}}}" if legend_labels and bold_text and not usetex 
+            else legend_labels[i] if legend_labels 
+            else f'Line {i+1}'
+        )
+
+        plt.plot(x_values[i], y_values[i],
+                marker=marker,
+                markersize=marker_size,
+                linestyle='None' if markers_only else linestyle,
+                color=color,
+                linewidth=2.0 if not markers_only else 0,
+                label=label)
+
+    ax = plt.gca()
+
+    # Log y
+    if log_y:
+        ax.set_yscale('log')
+        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
+        ax.yaxis.set_minor_formatter(plt.NullFormatter())
+
+    # Range
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
-    
-    # Set y-axis to logarithmic scale if requested
-    if log_y:
-        ax = plt.gca()
-        ax.set_yscale('log')
-        ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
-        ax.yaxis.set_minor_formatter(plt.NullFormatter())
-    
-    # Set labels and title with custom font sizes
-    plt.xlabel(x_label, fontsize=xlabel_fontsize)
-    plt.ylabel(y_label, fontsize=ylabel_fontsize)
-    plt.title(title, fontsize=title_fontsize)
-    
-    # Add legend if there are labels
-    plt.legend(fontsize=legend_fontsize)
-    
-    # Customize tick labels size
-    ax = plt.gca()
+
+    # Labels, title
+    plt.xlabel(x_label, fontsize=xlabel_fontsize, fontweight='bold' if bold_text else 'normal')
+    plt.ylabel(y_label, fontsize=ylabel_fontsize, fontweight='bold' if bold_text else 'normal')
+    plt.title(title, fontsize=title_fontsize, fontweight='bold' if bold_text else 'normal')
+
+    # Legend
+    plt.legend(prop={'weight': 'bold' if bold_text else 'normal', 'size': legend_fontsize})
+
+    # Ticks
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-    
-    # Add vertical double-tipped arrow if specified
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
+    if not log_y:
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+    if bold_text:
+        for label in ax.get_xticklabels() + ax.get_yticklabels():
+            label.set_fontweight('bold')
+
+    # Arrow
     if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
         plt.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
                      arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
-    
-    # Save the plot to PNG and PGF
-    plt.savefig(output_file, dpi=300)
-    pgf_file = output_file.replace('.png', '.pgf')
-    plt.savefig(pgf_file)
-    
-    # Close the plot to free up memory
-    plt.close()
-    print(f"Plot saved as {output_file} and {pgf_file}")
 
-    
+    # Save
+    plt.savefig(output_file, dpi=300)
+    plt.savefig(output_file.replace('.png', '.pgf'))
+    plt.savefig(output_file.replace('.png', '.pdf'))
+    plt.close()
+    print(f"Plot saved as {output_file}, {output_file.replace('.png', '.pgf')}, and {output_file.replace('.png', '.pdf')}")
+
     
 def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y",
                    xlabel_fontsize=18, ylabel_fontsize=18, title_fontsize=16, tick_fontsize=16,

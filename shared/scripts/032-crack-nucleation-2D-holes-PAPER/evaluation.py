@@ -167,7 +167,7 @@ diamond_folder_name = "033-crack-nucleation-diamond-PAPER"
 
 height_label = "$h_d$"
 width_label = "$w_d$"
-initial_crack_label = "$\Delta{a}$"
+initial_crack_label = "$(\Delta{a} / 2)$"
 circular_label = "circular"
 diamond_label = "quadratic"
 guess_label = "estimate"
@@ -273,7 +273,7 @@ ev.plot_multiple_columns(
     col_y=col_crack_length,
     output_filename=output_file,
     legend_labels=legend_entries_sorted,
-    xlabel="$t / ( L / $" + velocity_bc_label,
+    xlabel="$t / ( L / $" + velocity_bc_label + ")",
     ylabel=label_crack_length,
     usetex=True,
     use_bw_palette=True,
@@ -311,7 +311,8 @@ ev.plot_multiple_lines([height_circular, height_diamond],
                        [init_crack_height_circular, init_crack_height_diamond],
                        legend_labels=[circular_label, diamond_label],
                        x_label=height_label+" / $L$",y_label=initial_crack_label+" / $L$",
-                       output_file=output_file)
+                       output_file=output_file,
+                       x_range=[4,12])
 
 simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"gc_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
 
@@ -379,7 +380,7 @@ ev.plot_multiple_lines([data_circular, data_diamond],
                        legend_labels=[circular_label, diamond_label],
                        x_label="$G_c / G_c^{\mathrm{ref}}$",y_label=initial_crack_label+" / $L$",
                        output_file=output_file,
-                       x_range=[0.0, 10.0],
+                       x_range=[1.0, 10.0],
                        y_range=[0.0,0.6])
 
 
@@ -450,7 +451,9 @@ ev.plot_multiple_lines([data_circular, data_diamond],
                        [init_crack_length_circular, init_crack_length_diamond],
                        legend_labels=[circular_label, diamond_label],
                        x_label=width_label+" / $L$",y_label=initial_crack_label+" / $L$",
-                       output_file=output_file)
+                       output_file=output_file,
+                       x_range=[8,12],
+                       y_range=[0,0.6])
 
 
 simulation_results = ev.read_all_simulation_data(os.path.join(script_path,"e_study"),graphs_filename='run_simulation_K_sym_graphs.txt')
