@@ -8,6 +8,7 @@ from mpi4py import MPI
 import math
 import alex.util as ut
 
+
 def degrad_quadratic(s: any, eta: dlfx.fem.Constant) -> any:
     degrad = s**2+eta
     return degrad
@@ -245,6 +246,68 @@ class StaticPhaseFieldProblem2D_split:
     def getGlobalFractureSurface(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure):
         S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
         return S
+    
+    
+class StaticPhaseFieldProblem2D_incremental:
+    # Constructor method
+    def __init__(self, degradationFunction: Callable,
+                       psisurf: Callable
+                 ):
+        self.degradation_function = degradationFunction
+
+        # Set all parameters here! Material etc
+        self.psisurf : Callable = psisurf
+        self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
+        
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H):
+        def residuum(u: any, s: any, du: any, ds: any, sm1: any, um1:any):
+            
+            delta_u = u - um1
+            
+            Hu, Hs = ufl.split(H)
+            
+            H_new = Hs + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+            #driving_foce_s = self.degradation_function(s=s,eta=eta) * H + ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T))
+            
+            pot = (H_new+self.psisurf(s,Gc,epsilon))*ufl.dx
+            
+            
+            #ddu, dds = ufl.split(ddw)
+            equi = ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T))*ufl.dx # ufl.derivative(pot, u, du)
+            sdrive = ufl.derivative(pot, s, ds)
+            rate = (s-sm1)/delta_t*ds*ufl.dx
+            Res = iMob*rate+sdrive+equi
+            dResdw = ufl.derivative(Res, w, ddw)
+            return [ Res, dResdw]
+            
+        u, s = ufl.split(w)
+        um1, sm1 = ufl.split(wm1)
+        du, ds = ufl.split(dw)
+        
+        return residuum(u,s,du,ds,sm1,um1)
+    
+    def sigma_degraded(self, u,s,lam,mu, eta):
+        return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
+        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+        
+    def psiel_degraded(self,s,eta,u,lam,mu):
+        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+    
+    def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
+        u, s = ufl.split(w)
+        # Wen = self.degradation_function(s,eta) * self.psiel_undegraded(u,self.eps_voigt,self.cmat_funct(lam=lam,mu=mu)) 
+        eshelby = self.psiel_degraded(s,eta,u,lam,mu) * ufl.Identity(2) - ufl.dot(ufl.grad(u).T,self.sigma_degraded(u,s,lam,mu, eta))
+        return ufl.as_tensor(eshelby)
+    
+    
+    def getGlobalFractureSurface(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure):
+        S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
+        return S
+    
+    def get_E_el_global(self,s,eta,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+        Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel_degraded(s,eta,u,lam,mu) * dx))
+        return comm.allreduce(Pi,MPI.SUM)
+    
     
 class StaticPhaseFieldProblem2D:
     # Constructor method
