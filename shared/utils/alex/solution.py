@@ -413,12 +413,16 @@ def print_total_dofs(w, comm, rank):
 #     after_last_timestep_hook()
 
 def get_solver(w, comm, max_iters, Res, dResdw, bcs):
-    problem = NonlinearProblem(Res, w, bcs, dResdw)
+    if dResdw is not None:
+        problem = NonlinearProblem(Res, w, bcs, dResdw)
+    else:
+        #problem = NonlinearProblem(Res, w, bcs)
+        problem = NonlinearProblem(Res, w, bcs)
+        
     solver = NewtonSolver(comm, problem)
     solver.report = True
     solver.max_it = max_iters
 
-        
     # ksp = solver.krylov_solver
     # opts = PETSc.Options()
     # option_prefix = ksp.getOptionsPrefix()
@@ -427,11 +431,13 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     # opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
     # ksp.setFromOptions()
     
-    if comm.Get_rank()==0:
+    if comm.Get_rank() == 0:
         ksp = solver.krylov_solver
         print("Default KSP Type:", ksp.getType())
         print("Default PC Type:", ksp.getPC().getType())
+    
     return solver
+
     
     
 class CustomLinearProblem(fem.petsc.LinearProblem):

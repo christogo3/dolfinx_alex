@@ -6,12 +6,12 @@ import matplotlib.pyplot as plt
 import os
 
 # ---- Parameters ----
-E_0 = 5.0      # MPa, initial Young's modulus
+E_0 = 2.5      # MPa, initial Young's modulus
 nu_0 = 0.25 #25    # Initial Poisson's ratio
-eps_0 = 2.0    # 1D yield strain
+eps_0 = 0.1    # 1D yield strain
 
 # ---- Nonlinear shear model parameters ----
-b = 0.00001     # Strain hardening parameter
+b = 0.01     # Strain hardening parameter
 r = 10.0      # Transition sharpness
 
 # ---- Derived constants ----
@@ -51,7 +51,7 @@ norm_sig_dev_crit = G_0*2.0*norm_eps_crit_dev
 #     return G
 
 
-def compute_G2(norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit):
+def compute_G(norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit):
     return (b  + ((1 - b)) / ((1 + np.abs(norm_eps_dev/norm_eps_crit_dev)**r)**(1/r))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0)  )
 
 # ---- Compute σ = E(γ) * ε with updated Poisson's ratio ----
@@ -79,7 +79,7 @@ def compute_sigma(eps_vals):
         norm_eps_dev = np.linalg.norm(eps_dev, 'fro')
         
         # Get nonlinear shear modulus
-        G = compute_G2(norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit)
+        G = compute_G(norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit)
         
         # Update ν with new G
         nu = (3 * K_0 - 2 * G) / (2 * (3 * K_0 + G))

@@ -257,7 +257,7 @@ class StaticPhaseFieldProblem2D_incremental:
 
         # Set all parameters here! Material etc
         self.psisurf : Callable = psisurf
-        self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
+        self.sigma_undegraded : Callable = self.sigma_undegraded_vol_deviatoric #.sigma_as_tensor # plane strain
         
     def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any, um1:any):
@@ -266,14 +266,17 @@ class StaticPhaseFieldProblem2D_incremental:
             
             Hu, Hs = ufl.split(H)
             
-            H_new = Hs + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+            H_new = Hs + ufl.inner(self.sigma_degraded(u=u,lam=lam,mu=mu,s=s, eta=eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
             #driving_foce_s = self.degradation_function(s=s,eta=eta) * H + ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T))
             
             pot = (H_new+self.psisurf(s,Gc,epsilon))*ufl.dx
+            equi =  ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T))*ufl.dx # ufl.derivative(pot, u, du)
             
+            #pot = (0.5*ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu),0.5*(ufl.grad(u) + ufl.grad(u).T))+self.psisurf(s,Gc,epsilon))*ufl.dx
             
             #ddu, dds = ufl.split(ddw)
-            equi = ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T))*ufl.dx # ufl.derivative(pot, u, du)
+            
+            #equi = ufl.derivative(pot,u,du)
             sdrive = ufl.derivative(pot, s, ds)
             rate = (s-sm1)/delta_t*ds*ufl.dx
             Res = iMob*rate+sdrive+equi
@@ -289,6 +292,27 @@ class StaticPhaseFieldProblem2D_incremental:
     def sigma_degraded(self, u,s,lam,mu, eta):
         return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
         # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+    
+    def sigma_undegraded_vol_deviatoric(self,u,lam,mu):
+        eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
+        eps_dev = ufl.dev(eps)
+        
+        norm_eps_dev = ufl.sqrt(ufl.inner(eps_dev,eps_dev))
+        norm_eps_crit_dev = 1.0
+        
+        b = 0.01     # Strain hardening parameter
+        r = 10.0 
+        norm_sig_dev_crit = mu*2.0*norm_eps_crit_dev
+        
+        
+        mu_r = (b + (1-b) / ((1.0 + ufl.sqrt((norm_eps_dev/norm_eps_crit_dev) * (norm_eps_dev/norm_eps_crit_dev)) ** r) ** (1/r))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0) )
+       
+        K = lam + mu
+        sig = K * ufl.tr(eps) * ufl.Identity(2)  + 2.0 * mu_r * eps_dev
+        return sig
+    
+    def compute_G(self,norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit):
+        return (b  + ((1 - b)) / ((1 + np.abs(norm_eps_dev/norm_eps_crit_dev)**r)**(1/r))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0)  )
         
     def psiel_degraded(self,s,eta,u,lam,mu):
         return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))

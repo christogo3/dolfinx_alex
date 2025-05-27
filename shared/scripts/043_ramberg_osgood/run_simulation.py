@@ -363,7 +363,10 @@ def after_timestep_success(t,dt,iters):
     # update H 
     delta_u = u - um1        
     Hu, Hs = ufl.split(H)
-    H_new = Hs + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H_new = Hs + ufl.inner(phaseFieldProblem.sigma_degraded(u=u,lam=la,mu=mu,s=s,eta=eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    
+    # H_s_field = dlfx.fem.Function(S)
+    # H_s_field.interpolate(Hs,S.element.interpolation_points() )
     
     vector_field_expression = dlfx.fem.Expression(H_new, 
                                                         S.element.interpolation_points())
@@ -436,22 +439,22 @@ def copy_files_to_directory(files, target_directory):
         else:
             print(f"Warning: File '{file}' does not exist and will not be copied.")
 
-if rank == 0:
-    # pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
-    files_to_copy = [
-        parameter_path,
-        outputfile_graph_path,
-        os.path.join(script_path,script_name_without_extension+".py"),
-        #mesh_file,  # Add more files as needed
-        os.path.join(script_path,"graphs.png"),
-        os.path.join(script_path,script_name_without_extension+".xdmf"),
-        os.path.join(script_path,script_name_without_extension+".h5")
-    ]
+# if rank == 0:
+#     # pp.append_to_file(parameters=parameters_to_write,filename=parameter_path,comm=comm)
+#     files_to_copy = [
+#         parameter_path,
+#         outputfile_graph_path,
+#         os.path.join(script_path,script_name_without_extension+".py"),
+#         #mesh_file,  # Add more files as needed
+#         os.path.join(script_path,"graphs.png"),
+#         os.path.join(script_path,script_name_without_extension+".xdmf"),
+#         os.path.join(script_path,script_name_without_extension+".h5")
+#     ]
         
-    # Create the directory
-    target_directory = create_timestamped_directory(base_dir=script_path)
-    print(f"Created directory: {target_directory}")
+#     # Create the directory
+#     target_directory = create_timestamped_directory(base_dir=script_path)
+#     print(f"Created directory: {target_directory}")
 
-    # Copy the files
-    copy_files_to_directory(files_to_copy, target_directory)
-    print("Files copied successfully.")
+#     # Copy the files
+#     copy_files_to_directory(files_to_copy, target_directory)
+#     print("Files copied successfully.")
