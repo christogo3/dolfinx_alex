@@ -9,9 +9,6 @@ from scipy.spatial import cKDTree
 import open3d as o3d
 import os
 
-# Change this threshold as needed
-DISTANCE_THRESHOLD = 70000.0
-
 script_path = os.path.dirname(__file__)
 
 # Step 1: Read the Tecplot ASCII file
@@ -40,25 +37,22 @@ tree = cKDTree(points)
 unique_indices = np.unique(tree.query(points, k=1)[1])
 unique_points = points[unique_indices]
 
-# Step 4: Compute distances from origin and filter by threshold
+print(f"Original points: {len(points)}, Unique points: {len(unique_points)}")
+
+# Step 4: Compute normals
+normals = unique_points / np.linalg.norm(unique_points, axis=1)[:, np.newaxis]
+
+# Compute distances from origin
 distances = np.linalg.norm(unique_points, axis=1)
-mask = distances <= DISTANCE_THRESHOLD
-filtered_points = unique_points[mask]
-filtered_distances = distances[mask]
-
-print(f"Original points: {len(points)}, Unique points: {len(unique_points)}, Filtered points: {len(filtered_points)}")
-
-# Step 5: Compute normals
-normals = filtered_points / np.linalg.norm(filtered_points, axis=1)[:, np.newaxis]
 
 # Open3D point cloud creation
 pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector(filtered_points[:, :3])
+pcd.points = o3d.utility.Vector3dVector(unique_points[:, :3])
 pcd.normals = o3d.utility.Vector3dVector(normals[:, :3])
 
 # PyVista point cloud
-point_cloud = pv.PolyData(filtered_points)
-point_cloud["DistanceFromOrigin"] = filtered_distances
+point_cloud = pv.PolyData(unique_points)
+point_cloud["DistanceFromOrigin"] = distances  # Add distance field
 
 # Visualize and save screenshot
 plotter = pv.Plotter(off_screen=True)
@@ -104,6 +98,5 @@ dec_mesh_vtk_filename = filename + "_dec_mesh.vtk"
 bpa_mesh_pv.save(os.path.join(script_path, bpa_mesh_vtk_filename))
 dec_mesh_pv.save(os.path.join(script_path, dec_mesh_vtk_filename))
 print(f"Meshes converted and saved as {bpa_mesh_vtk_filename} and {dec_mesh_vtk_filename}")
-
 
 

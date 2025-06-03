@@ -3,16 +3,19 @@ import alex.util
 import dolfinx as dlfx
 import numpy as np
 import alex.linearelastic as le
+from mpi4py import MPI
 
-def compute_averaged_sigma(u,lam,mu, vol, dx: ufl.Measure = ufl.dx):
+def compute_averaged_sigma(u,lam,mu, vol, dx: ufl.Measure = ufl.dx, comm: MPI.Intracomm = MPI.COMM_WORLD):
     if alex.util.get_dimension_of_function(u) == 3:
         dim_voigt = 6
     else:
         dim_voigt = 3
     sigma_for_unit_strain = np.zeros((dim_voigt,))
+    sigma_for_unit_strain_global = np.zeros((dim_voigt,))
     for k in range(0,len(sigma_for_unit_strain)):
-        sigma_for_unit_strain[k] = dlfx.fem.assemble_scalar(dlfx.fem.form(le.sigma_as_voigt(u,lam,mu)[k] * dx)) / vol
-    return sigma_for_unit_strain
+        sigma_for_unit_strain[k] = dlfx.fem.assemble_scalar(dlfx.fem.form(le.sigma_as_voigt(u,lam,mu)[k] * dx)) / vol   
+        sigma_for_unit_strain_global[k] = comm.allreduce(sigma_for_unit_strain[k], op=MPI.SUM)
+    return  sigma_for_unit_strain_global
 
 
 def unit_macro_strain_tensor_for_voigt_eps(domain: dlfx.mesh.Mesh, voigt_index: int):
