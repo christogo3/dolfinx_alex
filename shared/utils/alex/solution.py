@@ -424,13 +424,13 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     solver.report = True
     solver.max_it = max_iters
 
-    ksp = solver.krylov_solver
-    opts = PETSc.Options()
-    option_prefix = ksp.getOptionsPrefix()
-    opts[f"{option_prefix}ksp_type"] = "fcg"
-    # opts[f"{option_prefix}pc_type"] = "lu"
-    opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
-    ksp.setFromOptions()
+    # ksp = solver.krylov_solver
+    # opts = PETSc.Options()
+    # option_prefix = ksp.getOptionsPrefix()
+    # opts[f"{option_prefix}ksp_type"] = "fcg"
+    # # opts[f"{option_prefix}pc_type"] = "lu"
+    # opts[f"{option_prefix}pc_factor_mat_solver_type"] = "mumps"
+    # ksp.setFromOptions()
     
     if comm.Get_rank() == 0:
         ksp = solver.krylov_solver

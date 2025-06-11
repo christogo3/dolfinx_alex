@@ -278,10 +278,10 @@ class StaticPhaseFieldProblem2D_incremental:
             
             #Hu, Hs = ufl.split(H)
             
-            H_new = self.degradation_function(s=s,eta=eta ) * (H) + ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+            #H_new = self.degradation_function(s=s,eta=eta ) * (H) + ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
             
             #H_new = 0.5*ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),0.5*(ufl.grad(u) + ufl.grad(u).T))
-            pot = (H_new+self.psisurf(s,Gc,epsilon))*self.dx
+            #pot = (H_new+self.psisurf(s,Gc,epsilon))*self.dx
             equi =  (ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T)))*self.dx # ufl.derivative(pot, u, du)
             
             #pot = (0.5*ufl.inner(self.sigma_degraded(u=u,lam=lam,mu=mu,s=s,eta=eta),0.5*(ufl.grad(u) + ufl.grad(u).T))+self.psisurf(s,Gc,epsilon))*self.dx
@@ -289,7 +289,14 @@ class StaticPhaseFieldProblem2D_incremental:
             #ddu, dds = ufl.split(ddw)
             
             #equi = ufl.derivative(pot,u,du)
-            sdrive = ufl.derivative(pot, s, ds)
+            
+            #sdrive = ufl.derivative(pot, s, ds)
+            
+            degds = 2.0 * s
+            
+            #sdrive = ( ( degds * ( H ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
+            
+            sdrive = ( ( degds * ( H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             rate = (s-sm1)/delta_t*ds*self.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
@@ -317,29 +324,44 @@ class StaticPhaseFieldProblem2D_incremental:
     
     def sigma_undegraded_vol_deviatoric(self,u,lam,mu):
         
-        eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
+        eps = ufl.sym(ufl.grad(u))
         
         C = 0.001 # self.C
-        n = 1.0 #self.n
-        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(eps,eps)) #+0.000001
-        #tol = ufl.as_ufl(0.00001)
+        n = 3.5 #self.n
+        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) #+ 0.000001
+        eps_e = ufl.conditional(ufl.lt(eps_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_e_val)
         
-        
-        eps_e = eps_e_val #ufl.conditional(ufl.ge(eps_e_val,0.0001),eps_e_val,0.0001) 
-        
-        #HH = ((3.0 * mu) / le.get_emod(lam,mu)) * (C ** (1.0 / n))
-        
-        HH = ((3.0 * mu.value) / le.get_emod(lam.value,mu.value)) * (C ** (1.0))
-        
-        
+        E_mod = mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
+        HH = ((3.0 * mu.value) / E_mod) * (C ** (1.0 / n))
         expo = (1.0 - (1.0/n))
-        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e)**expo)
+        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e) ** expo )
+        K = le.get_K(lam=lam,mu=mu) #lam + mu
+        sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
         
-        #Z = 2.2 ** 0.1
         
-        #Z = (2.0 * mu) / ( 1.0 + HH * (eps_e)**(0.0))
+        # eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
         
-        K = lam + mu
+        # C = 0.001 # self.C
+        # n = 1.0 #self.n
+        # eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(eps,eps)) #+0.000001
+        # #tol = ufl.as_ufl(0.00001)
+        
+        
+        # eps_e = eps_e_val #ufl.conditional(ufl.ge(eps_e_val,0.0001),eps_e_val,0.0001) 
+        
+        # #HH = ((3.0 * mu) / le.get_emod(lam,mu)) * (C ** (1.0 / n))
+        
+        # HH = ((3.0 * mu.value) / le.get_emod(lam.value,mu.value)) * (C ** (1.0))
+        
+        
+        # expo = (1.0 - (1.0/n))
+        # Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e)**expo)
+        
+        # #Z = 2.2 ** 0.1
+        
+        # #Z = (2.0 * mu) / ( 1.0 + HH * (eps_e)**(0.0))
+        
+        # K = lam + mu
         
         # eps_3D = ufl.as_matrix([ 
         #                [eps[0,0], eps[0,1], 0.0],
@@ -356,7 +378,7 @@ class StaticPhaseFieldProblem2D_incremental:
             
         # ])
         
-        sig = K * ufl.tr(eps)* self.Id + Z *ufl.dev(eps)
+        #sig = K * ufl.tr(eps)* self.Id + Z *ufl.dev(eps)
         
         
         # bconst = 10e-4
@@ -461,17 +483,17 @@ class StaticPhaseFieldProblem2D_true_incremental:
             H_new = self.degradation_function(s=s,eta=eta ) * (H) + ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
             
             #H_new = 0.5*ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),0.5*(ufl.grad(u) + ufl.grad(u).T))
-            pot = (H_new+self.psisurf(s,Gc,epsilon))*self.dx
-            equi =  (ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),  0.5*(ufl.grad(du) + ufl.grad(du).T)))*self.dx # ufl.derivative(pot, u, du)
+            #pot = (H_new+self.psisurf(s,Gc,epsilon))*self.dx
+            equi =  (ufl.inner(self.sigma_degraded(u=u,s=s,lam=lam,mu=mu,eta=eta),  0.5*(ufl.grad(du) + ufl.grad(du).T)))*self.dx # ufl.derivative(pot, u, du)
             
             #pot = (0.5*ufl.inner(self.sigma_degraded(u=u,lam=lam,mu=mu,s=s,eta=eta),0.5*(ufl.grad(u) + ufl.grad(u).T))+self.psisurf(s,Gc,epsilon))*self.dx
             
             #ddu, dds = ufl.split(ddw)
             degds = 2.0 * s
             
-            sdrive = ( ( degds * ( H ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
+            #sdrive = ( ( degds * ( H ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             
-            #sdrive = ( ( degds * ( H + ufl.inner(self.sigma_undegraded(u,lam,mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
+            sdrive = ( ( degds * ( H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             
             #equi = ufl.derivative(pot,u,du)
             #sdrive = ufl.derivative(pot, s, ds)
@@ -502,44 +524,59 @@ class StaticPhaseFieldProblem2D_true_incremental:
     
     def sigma_undegraded_vol_deviatoric(self,u,lam,mu):
         
-        eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
         
-        C = 0.00000000000000000001 # self.C
-        n = 1.1 #self.n
-        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) + 0.000001
-        #eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(eps,eps)) + 0.1
-
-        eps_e = eps_e_val #ufl.conditional(ufl.ge(eps_e_val,0.0001),eps_e_val,0.0001) 
+        eps = ufl.sym(ufl.grad(u))
         
+        C = 0.001 # self.C
+        n = 20.0 #self.n
+        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) #+ 0.000001
+        eps_e = ufl.conditional(ufl.lt(eps_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_e_val)
         
-        HH = ((3.0 * mu.value) / le.get_emod(lam.value,mu.value)) * (C ** (1.0 / n))
-        
-        
+        E_mod = mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
+        HH = ((3.0 * mu.value) / E_mod) * (C ** (1.0 / n))
         expo = (1.0 - (1.0/n))
-        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e)**expo)
+        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e) ** expo )
+        K = le.get_K(lam=lam,mu=mu) #lam + mu
+        sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
         
-        #Z = 2.2 ** 0.1
+        # eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
         
-        #Z = (2.0 * mu) / ( 1.0 + HH * (eps_e)**(0.0))
+        # C = 0.001 # self.C
+        # n = 20.0 #self.n
+        # eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) + 0.000001
+        # #eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(eps,eps)) + 0.1
+        # eps_e = ufl.conditional(ufl.lt(eps_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_e_val)
+        # #eps_e = eps_e_val #ufl.conditional(ufl.ge(eps_e_val,0.0001),eps_e_val,0.0001) 
         
-        K = lam + mu
         
-        # eps_3D = ufl.as_matrix([ 
-        #                [eps[0,0], eps[0,1], 0.0],
-        #                [eps[1,0], eps[1,1], 0.0],
-        #                [0.0,      0.0,      0.0],
+        # HH = ((3.0 * mu.value) / le.get_emod(lam.value,mu.value)) * (C ** (1.0 / n))
+        
+        
+        # expo = (1.0 - (1.0/n))
+        # Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e)**expo)
+        
+        # #Z = 2.2 ** 0.1
+        
+        # #Z = (2.0 * mu) / ( 1.0 + HH * (eps_e)**(0.0))
+        
+        # K = lam + mu
+        
+        # # eps_3D = ufl.as_matrix([ 
+        # #                [eps[0,0], eps[0,1], 0.0],
+        # #                [eps[1,0], eps[1,1], 0.0],
+        # #                [0.0,      0.0,      0.0],
             
-        # ])
+        # # ])
         
-        # eps_3D_dev = ufl.dev(eps_3D)
+        # # eps_3D_dev = ufl.dev(eps_3D)
         
-        # sig = ufl.as_matrix([ 
-        #                [ K * ufl.tr(eps_3D) + Z * eps_3D_dev[0,0], Z * eps_3D_dev[0,1]],
-        #                [ Z * eps_3D_dev[1,0],                      K * ufl.tr(eps_3D) + Z * eps_3D_dev[1,1]]
+        # # sig = ufl.as_matrix([ 
+        # #                [ K * ufl.tr(eps_3D) + Z * eps_3D_dev[0,0], Z * eps_3D_dev[0,1]],
+        # #                [ Z * eps_3D_dev[1,0],                      K * ufl.tr(eps_3D) + Z * eps_3D_dev[1,1]]
             
-        # ])
+        # # ])
         
-        sig = K * ufl.tr(eps)* self.Id + Z *ufl.dev(eps)
+        # sig = K * ufl.tr(eps)* self.Id + Z *ufl.dev(eps)
         
         
         # bconst = 10e-4

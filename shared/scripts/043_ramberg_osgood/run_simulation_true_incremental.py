@@ -135,7 +135,7 @@ Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,)
 Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())# fracture fields
 W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 
-H_space = dlfx.fem.functionspace(domain, Se)
+#H_space = dlfx.fem.functionspace(domain, Se)
 
 # define solution, restart, trial and test space
 w =  dlfx.fem.Function(W)

@@ -5,7 +5,7 @@ import dolfinx.fem as fem
 from petsc4py import PETSc
 import basix
 import numpy as np
-
+import dolfinx as dlfx
 
 
 
@@ -193,3 +193,59 @@ def sigma_tang_alt(eps,N,mu,lam,H, dGamma,s_tr_np1):
     
     
 
+
+
+
+class Ramberg_Osgood:
+    # Constructor method
+    def __init__(self, 
+                       dx: any = ufl.dx,
+                       Id: any = None,
+                       tol: any = None,
+                        C: any = None,
+                       n: any = None,
+                 ):
+        
+        self.dx = dx
+ 
+        self.sigma_undegraded : Callable = self.sigma_undegraded_vol_deviatoric #.sigma_as_tensor # plane strain
+        
+    def prep_newton(self, u: any, du: any, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
+        def residuum():
+            
+            equi =  (ufl.inner(self.sigma_undegraded_vol_deviatoric(u,lam,mu),  0.5*(ufl.grad(du) + ufl.grad(du).T)))*self.dx # ufl.derivative(pot, u, du)
+            
+            Res = equi
+            return [ Res, None]
+            
+
+        
+        return residuum()
+    
+    def eps(self,u):
+        return ufl.sym(ufl.grad(u)) #0.5*(ufl.grad(u) + ufl.grad(u).T)
+    
+    def deveps(self,u):
+        return ufl.dev(self.eps(u))
+    
+    def eqeps(self,u):
+        return ufl.sqrt(2.0/3.0 * ufl.inner(self.eps(u),self.eps(u))) 
+    
+    
+    def sigma_undegraded_vol_deviatoric(self,u,lam,mu):
+        
+        eps = ufl.sym(ufl.grad(u))
+        
+        C = 0.001 # self.C
+        n = 20.0 #self.n
+        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) #+ 0.000001
+        eps_e = ufl.conditional(ufl.lt(eps_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_e_val)
+        
+        E_mod = mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
+        HH = ((3.0 * mu.value) / E_mod) * (C ** (1.0 / n))
+        expo = (1.0 - (1.0/n))
+        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e) ** expo )
+        K = le.get_K(lam=lam,mu=mu) #lam + mu
+        sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
+        return sig
+    
