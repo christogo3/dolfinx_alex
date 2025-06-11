@@ -7,6 +7,8 @@ import basix
 import numpy as np
 
 
+
+
 pos = lambda x: ufl.max_value(x, 0)
 
 def constitutive_update(Δε, old_sig, alpha_n,sigY,H,lam,mu):
@@ -46,10 +48,11 @@ def get_residual_and_tangent(n : ufl.FacetNormal, loading, sig_np1, u_ : ufl.Tes
     
     
 
-
+#basix.make_quadrature()
 
 def get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad):
-    basix_celltype = getattr(basix.CellType, domain.topology.cell_types[0].name)
+    basix_celltype = getattr(basix.CellType, domain.topology.cell_types[0].name) # 7.3
+    #basix_celltype = getattr(basix.CellType, domain.topology.cell_type.name) # 8.0
     quadrature_points, weights = basix.make_quadrature(basix_celltype, deg_quad)
 
     map_c = domain.topology.index_map(domain.topology.dim)
@@ -100,6 +103,23 @@ def eps_as_3D_tensor_function(dim: int):
         return eps_2D
     elif dim == 3:
         return eps_3D
+    
+
+def define_internal_state_variables_basix(gdim, domain, deg_quad, quad_scheme):  
+    W0e = basix.ufl.quadrature_element(
+    domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad
+)
+# We = basix.ufl.quadrature_element(
+#     domain.basix_cell(), value_shape=(alex.plasticity.get_history_field_dimension_for_symmetric_second_order_tensor(gdim),), scheme="default", degree=deg_quad
+# )
+    
+    W0 = fem.functionspace(domain, W0e)
+    
+    beta = fem.Function(W0, name="beta")
+    
+    
+    return beta
+
     
 def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):  
     # W0e = basix.ufl.quadrature_element(

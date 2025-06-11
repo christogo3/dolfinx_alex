@@ -21,6 +21,7 @@ import basix
 
 import shutil
 from datetime import datetime
+import alex.plasticity
 
 
 
@@ -134,16 +135,27 @@ Ve = basix.ufl.element("P", domain.basix_cell(), 1, shape=(domain.geometry.dim,)
 Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())# fracture fields
 W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 
+H_space = dlfx.fem.functionspace(domain, Se)
+
 # define solution, restart, trial and test space
 w =  dlfx.fem.Function(W)
 u,s = w.split()
 wrestart =  dlfx.fem.Function(W)
 wm1 =  dlfx.fem.Function(W) # trial space
+wm1.x.array[:] = np.zeros_like(wm1.x.array[:])
 um1, sm1 = ufl.split(wm1)
 dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
-H = dlfx.fem.Function(W)
+deg_quad = 2  # quadrature degree for internal state variable representation
+gdim = 2
+H = alex.plasticity.define_internal_state_variables_basix(gdim, domain, deg_quad,quad_scheme="default")
+dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
+quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
+
+
+#H = dlfx.fem.Function(W)
+#H = dlfx.fem.Function(H_space)
 H.x.array[:] = np.zeros_like(H.x.array[:])
 
 # setting K1 so it always breaks
@@ -174,8 +186,16 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
+
+# TODO clean up
+CC = dlfx.fem.Constant(domain,0.001)
+nn = dlfx.fem.Constant(domain,1.0)
+tol = dlfx.fem.Constant(domain,0.000001)
+z = dlfx.fem.Constant(domain,0.0)
+Id = ufl.as_matrix(((1,z),
+                    (z,1)))
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_quadratic,
-                                                   psisurf=pf.psisurf_from_function)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, Id=Id,tol=tol,C=CC,n=nn)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -195,7 +215,9 @@ def before_each_time_step(t,dt):
     # report solution status
     if rank == 0:
         sol.print_time_and_dt(t,dt)
-        
+
+
+
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = phaseFieldProblem.prep_newton(
         w=w,wm1=wm1,dw=dw,ddw=ddw,lam=la, mu = mu,
@@ -361,16 +383,24 @@ def after_timestep_success(t,dt,iters):
     #     dt_max.value = dt_start # reset to larger time step bound
     
     # update H 
-    delta_u = u - um1        
-    Hu, Hs = ufl.split(H)
-    H_new = Hs + ufl.inner(phaseFieldProblem.sigma_degraded(u=u,lam=la,mu=mu,s=s,eta=eta),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
     
-    # H_s_field = dlfx.fem.Function(S)
-    # H_s_field.interpolate(Hs,S.element.interpolation_points() )
+    delta_u = u - um1  
+    H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
-    vector_field_expression = dlfx.fem.Expression(H_new, 
-                                                        S.element.interpolation_points())
-    H.sub(1).interpolate(vector_field_expression)
+    
+    
+    
+    # delta_u = u - um1        
+    # Hu, Hs = ufl.split(H)
+    # H_new = Hs + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    
+    # # H_s_field = dlfx.fem.Function(S)
+    # # H_s_field.interpolate(Hs,S.element.interpolation_points() )
+    
+    # vector_field_expression = dlfx.fem.Expression(H_new, 
+    #                                                     S.element.interpolation_points())
+    # H.sub(1).interpolate(vector_field_expression)
 
     # update
     wm1.x.array[:] = w.x.array[:]
@@ -417,6 +447,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     t=t_global,
     # dt_max=dt_max,
     trestart=trestart_global,
+    #max_iters=20
 )
 
 

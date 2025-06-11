@@ -135,6 +135,22 @@ def get_frontback_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.
         return reduce(np.logical_or, boundaries)
     return boundary
 
+def get_front_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        zmax = close_func(x[2],z_max_all,atol=atol)
+        boundaries = [zmax]
+        return reduce(np.logical_or, boundaries)
+    return boundary
+
+def get_back_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        zmin = close_func(x[2],z_min_all,atol=atol)
+        boundaries = [zmin]
+        return reduce(np.logical_or, boundaries)
+    return boundary
+
 def get_top_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):

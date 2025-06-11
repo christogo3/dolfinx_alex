@@ -596,12 +596,14 @@ def volume_of_mesh(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, dx : ufl.Measure
     return comm.allreduce(vol,MPI.SUM)
 
 def volume_of_mesh_above_threshhold(domain: dlfx.mesh.Mesh, function: dlfx.fem.Function, threshhold: float, comm: MPI.Intercomm, dx : ufl.Measure):
-    S = ut.get_CG_functionspace(domain)
-    switch_function = dlfx.fem.Function(S)
-    img.clip(function,switch_function,threshhold,1.0,0.0)
+    #S = ut.get_CG_functionspace(domain)
+    #switch_function = dlfx.fem.Function(S)
+    #img.clip(function,switch_function,threshhold,1.0,0.0)
     
-    vol_above = dlfx.fem.assemble_scalar(dlfx.fem.form( ( switch_function  ) * dx ))
-    return comm.allreduce(vol_above,MPI.SUM)
+    #vol_above = dlfx.fem.assemble_scalar(dlfx.fem.form( ( switch_function  ) * dx ))
+    
+    vol_above_threshhold = comm.allreduce(dlfx.fem.assemble_scalar(dlfx.fem.form( ( dlfx.fem.Constant(domain,1.0) * ufl.conditional(ufl.ge(function,threshhold),1.0,0.0) ) * dx )),MPI.SUM)
+    return comm.allreduce(vol_above_threshhold,MPI.SUM)
 
 def percentage_of_volume_above(domain: dlfx.mesh.Mesh, function: dlfx.fem.Function, threshhold: float, comm: MPI.Intercomm, dx : ufl.Measure):
     vol = volume_of_mesh(domain,comm,dx)
