@@ -11,7 +11,7 @@ nu_0 = 0.25 #25    # Initial Poisson's ratio
 eps_0 = 0.1    # 1D yield strain
 
 # ---- Nonlinear shear model parameters ----
-b = 0.01     # Strain hardening parameter
+b = 0.1     # Strain hardening parameter
 r = 10.0      # Transition sharpness
 
 # ---- Derived constants ----

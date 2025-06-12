@@ -249,3 +249,43 @@ class Ramberg_Osgood:
         sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
         return sig
     
+    
+    def sig_ramberg_osgood_wiki(u, lam, mu,norm_eps_crit_dev,b_hardening_parameter,r_transition_smoothness_parameter):
+        # b comparable to hardening modul
+        # r lower -> smoother transition
+        
+        eps = ufl.sym(ufl.grad(u))
+        eps_dev = ufl.dev(eps)
+        
+        norm_eps_dev_val = ufl.sqrt(ufl.inner(eps_dev,eps_dev))
+        
+        norm_eps_dev = ufl.conditional(ufl.lt(norm_eps_dev_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, norm_eps_dev_val)
+        #norm_eps_crit_dev = 0.5
+        norm_sig_dev_crit = mu*2.0*norm_eps_crit_dev
+        
+        #b_hardening_parameter = 0.1     # Strain hardening parameter
+        #r = 10.0 
+        
+        
+        
+        mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((norm_eps_dev/norm_eps_crit_dev) * (norm_eps_dev/norm_eps_crit_dev)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0) )
+       
+        K = lam + mu
+        sig = K * ufl.tr(eps) * ufl.Identity(2)  + 2.0 * mu_r * eps_dev
+        return sig
+
+    def sig_ramberg_osgood_diewald(u, lam, mu):
+        eps = ufl.sym(ufl.grad(u))
+        
+        C = 0.001 # self.C
+        n = 3.5 #self.n
+        eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(ufl.dev(eps),ufl.dev(eps))) #+ 0.000001
+        eps_e = ufl.conditional(ufl.lt(eps_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_e_val)
+        
+        E_mod = mu * (3.0 * lam + 2.0 * mu) / (lam + mu)
+        HH = ((3.0 * mu.value) / E_mod) * (C ** (1.0 / n))
+        expo = (1.0 - (1.0/n))
+        Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e) ** expo )
+        K = le.get_K(lam=lam,mu=mu) #lam + mu
+        sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
+        return sig
