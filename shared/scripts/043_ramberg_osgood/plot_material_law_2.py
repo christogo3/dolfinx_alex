@@ -8,7 +8,7 @@ import os
 # ---- Parameters ----
 E_0 = 2.5      # MPa, initial Young's modulus
 nu_0 = 0.25 #25    # Initial Poisson's ratio
-eps_0 = 0.1    # 1D yield strain
+eps_0 = 0.2    # 1D yield strain
 
 # ---- Nonlinear shear model parameters ----
 b = 0.1     # Strain hardening parameter
