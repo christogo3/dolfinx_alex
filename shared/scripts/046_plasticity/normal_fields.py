@@ -159,7 +159,8 @@ ddw = ufl.TrialFunction(W)
 
 deg_quad = 2  # quadrature degree for internal state variable representation
 gdim = 2
-H,_,_, _ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,_,_, _, _, _, _, _, _ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+#H,_,_, _ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
 H.x.array[:] = np.zeros_like(H.x.array[:])
@@ -394,7 +395,7 @@ def after_timestep_success(t,dt,iters):
     
     alpha_tmp.x.array[:] = alpha_n.x.array[:]
     alpha_expr = alex.plasticity.update_alpha(u=u,e_p_n=e_p_n,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
-    alpha_n.interpolate(alpha_expr,S.element.interpolation_points())
+    alpha_n.interpolate(alpha_expr,SS.element.interpolation_points())
     
     
     e_p_expr = alex.plasticity.update_e_p(u=u,e_p_n=e_p_n,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)

@@ -439,6 +439,7 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
                        hard: any,
                        alpha_n: any,
                        e_p_n: any,
+                       H: any,
                        Id: any,
                        dx: any = ufl.dx,
                  ):
@@ -456,10 +457,11 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
         self.hard = hard
         self.e_p_n = e_p_n
         self.alpha_n = alpha_n
+        self.H = H
         self.Id = Id
         
         
-    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H):
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any, um1:any):
             
             delta_u = u - um1
@@ -468,7 +470,7 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
             
             degds = self.degds(s)
             
-            sdrive = ( ( degds * ( H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
+            sdrive = ( ( degds * ( self.H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             rate = (s-sm1)/delta_t*ds*self.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
@@ -501,7 +503,7 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
 
         
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return self.degradation_function(s,eta) * self.H
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)

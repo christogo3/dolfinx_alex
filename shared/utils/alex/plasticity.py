@@ -148,6 +148,34 @@ def define_internal_state_variables_basix_b(gdim, domain, deg_quad, quad_scheme)
     
     return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp
 
+def define_internal_state_variables_basix_c(gdim, domain, deg_quad, quad_scheme):  
+    W0e = basix.ufl.quadrature_element(
+    domain.basix_cell(), value_shape=(2,), scheme="default", degree=deg_quad
+)
+    
+    We = basix.ufl.quadrature_element(
+    domain.basix_cell(), value_shape=(2,2), scheme="default", degree=deg_quad
+)
+# We = basix.ufl.quadrature_element(
+#     domain.basix_cell(), value_shape=(alex.plasticity.get_history_field_dimension_for_symmetric_second_order_tensor(gdim),), scheme="default", degree=deg_quad
+# )
+    
+    W0 = fem.functionspace(domain, W0e)
+    alpha = fem.Function(W0, name="alpha")
+    alpha_tmp = fem.Function(W0, name="alpha_tmp")
+    H = fem.Function(W0, name="H")
+    
+    #W = fem.functionspace(domain, We)
+    e_p_11_n = fem.Function(W0, name="e_p_11")
+    e_p_22_n = fem.Function(W0, name="e_p_11")
+    e_p_12_n = fem.Function(W0, name="e_p_11")
+    
+    e_p_11_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_22_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_12_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    
+    return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp
+
     
 def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):  
     # W0e = basix.ufl.quadrature_element(
@@ -356,7 +384,11 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,Id=None):
         
     s_tr = 2.0*mu*(e_np1-e_p_n)
         
-    norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
+    norm_s_tr_val = ufl.sqrt(ufl.inner(s_tr,s_tr))
+    norm_s_tr = ufl.conditional(ufl.lt(norm_s_tr_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, norm_s_tr_val)
+    
+    #norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
+    
     f_tr = f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu)
     dgamma = f_tr / (2.0*(mu+hard/3))
     

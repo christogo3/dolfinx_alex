@@ -3,7 +3,7 @@ import dolfinx as dlfx
 from mpi4py import MPI
 import ufl
 import numpy as np
-import pyvista
+import pyvista #pip install "pyvista<0.42.0"
 import dolfinx.plot as plot
 import matplotlib.pyplot as plt
 import glob 
@@ -167,6 +167,7 @@ def write_tensor_fields(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, tensor_fiel
     with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
         for n  in range(0,len(tensor_fields_as_functions)):
             tensor_field_function = tensor_fields_as_functions[n]
+            #tensor_field_function.function_space
             tensor_field_name = tensor_field_names[n]
             tensor_field_expression = dlfx.fem.Expression(tensor_field_function, 
                                                          TEN.element.interpolation_points())

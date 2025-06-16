@@ -90,7 +90,7 @@ if rank == 0:
     
 N=50
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
-domain = dlfx.mesh.create_rectangle(comm,[np.array([0.0, 0.0]), np.array([2.0, 1.0])], [2*N,N], cell_type=dlfx.mesh.CellType.triangle)
+domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.triangle)
     
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
@@ -157,9 +157,8 @@ ddw = ufl.TrialFunction(W)
 
 deg_quad = 2  # quadrature degree for internal state variable representation
 gdim = 2
-H,alpha_n,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,alpha_n,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp = alex.plasticity.define_internal_state_variables_basix_c(gdim, domain, deg_quad,quad_scheme="default")
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
-#dx = ufl.dx
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
 H.x.array[:] = np.zeros_like(H.x.array[:])
 alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
@@ -198,7 +197,7 @@ bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=ufl.as_matrix([[e_p_11_n, e_p_12_n], [e_p_12_n, e_p_22_n]]),Id=Id,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n[0],e_p_n=ufl.as_matrix([[e_p_11_n[0], e_p_12_n[0]], [e_p_12_n[0], e_p_22_n[0]]]),Id=Id)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -225,7 +224,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = phaseFieldProblem.prep_newton(
         w=w,wm1=wm1,dw=dw,ddw=ddw,lam=la, mu = mu,
         Gc=gc,epsilon=epsilon, eta=eta,
-        iMob=iMob, delta_t=delta_t)
+        iMob=iMob, delta_t=delta_t,H=H[0])
     return [Res, dResdw]
 
 # setup tracking
@@ -324,63 +323,32 @@ Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
-
-TEN = dlfx.fem.functionspace(domain, ("CG", 1, (dim, dim)))
 def after_timestep_success(t,dt,iters):
     # update u from Δu
     
     
     
-    # with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
-    #     for n  in range(0,len(tensor_fields_as_functions)):
-    #         tensor_field_function = tensor_fields_as_functions[n]
-    #         #tensor_field_function.function_space
-    #         tensor_field_name = tensor_field_names[n]
-    #         tensor_field_expression = dlfx.fem.Expression(tensor_field_function, 
-    #                                                      TEN.element.interpolation_points())
-    #         out_tensor_field = dlfx.fem.Function(TEN) 
-    #         out_tensor_field.interpolate(tensor_field_expression)
-    #         out_tensor_field.name = tensor_field_name
-            
-    #         xdmf_out.write_function(out_tensor_field,t)
-    
     
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
-    tensor_field_expression = dlfx.fem.Expression(sigma, 
-                                                         TEN.element.interpolation_points())
-    tensor_field_name = "sigma"
-    sigma_interpolated = dlfx.fem.Function(TEN) 
-    sigma_interpolated.interpolate(tensor_field_expression)
-    sigma_interpolated.name = tensor_field_name
-    
-    #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
-    Rx_top, Ry_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     #Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ufl.ds,comm=comm)
     
     um1, _ = ufl.split(wm1)
 
-    dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
-    Work.value = Work.value + dW
+    #dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
+    #Work.value = Work.value + dW
     
-    A = pf.get_surf_area(s,epsilon=epsilon,dx=dx, comm=comm)
+    A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
     
-    E_el = phaseFieldProblem.get_E_el_global(s,eta,u,la,mu,dx=dx,comm=comm)
+    E_el = phaseFieldProblem.get_E_el_global(s,eta,u,la,mu,dx=ufl.dx,comm=comm)
     
     # write to newton-log-file
     if rank == 0:
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
     
     eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
-    tensor_field_expression = dlfx.fem.Expression(eshelby, 
-                                                         TEN.element.interpolation_points())
-    tensor_field_name = "eshelby"
-    eshelby_interpolated = dlfx.fem.Function(TEN) 
-    eshelby_interpolated.interpolate(tensor_field_expression)
-    eshelby_interpolated.name = tensor_field_name
-    
-    
-    Jx, Jy = alex.linearelastic.get_J_2D(eshelby_interpolated,n,ds=ds(external_surface_tag),comm=comm)
-    #Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,dx,comm)
+   # Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ds=ds(external_surface_tag),comm=comm)
+    # Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,ufl.dx,comm)
     
     #alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)
     
@@ -395,7 +363,6 @@ def after_timestep_success(t,dt,iters):
     # if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
     if rank == 0:
         print("Crack tip position x: " + str(x_ct))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Work.value, A, dt, E_el)
         #pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt, E_el)
 
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
@@ -421,18 +388,18 @@ def after_timestep_success(t,dt,iters):
     # update H 
     
     delta_u = u - um1  
-    H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
-    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
+    H_expr = H[0] + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H.x.array.reshape((-1, 2))[:,0] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     
-    e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
-    e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
-    e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
-    e_p_n_tmp = ufl.as_matrix([[e_p_11_n_tmp, e_p_12_n_tmp], [e_p_12_n_tmp, e_p_22_n_tmp]])
+    e_p_11_n_tmp.x.array.reshape((-1, 2))[:,0] = e_p_11_n.x.array.reshape((-1, 2))[:,0]
+    e_p_22_n_tmp.x.array.reshape((-1, 2))[:,0] = e_p_22_n.x.array.reshape((-1, 2))[:,0]
+    e_p_12_n_tmp.x.array.reshape((-1, 2))[:,0] = e_p_12_n.x.array.reshape((-1, 2))[:,0]
+    e_p_n_tmp = ufl.as_matrix([[e_p_11_n_tmp[0], e_p_12_n_tmp[0]], [e_p_12_n_tmp[0], e_p_22_n_tmp[0]]])
     
-    alpha_tmp.x.array[:] = alpha_n.x.array[:]
-    alpha_expr = alex.plasticity.update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
-    alpha_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
+    alpha_tmp.x.array.reshape((-1, 2))[:,0] = alpha_n.x.reshape((-1, 2))[:,0]
+    alpha_expr = alex.plasticity.update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n[0],sig_y=sig_y.value,hard=hard.value,mu=mu)
+    alpha_n.array.reshape((-1, 2))[:,0] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
     
     
     
@@ -441,14 +408,14 @@ def after_timestep_success(t,dt,iters):
     
     
     
-    e_p_11_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,0]
-    e_p_11_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
+    e_p_11_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp[0],sig_y=sig_y.value,hard=hard.value,mu=mu)[0,0]
+    e_p_11_n.x.array.reshape((-1, 2))[:,0] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
     
-    e_p_22_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[1,1]
-    e_p_22_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
+    e_p_22_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp[0],sig_y=sig_y.value,hard=hard.value,mu=mu)[1,1]
+    e_p_22_n.x.array.reshape((-1, 2))[:,0] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
     
-    e_p_12_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,1]
-    e_p_12_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+    e_p_12_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp[0],sig_y=sig_y.value,hard=hard.value,mu=mu)[0,1]
+    e_p_12_n.x.array.reshape((-1, 2))[:,0] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
 
     # delta_u = u - um1        
     # Hu, Hs = ufl.split(H)
