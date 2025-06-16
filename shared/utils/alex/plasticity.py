@@ -47,13 +47,12 @@ def get_residual_and_tangent(n : ufl.FacetNormal, loading, sig_np1, u_ : ufl.Tes
     return Residual, tangent_form
     
     
-
 #basix.make_quadrature()
 
 def get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad):
     basix_celltype = getattr(basix.CellType, domain.topology.cell_types[0].name) # 7.3
     #basix_celltype = getattr(basix.CellType, domain.topology.cell_type.name) # 8.0
-    quadrature_points, weights = basix.make_quadrature(basix_celltype, deg_quad)
+    quadrature_points, weights = basix.make_quadrature(basix_celltype, deg_quad,rule=basix.quadrature.string_to_type("default"))
 
     map_c = domain.topology.index_map(domain.topology.dim)
     num_cells = map_c.size_local + map_c.num_ghosts
@@ -119,6 +118,35 @@ def define_internal_state_variables_basix(gdim, domain, deg_quad, quad_scheme):
     
     
     return beta
+
+
+def define_internal_state_variables_basix_b(gdim, domain, deg_quad, quad_scheme):  
+    W0e = basix.ufl.quadrature_element(
+    domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad
+)
+    
+    We = basix.ufl.quadrature_element(
+    domain.basix_cell(), value_shape=(2,2), scheme="default", degree=deg_quad
+)
+# We = basix.ufl.quadrature_element(
+#     domain.basix_cell(), value_shape=(alex.plasticity.get_history_field_dimension_for_symmetric_second_order_tensor(gdim),), scheme="default", degree=deg_quad
+# )
+    
+    W0 = fem.functionspace(domain, W0e)
+    alpha = fem.Function(W0, name="alpha")
+    alpha_tmp = fem.Function(W0, name="alpha_tmp")
+    H = fem.Function(W0, name="H")
+    
+    #W = fem.functionspace(domain, We)
+    e_p_11_n = fem.Function(W0, name="e_p_11")
+    e_p_22_n = fem.Function(W0, name="e_p_11")
+    e_p_12_n = fem.Function(W0, name="e_p_11")
+    
+    e_p_11_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_22_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_12_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    
+    return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp
 
     
 def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):  
@@ -272,6 +300,7 @@ class Ramberg_Osgood:
        
         K = lam + mu
         sig = K * ufl.tr(eps) * ufl.Identity(2)  + 2.0 * mu_r * eps_dev
+        
         return sig
 
     def sig_ramberg_osgood_diewald(u, lam, mu):
@@ -289,3 +318,52 @@ class Ramberg_Osgood:
         K = le.get_K(lam=lam,mu=mu) #lam + mu
         sig = K * ufl.tr(eps)* ufl.Identity(2) + Z * ufl.dev(eps)
         return sig
+    
+    
+    
+    
+def f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu):
+        e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+        s_tr = 2.0*mu*(e_np1-e_p_n)
+        norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
+        f_tr = norm_s_tr -np.sqrt(2.0/3.0) * (sig_y+hard*alpha_n)
+        return f_tr
+        
+    
+def update_e_p(u,e_p_n,alpha_n,sig_y,hard,mu):
+    e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+    s_tr = 2.0*mu*(e_np1-e_p_n)
+        
+    norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
+        
+    f_tr = f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu)
+    dgamma = f_tr / (2.0*(mu+hard/3))
+    N_np1 = s_tr / norm_s_tr
+    eps_p_np1 = ufl.conditional(ufl.le(f_tr,0.0),e_p_n,e_p_n+dgamma*N_np1)
+    return eps_p_np1
+    
+
+def update_alpha(u,e_p_n,alpha_n,sig_y,hard,mu):
+    f_tr = f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu)
+    dgamma = f_tr / (2.0*(mu+hard/3))
+    alpha_np1 = ufl.conditional(ufl.le(f_tr,0.0),alpha_n,alpha_n+np.sqrt(2/3)*dgamma)
+    return alpha_np1
+    
+
+def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,Id=None):  
+    eps_np1 = ufl.sym(ufl.grad(u))
+    e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+        
+    s_tr = 2.0*mu*(e_np1-e_p_n)
+        
+    norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
+    f_tr = f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu)
+    dgamma = f_tr / (2.0*(mu+hard/3))
+    
+    N_np1 = s_tr / norm_s_tr
+    s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2.0*mu*dgamma*N_np1)
+    K = le.get_K_2D(lam=lam,mu=mu)
+    sig = K * ufl.tr(eps_np1)*ufl.Identity(2) + s_np1
+    return sig
+    
+    
