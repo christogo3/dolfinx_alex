@@ -273,7 +273,8 @@ def solve_with_newton_adaptive_time_stepping(domain: dlfx.mesh.Mesh,
         try:
             (iters, converged) = solver.solve(w)
         except RuntimeError as e:
-            print(e)
+            if comm.Get_rank() == 0:
+                print(e)
             dt.value = dt_scale_down*dt.value
             # restart_solution = True
             if rank == 0 and print_bool:

@@ -127,7 +127,7 @@ Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 yield_strain_1d = dlfx.fem.Constant(domain, 1.0/3.0)
-b_hardening_parameter = dlfx.fem.Constant(domain, 0.00001)
+b_hardening_parameter = dlfx.fem.Constant(domain, 0.1)
 r_transition_smoothness_parameter = dlfx.fem.Constant(domain, 10.0)
 
 # Function space and FE functions ########################################################
@@ -149,7 +149,7 @@ ddw = ufl.TrialFunction(W)
 
 
 
-deg_quad = 2  # quadrature degree for internal state variable representation
+deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 2
 H = alex.plasticity.define_internal_state_variables_basix(gdim, domain, deg_quad,quad_scheme="default")
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
