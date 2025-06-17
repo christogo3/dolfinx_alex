@@ -139,14 +139,16 @@ def define_internal_state_variables_basix_b(gdim, domain, deg_quad, quad_scheme)
     
     #W = fem.functionspace(domain, We)
     e_p_11_n = fem.Function(W0, name="e_p_11")
-    e_p_22_n = fem.Function(W0, name="e_p_11")
-    e_p_12_n = fem.Function(W0, name="e_p_11")
+    e_p_22_n = fem.Function(W0, name="e_p_22")
+    e_p_12_n = fem.Function(W0, name="e_p_12")
+    e_p_33_n = fem.Function(W0, name="e_p_33")
     
     e_p_11_n_tmp = fem.Function(W0, name="e_p_11_tmp")
-    e_p_22_n_tmp = fem.Function(W0, name="e_p_11_tmp")
-    e_p_12_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_22_n_tmp = fem.Function(W0, name="e_p_22_tmp")
+    e_p_12_n_tmp = fem.Function(W0, name="e_p_12_tmp")
+    e_p_33_n_tmp = fem.Function(W0, name="e_p_33_tmp")
     
-    return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp
+    return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_33_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp, e_p_33_n_tmp
 
 def define_internal_state_variables_basix_c(gdim, domain, deg_quad, quad_scheme):  
     W0e = basix.ufl.quadrature_element(
@@ -351,20 +353,27 @@ class Ramberg_Osgood:
     
     
 def f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu):
-        eps_np1_2D = ufl.sym(ufl.grad(u))
-        eps_np1_3D_plane_strain = ufl.as_tensor([[eps_np1_2D[0,0], eps_np1_2D[0,1], 0.0],
-                                                [ eps_np1_2D[1,0], eps_np1_2D[1,1], 0.0],
-                                                [ 0.0,             0.0,             0.0]])
+        eps_np1_3D_plane_strain = assemble_3D_representation_of_plane_strain_eps(u)
         
-        e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+        
+        #e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+        e_np1 = ufl.dev(eps_np1_3D_plane_strain)
         s_tr = 2.0*mu*(e_np1-e_p_n)
         norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
         f_tr = norm_s_tr -np.sqrt(2.0/3.0) * (sig_y+hard*alpha_n)
         return f_tr
+
+def assemble_3D_representation_of_plane_strain_eps(u):
+    eps_np1_2D = ufl.sym(ufl.grad(u))
+    eps_np1_3D_plane_strain = ufl.as_tensor([[eps_np1_2D[0,0], eps_np1_2D[0,1], 0.0],
+                                                [ eps_np1_2D[1,0], eps_np1_2D[1,1], 0.0],
+                                                [ 0.0,             0.0,             0.0]])
+                                            
+    return eps_np1_3D_plane_strain
         
     
 def update_e_p(u,e_p_n,alpha_n,sig_y,hard,mu):
-    e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+    e_np1 = ufl.dev(assemble_3D_representation_of_plane_strain_eps(u))
     s_tr = 2.0*mu*(e_np1-e_p_n)
         
     norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
@@ -384,8 +393,8 @@ def update_alpha(u,e_p_n,alpha_n,sig_y,hard,mu):
     
 
 def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,Id=None):  
-    eps_np1 = ufl.sym(ufl.grad(u))
-    e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
+    eps_np1 = assemble_3D_representation_of_plane_strain_eps(u)
+    e_np1 = ufl.dev(eps_np1)
         
     s_tr = 2.0*mu*(e_np1-e_p_n)
         
@@ -399,8 +408,12 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,Id=None):
     
     N_np1 = s_tr / norm_s_tr
     s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2.0*mu*dgamma*N_np1)
-    K = le.get_K_2D(lam=lam,mu=mu)
-    sig = K * ufl.tr(eps_np1)*ufl.Identity(2) + s_np1
-    return sig
+    K = le.get_K(lam=lam,mu=mu)
+    sig_3D = K * ufl.tr(eps_np1)*ufl.Identity(3) + s_np1
+    
+    sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
+                            [sig_3D[1,0], sig_3D[1,1]]])
+    
+    return sig_2D
     
     

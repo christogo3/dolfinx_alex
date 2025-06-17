@@ -157,7 +157,7 @@ ddw = ufl.TrialFunction(W)
 
 deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 2
-H,alpha_n,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,alpha_n,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_33_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp, e_p_33_n_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 #dx = ufl.dx
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
@@ -167,9 +167,11 @@ alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
 e_p_11_n.x.array[:] = np.zeros_like(e_p_11_n.x.array[:])
 e_p_22_n.x.array[:] = np.zeros_like(e_p_22_n.x.array[:])
 e_p_12_n.x.array[:] = np.zeros_like(e_p_12_n.x.array[:])
+e_p_33_n.x.array[:] = np.zeros_like(e_p_33_n.x.array[:])
 e_p_11_n_tmp.x.array[:] = np.zeros_like(e_p_11_n_tmp.x.array[:])
 e_p_22_n_tmp.x.array[:] = np.zeros_like(e_p_22_n_tmp.x.array[:])
 e_p_12_n_tmp.x.array[:] = np.zeros_like(e_p_12_n_tmp.x.array[:])
+e_p_33_n_tmp.x.array[:] = np.zeros_like(e_p_33_n_tmp.x.array[:])
 
 
 # setting K1 so it always breaks
@@ -196,9 +198,12 @@ crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 
+e_p_n_3D = ufl.as_tensor([[e_p_11_n, e_p_12_n, 0.0], 
+                          [e_p_12_n, e_p_22_n, 0.0],
+                          [0.0         ,          0.0, e_p_33_n]])
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=ufl.as_matrix([[e_p_11_n, e_p_12_n], [e_p_12_n, e_p_22_n]]),Id=Id,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,Id=Id,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -408,7 +413,10 @@ def after_timestep_success(t,dt,iters):
     e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
     e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
     e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
-    e_p_n_tmp = ufl.as_matrix([[e_p_11_n_tmp, e_p_12_n_tmp], [e_p_12_n_tmp, e_p_22_n_tmp]])
+    e_p_33_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_n_tmp = ufl.as_tensor([[e_p_11_n_tmp, e_p_12_n_tmp, 0.0], 
+                               [e_p_12_n_tmp, e_p_22_n_tmp, 0.0],
+                               [0.0         ,          0.0, e_p_33_n_tmp]])
     
     alpha_tmp.x.array[:] = alpha_n.x.array[:]
     alpha_expr = alex.plasticity.update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
@@ -419,16 +427,31 @@ def after_timestep_success(t,dt,iters):
 
     
     
+    e_p_np1_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)
     
-    
-    e_p_11_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,0]
+    e_p_11_expr = e_p_np1_expr[0,0]
     e_p_11_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
     
-    e_p_22_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[1,1]
+    e_p_22_expr = e_p_np1_expr[1,1]
     e_p_22_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
     
-    e_p_12_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,1]
+    e_p_12_expr = e_p_np1_expr[0,1]
     e_p_12_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+
+    e_p_33_expr = e_p_np1_expr[2,2]
+    e_p_33_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
+
+    
+    # e_p_11_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,0]
+    # e_p_11_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
+    
+    # e_p_22_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[1,1]
+    # e_p_22_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
+    
+    # e_p_12_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,1]
+    # e_p_12_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+
+
 
     # delta_u = u - um1        
     # Hu, Hs = ufl.split(H)
