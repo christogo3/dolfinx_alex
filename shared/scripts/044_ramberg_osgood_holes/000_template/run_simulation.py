@@ -126,8 +126,8 @@ epsilon = dlfx.fem.Constant(domain, eps_param)
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
-norm_eps_crit_dev = dlfx.fem.Constant(domain, 0.5)
-b_hardening_parameter = dlfx.fem.Constant(domain, 0.1)
+yield_strain_1d = dlfx.fem.Constant(domain, 1.0/3.0)
+b_hardening_parameter = dlfx.fem.Constant(domain, 0.00001)
 r_transition_smoothness_parameter = dlfx.fem.Constant(domain, 10.0)
 
 # Function space and FE functions ########################################################
@@ -186,12 +186,9 @@ crackfacets = dlfx.mesh.locate_entities(domain, fdim, crack)
 crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
-# phaseFieldProblem = pf.StaticPhaseFieldProblem2D(degradationFunction=pf.degrad_quadratic,
-#                                                    psisurf=pf.psisurf_from_function)
-
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, norm_eps_crit_dev=norm_eps_crit_dev.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_strain_1d=yield_strain_1d.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value,H=H)
 
 
 
@@ -218,7 +215,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = phaseFieldProblem.prep_newton(
         w=w,wm1=wm1,dw=dw,ddw=ddw,lam=la, mu = mu,
         Gc=gc,epsilon=epsilon, eta=eta,
-        iMob=iMob, delta_t=delta_t,H=H)
+        iMob=iMob, delta_t=delta_t)
     return [Res, dResdw]
 
 # setup tracking
@@ -297,6 +294,7 @@ Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+TEN = dlfx.fem.functionspace(domain, ("DP", deg_quad-1, (dim, dim)))
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
@@ -315,7 +313,16 @@ def after_timestep_success(t,dt,iters):
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
     
     eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
-    Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ds=ds(external_surface_tag),comm=comm)
+    #eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
+    tensor_field_expression = dlfx.fem.Expression(eshelby, 
+                                                         TEN.element.interpolation_points())
+    tensor_field_name = "eshelby"
+    eshelby_interpolated = dlfx.fem.Function(TEN) 
+    eshelby_interpolated.interpolate(tensor_field_expression)
+    eshelby_interpolated.name = tensor_field_name
+    
+    
+    Jx, Jy = alex.linearelastic.get_J_2D(eshelby_interpolated,n,ds=ds(external_surface_tag),comm=comm)
     # Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,ufl.dx,comm)
     
     #alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)

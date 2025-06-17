@@ -20,11 +20,11 @@ def degds_quadratic(s: any) -> any:
     degds = 2.0 * s
     return degds
 
-def degrad_cubic(s: any, eta: dlfx.fem.Constant, beta=0.1) -> any:
+def degrad_cubic(s: any, eta: dlfx.fem.Constant, beta=0.2) -> any:
     degrad = beta * ((s ** 2) * s - (s ** 2)) + 3.0 * (s ** 2) - 2.0*(s ** 2) * s + eta
     return degrad
 
-def degds_cubic(s: any, beta=0.1) -> any:
+def degds_cubic(s: any, beta=0.2) -> any:
     degds = beta * (3.0*(s ** 2)  - 2.0*s) + 6.0 * s - 6.0 * s ** 2
     return degds
 
@@ -263,9 +263,10 @@ class StaticPhaseFieldProblem2D_incremental:
     # Constructor method
     def __init__(self, degradationFunction: Callable,
                        psisurf: Callable,
-                       norm_eps_crit_dev: any,
+                       yield_strain_1d: any,
                        b_hardening_parameter: any,
                        r_transition_smoothness_parameter: any,
+                       H: any,
                        dx: any = ufl.dx,
                  ):
         self.degradation_function = degradationFunction
@@ -278,11 +279,12 @@ class StaticPhaseFieldProblem2D_incremental:
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = self.sigma_undegraded #.sigma_as_tensor # plane strain
         self.dx = dx
-        self.norm_eps_crit_dev = norm_eps_crit_dev
+        self.yield_strain_1d = yield_strain_1d
         self.b_hardening_parameter = b_hardening_parameter
         self.r_transition_smoothness_parameter = r_transition_smoothness_parameter
+        self.H = H
         
-    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H):
+    def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any, um1:any):
             
             delta_u = u - um1
@@ -307,7 +309,7 @@ class StaticPhaseFieldProblem2D_incremental:
             
             #sdrive = ( ( degds * ( H ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             
-            sdrive = ( ( degds * ( H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
+            sdrive = ( ( degds * ( self.H + ufl.inner(self.sigma_undegraded(u=u,lam=lam,mu=mu), 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T) ) ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * self.dx
             rate = (s-sm1)/delta_t*ds*self.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
@@ -337,74 +339,8 @@ class StaticPhaseFieldProblem2D_incremental:
         
         #sig = ramberg_osgood_diewald(u, lam, mu)
         
-        sig = plasticity.Ramberg_Osgood.sig_ramberg_osgood_wiki(u, lam, mu,norm_eps_crit_dev=self.norm_eps_crit_dev,b_hardening_parameter=self.b_hardening_parameter,r_transition_smoothness_parameter=self.r_transition_smoothness_parameter)
-        
-        # eps = 0.5*(ufl.grad(u) + ufl.grad(u).T)
-        
-        # C = 0.001 # self.C
-        # n = 1.0 #self.n
-        # eps_e_val = ufl.sqrt(2.0/3.0 * ufl.inner(eps,eps)) #+0.000001
-        # #tol = ufl.as_ufl(0.00001)
-        
-        
-        # eps_e = eps_e_val #ufl.conditional(ufl.ge(eps_e_val,0.0001),eps_e_val,0.0001) 
-        
-        # #HH = ((3.0 * mu) / le.get_emod(lam,mu)) * (C ** (1.0 / n))
-        
-        # HH = ((3.0 * mu.value) / le.get_emod(lam.value,mu.value)) * (C ** (1.0))
-        
-        
-        # expo = (1.0 - (1.0/n))
-        # Z = (2.0 * mu.value) / ( 1.0 + HH * (eps_e)**expo)
-        
-        # #Z = 2.2 ** 0.1
-        
-        # #Z = (2.0 * mu) / ( 1.0 + HH * (eps_e)**(0.0))
-        
-        # K = lam + mu
-        
-        # eps_3D = ufl.as_matrix([ 
-        #                [eps[0,0], eps[0,1], 0.0],
-        #                [eps[1,0], eps[1,1], 0.0],
-        #                [0.0,      0.0,      0.0],
-            
-        # ])
-        
-        # eps_3D_dev = ufl.dev(eps_3D)
-        
-        # sig = ufl.as_matrix([ 
-        #                [ K * ufl.tr(eps_3D) + Z * eps_3D_dev[0,0], Z * eps_3D_dev[0,1]],
-        #                [ Z * eps_3D_dev[1,0],                      K * ufl.tr(eps_3D) + Z * eps_3D_dev[1,1]]
-            
-        # ])
-        
-        #sig = K * ufl.tr(eps)* self.Id + Z *ufl.dev(eps)
-        
-        
-        # bconst = 10e-4
-        # nexp=3.5
-        
-        # K=le.get_K(lam,mu)
-        
-        # sigma_vol = ufl.as_matrix([ 
-        #                [ K * ufl.tr(eps_3D) , 0.0],
-        #                [ 0.0,                      K * ufl.tr(eps_3D) ]])
-        
-        # sigma_dev_3D = 2*mu/(1+3*(mu*bconst)*eps_e**(1-1/nexp)) * eps_3D_dev
-        
-        # sigma_dev =  ufl.as_matrix([ 
-        #                [ sigma_dev_3D[0,0] , sigma_dev_3D[0,1]],
-        #                [ sigma_dev_3D[1,0],  sigma_dev_3D[1,1] ]])
-        
-        # sig = sigma_vol + sigma_dev
-        # sig = K * ufl.tr(eps) * ufl.Identity(2)  + Z * ufl.dev(eps)
-        
-        # test = self.eps(u)
-        # sig  = K * ufl.tr(self.eps(u)) * ufl.Identity(2) + 2*mu/(1+3*(mu*bconst)*self.eqeps(u)**(1-1/nexp)) * self.deveps(u)
-        
-        
-       
-        
+        sig = plasticity.Ramberg_Osgood.sig_ramberg_osgood_wiki(u, lam, mu,yield_strain_1d=self.yield_strain_1d,b_hardening_parameter=self.b_hardening_parameter,r_transition_smoothness_parameter=self.r_transition_smoothness_parameter)
+         
         return sig
 
     
@@ -413,7 +349,7 @@ class StaticPhaseFieldProblem2D_incremental:
         return (b  + ((1 - b)) / ((1 + np.abs(norm_eps_dev/norm_eps_crit_dev)**r)**(1/r))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0)  )
         
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return self.degradation_function(s,eta) * self.H
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
@@ -440,7 +376,6 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
                        alpha_n: any,
                        e_p_n: any,
                        H: any,
-                       Id: any,
                        dx: any = ufl.dx,
                  ):
         self.degradation_function = degradationFunction
@@ -458,7 +393,6 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
         self.e_p_n = e_p_n
         self.alpha_n = alpha_n
         self.H = H
-        self.Id = Id
         
         
     def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant):
@@ -498,7 +432,7 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
     
     def sigma_undegraded(self,u,lam,mu):
         #sig = plasticity.Ramberg_Osgood.sig_ramberg_osgood_wiki(u, lam, mu,norm_eps_crit_dev=self.norm_eps_crit_dev,b_hardening_parameter=self.b_hardening_parameter,r_transition_smoothness_parameter=self.r_transition_smoothness_parameter)
-        sig = plasticity.sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu,Id=self.Id)
+        sig = plasticity.sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
         return sig
 
         

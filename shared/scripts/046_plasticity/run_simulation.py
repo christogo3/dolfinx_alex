@@ -39,54 +39,6 @@ alex.os.print_mpi_status(rank, size)
 if rank == 0:
     alex.util.print_dolfinx_version()
 
-# Define argument parser
-# parser = argparse.ArgumentParser(description="Run a simulation with specified parameters and organize output files.")
-# try:
-#     parser.add_argument("--mesh_file", type=str, required=True, help="Name of the mesh file")
-#     parser.add_argument("--in_crack_length", type=float, required=True, help="Initial Crack length")
-#     # parser.add_argument("--lam_effective_param", type=float, required=True, help="Lambda effective_parameter")
-#     # parser.add_argument("--mue_effective_param", type=float, required=True, help="Mu effective_parameter")
-#     parser.add_argument("--lam_micro_param", type=float, required=True, help="Lambda micro_parameter")
-#     parser.add_argument("--mue_micro_param", type=float, required=True, help="Mu micro_parameter")
-#     parser.add_argument("--gc_micro_param", type=float, required=True, help="Gc micro parameter")
-#     parser.add_argument("--eps_param", type=float, required=True, help="Epsilon factor parameter")
-#     parser.add_argument("--element_order", type=int, required=True, help="Element order")
-#     args = parser.parse_args()
-#     mesh_file = args.mesh_file
-#     in_crack_length = args.in_crack_length
-#     la_micro = args.lam_micro_param
-#     mu_micro = args.mue_micro_param
-#     gc_micro = args.gc_micro_param
-#     gc_matrix = gc_micro
-#     eps_param = args.eps_param
-# except (argparse.ArgumentError, SystemExit, Exception) as e:
-#     if rank == 0:
-#         print("Could not parse arguments")
-#         print(e)
-#     in_crack_length = 0.05
-#     la_micro = 1.0
-#     la_effective = 1.0
-#     mu_micro = 1.0
-#     mu_effective = 1.0
-#     gc_micro = 1.0
-#     gc_matrix = gc_micro
-#     mesh_file = "mesh_fracture_adaptive.xdmf"
-#     eps_param = 0.1
-    
-# parameters = pp.read_parameters_file(parameter_path)
-# la_effective = parameters["lam_effective"]
-# mu_effective = parameters["mue_effective"]
-# wsteg = parameters["wsteg"]
-# dhole = parameters["dhole"]
-# w_cell = wsteg + dhole
-
-# if rank == 0:
-#         print(f"Initial crack length: {in_crack_length}")
-
-
-# with dlfx.io.XDMFFile(comm, os.path.join(script_path,mesh_file), 'r') as mesh_inp: 
-#     domain = mesh_inp.read_mesh(name="Grid")
-#     mesh_tags = mesh_inp.read_meshtags(domain,name="Grid")
     
 N=50
 #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
@@ -103,9 +55,6 @@ if rank == 0:
 # Material definition ##################################################
 micro_material_marker = 1
 effective_material_marker = 0
-
-
-
 
 
 # Simulation parameters ####
@@ -128,13 +77,13 @@ epsilon = dlfx.fem.Constant(domain, 0.1)
 Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
-z = dlfx.fem.Constant(domain,0.0)
-Id = ufl.as_matrix([[1,z],
-           [z,1]])
+# z = dlfx.fem.Constant(domain,0.0)
+# Id = ufl.as_matrix([[1,z],
+#            [z,1]])
 
 
 sig_y = dlfx.fem.Constant(domain, 1.0)
-hard = dlfx.fem.Constant(domain, 1.0)
+hard = dlfx.fem.Constant(domain, 0.1)
 
 # Function space and FE functions ########################################################
 # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1,dim=2) # displacements
@@ -203,7 +152,7 @@ e_p_n_3D = ufl.as_tensor([[e_p_11_n, e_p_12_n, 0.0],
                           [0.0         ,          0.0, e_p_33_n]])
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,Id=Id,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -295,26 +244,6 @@ def get_bcs(t):
     return bcs
 
 
-
-
-# def in_steg_to_be_measured(x_ct):
-#     #x_center = (w_cell) * 1.5 + dhole/2
-#     first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
-    
-#     in_first_steg = first_low <= x_ct <= first_high
-#     in_second_steg = second_low <= x_ct <= second_high
-    
-#     return in_first_steg or in_second_steg
-
-# def steg_bounds_to_be_measured():
-#     first_low = w_cell + wsteg/2.0 #+ dhole
-#     first_high = first_low + wsteg #- (0.01*wsteg)
-    
-#     second_low = first_high #
-#     second_high = second_low + wsteg 
-#     return first_low,first_high,second_low,second_high
-
-
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
@@ -330,26 +259,8 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 
-TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
-def after_timestep_success(t,dt,iters):
-    # update u from Δu
-    
-    
-    
-    # with dlfx.io.XDMFFile(comm, outputfile_xdmf_path, 'a') as xdmf_out:
-    #     for n  in range(0,len(tensor_fields_as_functions)):
-    #         tensor_field_function = tensor_fields_as_functions[n]
-    #         #tensor_field_function.function_space
-    #         tensor_field_name = tensor_field_names[n]
-    #         tensor_field_expression = dlfx.fem.Expression(tensor_field_function, 
-    #                                                      TEN.element.interpolation_points())
-    #         out_tensor_field = dlfx.fem.Function(TEN) 
-    #         out_tensor_field.interpolate(tensor_field_expression)
-    #         out_tensor_field.name = tensor_field_name
-            
-    #         xdmf_out.write_function(out_tensor_field,t)
-    
-    
+TEN = dlfx.fem.functionspace(domain, ("DP", deg_quad-1, (dim, dim)))
+def after_timestep_success(t,dt,iters):    
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
     tensor_field_expression = dlfx.fem.Expression(sigma, 
                                                          TEN.element.interpolation_points())
@@ -358,9 +269,8 @@ def after_timestep_success(t,dt,iters):
     sigma_interpolated.interpolate(tensor_field_expression)
     sigma_interpolated.name = tensor_field_name
     
-    #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
     Rx_top, Ry_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
-    #Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ufl.ds,comm=comm)
+    
     
     um1, _ = ufl.split(wm1)
 
@@ -403,7 +313,7 @@ def after_timestep_success(t,dt,iters):
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Work.value, A, dt, E_el)
 
     
-    # update H 
+    # update 
     
     delta_u = u - um1  
     H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
@@ -424,9 +334,6 @@ def after_timestep_success(t,dt,iters):
     
     
     
-
-    
-    
     e_p_np1_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)
     
     e_p_11_expr = e_p_np1_expr[0,0]
@@ -442,27 +349,7 @@ def after_timestep_success(t,dt,iters):
     e_p_33_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
 
     
-    # e_p_11_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,0]
-    # e_p_11_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
     
-    # e_p_22_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[1,1]
-    # e_p_22_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
-    
-    # e_p_12_expr = alex.plasticity.update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)[0,1]
-    # e_p_12_n.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
-
-
-
-    # delta_u = u - um1        
-    # Hu, Hs = ufl.split(H)
-    # H_new = Hs + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
-    
-    # # H_s_field = dlfx.fem.Function(S)
-    # # H_s_field.interpolate(Hs,S.element.interpolation_points() )
-    
-    # vector_field_expression = dlfx.fem.Expression(H_new, 
-    #                                                     S.element.interpolation_points())
-    # H.sub(1).interpolate(vector_field_expression)
 
     # update
     wm1.x.array[:] = w.x.array[:]

@@ -308,30 +308,34 @@ class Ramberg_Osgood:
         return sig
     
     
-    def sig_ramberg_osgood_wiki(u, lam, mu,norm_eps_crit_dev,b_hardening_parameter,r_transition_smoothness_parameter):
+    def sig_ramberg_osgood_wiki(u, lam, mu,yield_strain_1d,b_hardening_parameter,r_transition_smoothness_parameter):
         # b comparable to hardening modul
         # r lower -> smoother transition
         
-        eps = ufl.sym(ufl.grad(u))
+        eps = assemble_3D_representation_of_plane_strain_eps(u)
         eps_dev = ufl.dev(eps)
         
-        norm_eps_dev_val = ufl.sqrt(ufl.inner(eps_dev,eps_dev))
-        
-        norm_eps_dev = ufl.conditional(ufl.lt(norm_eps_dev_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, norm_eps_dev_val)
+        eps_dev_e_val = ufl.sqrt(2.0/3.0*ufl.inner(eps_dev,eps_dev))
+        # prevent zero 
+        eps_dev_e = ufl.conditional(ufl.lt(eps_dev_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_dev_e_val)
         #norm_eps_crit_dev = 0.5
-        norm_sig_dev_crit = mu*2.0*norm_eps_crit_dev
+        #yield_stress_1d = mu*2.0*yield_strain_1d
+        #norm_sig_dev_crit = yield_stress_1d*np.sqrt(2.0/3.0) # 
         
         #b_hardening_parameter = 0.1     # Strain hardening parameter
         #r = 10.0 
         
         
         
-        mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((norm_eps_dev/norm_eps_crit_dev) * (norm_eps_dev/norm_eps_crit_dev)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0) )
+        mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((eps_dev_e/yield_strain_1d) * (eps_dev_e/yield_strain_1d)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( mu )
        
-        K = lam + mu
-        sig = K * ufl.tr(eps) * ufl.Identity(2)  + 2.0 * mu_r * eps_dev
+        K = le.get_K(lam=lam,mu=mu)
+        sig_3D = K * ufl.tr(eps) * ufl.Identity(3)  + 2.0 * mu_r * eps_dev
         
-        return sig
+        sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
+                            [sig_3D[1,0], sig_3D[1,1]]])
+        
+        return sig_2D
 
     def sig_ramberg_osgood_diewald(u, lam, mu):
         eps = ufl.sym(ufl.grad(u))
@@ -392,7 +396,7 @@ def update_alpha(u,e_p_n,alpha_n,sig_y,hard,mu):
     return alpha_np1
     
 
-def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,Id=None):  
+def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu):  
     eps_np1 = assemble_3D_representation_of_plane_strain_eps(u)
     e_np1 = ufl.dev(eps_np1)
         
