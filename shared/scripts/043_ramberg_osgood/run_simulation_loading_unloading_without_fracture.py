@@ -165,7 +165,7 @@ domain.topology.create_connectivity(fdim, tdim)
 
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_strain_1d=1.0/3.0, b_hardening_parameter=0.00001, r_transition_smoothness_parameter=10.0,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_strain_1d=1.0/3.0, b_hardening_parameter=0.1, r_transition_smoothness_parameter=10.0,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():

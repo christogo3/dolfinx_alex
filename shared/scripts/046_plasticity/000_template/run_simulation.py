@@ -127,7 +127,7 @@ Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 sig_y = dlfx.fem.Constant(domain, 1.0)
-hard = dlfx.fem.Constant(domain, 0.1)
+hard = dlfx.fem.Constant(domain, 0.6)
 
 # Function space and FE functions ########################################################
 # Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1,dim=2) # displacements
