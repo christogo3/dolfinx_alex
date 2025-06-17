@@ -351,6 +351,11 @@ class Ramberg_Osgood:
     
     
 def f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu):
+        eps_np1_2D = ufl.sym(ufl.grad(u))
+        eps_np1_3D_plane_strain = ufl.as_tensor([[eps_np1_2D[0,0], eps_np1_2D[0,1], 0.0],
+                                                [ eps_np1_2D[1,0], eps_np1_2D[1,1], 0.0],
+                                                [ 0.0,             0.0,             0.0]])
+        
         e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
         s_tr = 2.0*mu*(e_np1-e_p_n)
         norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))

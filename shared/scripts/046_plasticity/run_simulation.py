@@ -155,7 +155,7 @@ um1, sm1 = ufl.split(wm1)
 dw = ufl.TestFunction(W)
 ddw = ufl.TrialFunction(W)
 
-deg_quad = 2  # quadrature degree for internal state variable representation
+deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 2
 H,alpha_n,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
@@ -325,7 +325,7 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 
-TEN = dlfx.fem.functionspace(domain, ("CG", 1, (dim, dim)))
+TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 def after_timestep_success(t,dt,iters):
     # update u from Δu
     
@@ -396,27 +396,7 @@ def after_timestep_success(t,dt,iters):
     if rank == 0:
         print("Crack tip position x: " + str(x_ct))
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Work.value, A, dt, E_el)
-        #pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt, E_el)
 
-        # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
-
-    # if in_steg_to_be_measured(x_ct=x_ct):
-    #     if rank == 0:
-    #         first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
-    #         print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
-        
-    #     # restricting time step    
-    #     dt_max.value = dt_max_in_critical_area
-    #     dt_global.value = dt_max_in_critical_area
-        
-    #     # restart if dt is to large
-    #     # if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
-    #     #     w.x.array[:] = wrestart.x.array[:]
-    #     #     t_global.value = t_global.value - dt
-    #     #     #t_global.value = trestart_global.value
-             
-    # else:
-    #     dt_max.value = dt_start # reset to larger time step bound
     
     # update H 
     
