@@ -293,7 +293,7 @@ def get_bcs(t):
 # top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0),top_surface_tag)
 # ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
-deg_quad = 1.0
+deg_quad = 1
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
