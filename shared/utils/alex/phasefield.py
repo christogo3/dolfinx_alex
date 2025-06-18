@@ -348,8 +348,11 @@ class StaticPhaseFieldProblem2D_incremental:
     def compute_G(self,norm_eps_dev, b, r,norm_eps_crit_dev,norm_sig_dev_crit):
         return (b  + ((1 - b)) / ((1 + np.abs(norm_eps_dev/norm_eps_crit_dev)**r)**(1/r))) * ( norm_sig_dev_crit / (norm_eps_crit_dev*2.0)  )
         
+    # def psiel_degraded(self,s,eta,u,lam,mu):
+    #     return self.degradation_function(s,eta) * self.H
+    
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * self.H
+        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)
@@ -435,9 +438,19 @@ class StaticPhaseFieldProblem2D_incremental_plasticity:
         sig = plasticity.sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
         return sig
 
-        
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * self.H
+        eps_3D = plasticity.assemble_3D_representation_of_plane_strain_eps(u)
+        eps_e_3D = eps_3D - self.e_p_n
+        
+        K = le.get_K(lam,mu)
+        sig_3D = K * ufl.tr(eps_e_3D) * ufl.Identity(3) - 2.0 * mu * ufl.dev(eps_e_3D)
+        
+        psiel_undegraded = 0.5*ufl.inner(sig_3D,eps_e_3D)
+        return self.degradation_function(s,eta) * psiel_undegraded
+        
+        
+    # def psiel_degraded(self,s,eta,u,lam,mu):
+    #     return self.degradation_function(s,eta) * self.H
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)

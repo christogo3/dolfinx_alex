@@ -1,6 +1,12 @@
 import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
+plt.rcParams.update({
+    "text.usetex": True,
+    "text.latex.preamble": r"\usepackage{type1cm}"
+})
+
+
 from matplotlib.ticker import MaxNLocator, LogLocator
 import os
 import math
