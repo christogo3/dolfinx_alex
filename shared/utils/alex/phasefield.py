@@ -38,6 +38,9 @@ def sig_c_cubic_deg(Gc, mu, epsilon):
 def get_Gc_for_given_sig_c_quadr(sig_c, mu, epsilon):
     return (256.0 * epsilon / (27.0 * mu)) * sig_c**2
 
+def get_Gc_for_given_sig_c_cub(sig_c, mu, epsilon):
+    return (15.0 * epsilon / (2.0 * mu)) * (50.0/81*sig_c)**2
+
 
 def psisurf(s: dlfx.fem.Function, Gc: dlfx.fem.Constant, epsilon: dlfx.fem.Constant) -> any:
     psisurf = Gc.value*(((1-s)**2)/(4*epsilon.value)+epsilon.value*(ufl.dot(ufl.grad(s), ufl.grad(s))))
