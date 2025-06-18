@@ -457,3 +457,6 @@ workspace.json
 Notes/Hypo/.obsidian/
 
 .git/
+*.pgf
+*.pdf
+*.png
