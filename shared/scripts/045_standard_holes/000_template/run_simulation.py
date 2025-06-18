@@ -283,27 +283,55 @@ def get_bcs(t):
 
 
 
+# n = ufl.FacetNormal(domain)
+# external_surface_tag = 5
+# external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
+# ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
+# # s_zero_for_tracking = pp.get_s_zero_field_for_tracking(domain)
+
+# top_surface_tag = 9
+# top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0),top_surface_tag)
+# ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
+
+deg_quad = 1.0
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
 external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
-ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags)
+ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags,metadata={"quadrature_degree": deg_quad, "quadrature_scheme": "default"})
 # s_zero_for_tracking = pp.get_s_zero_field_for_tracking(domain)
 
 top_surface_tag = 9
 top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0),top_surface_tag)
-ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
+ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags,metadata={"quadrature_degree": deg_quad, "quadrature_scheme": "default"})
+
+
 
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+
+
+TEN = dlfx.fem.functionspace(domain, ("DP", deg_quad-1, (dim, dim)))
 def after_timestep_success(t,dt,iters):
+    # sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
+    # Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
-    Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    tensor_field_expression = dlfx.fem.Expression(sigma, 
+                                                         TEN.element.interpolation_points())
+    tensor_field_name = "sigma"
+    sigma_interpolated = dlfx.fem.Function(TEN) 
+    sigma_interpolated.interpolate(tensor_field_expression)
+    sigma_interpolated.name = tensor_field_name
+    Rx_top, Ry_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
     um1, _ = ufl.split(wm1)
 
-    dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
+    # dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
+    # Work.value = Work.value + dW
+    
+    dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
     
     A = pf.get_surf_area(s,epsilon=epsilon,dx=ufl.dx, comm=comm)
@@ -315,7 +343,18 @@ def after_timestep_success(t,dt,iters):
         sol.write_to_newton_logfile(logfile_path,t,dt,iters)
     
     eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
-    Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ds=ds(external_surface_tag),comm=comm)
+    tensor_field_expression = dlfx.fem.Expression(eshelby, 
+                                                         TEN.element.interpolation_points())
+    tensor_field_name = "eshelby"
+    eshelby_interpolated = dlfx.fem.Function(TEN) 
+    eshelby_interpolated.interpolate(tensor_field_expression)
+    eshelby_interpolated.name = tensor_field_name
+    
+    
+    Jx, Jy = alex.linearelastic.get_J_2D(eshelby_interpolated,n,ds=ds(external_surface_tag),comm=comm)
+    
+    # eshelby = phaseFieldProblem.getEshelby(w,eta,la,mu)
+    # Jx, Jy = alex.linearelastic.get_J_2D(eshelby,n,ds=ds(external_surface_tag),comm=comm)
     # Jx_vol, Jy_vol = alex.linearelastic.get_J_2D_volume_integral(eshelby,ufl.dx,comm)
     
     #alex.os.mpi_print(pp.getJString2D(Jx,Jy),rank)

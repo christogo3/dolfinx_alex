@@ -75,29 +75,29 @@ data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
 
-data_directory_plasticitys = os.path.join(script_path,'.','results')
+data_directory_ramberg_osgoods = os.path.join(script_path,'.','results')
 
-simulation_data_folder_plasticitys = find_simulation_by_wsteg(data_directory_plasticitys,wsteg_value_in=0.25)
+simulation_data_folder_ramberg_osgoods = find_simulation_by_wsteg(data_directory_ramberg_osgoods,wsteg_value_in=0.25)
 
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
-data_path_plasticitys = os.path.join(simulation_data_folder_plasticitys, 'run_simulation_graphs.txt')
-parameter_path_plasticitys = os.path.join(simulation_data_folder_plasticitys,"parameters.txt")
+data_path_ramberg_osgoods = os.path.join(simulation_data_folder_ramberg_osgoods, 'run_simulation_graphs.txt')
+parameter_path_ramberg_osgoods = os.path.join(simulation_data_folder_ramberg_osgoods,"parameters.txt")
 
 # Load the data from the text file, skipping the first row
-data_plasticitys = pd.read_csv(data_path_plasticitys, delim_whitespace=True, header=None, skiprows=1)
+data_ramberg_osgoods = pd.read_csv(data_path_ramberg_osgoods, delim_whitespace=True, header=None, skiprows=1)
 
 
-normalize_Jx_to_Gc_num(gc_num_quotient, data_plasticitys)
+normalize_Jx_to_Gc_num(gc_num_quotient, data_ramberg_osgoods)
 
 
 # Display the first few rows of the data to understand its structure
 # print(data.head()
 
-starting_plasticity_to_evaluate = 2
+starting_ramberg_osgood_to_evaluate = 2
 crack_tip_position_label = "$x_{\mathrm{ct}}$"
 label_crack_length = "$A / L$"
-plasticity_label = "plasticity"
+ramberg_osgood_label = "ramberg_osgood"
 elastic_label = "elastic"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
@@ -347,31 +347,31 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     plt.close()  # Close the figure to prevent display in some environments
     print(f"Plot saved as {output_filename}") 
 
-def plasticity_positions(nhole, dhole, wsteg):
-    plasticity_start_positions = []
-    plasticity_end_positions = []
+def ramberg_osgood_positions(nhole, dhole, wsteg):
+    ramberg_osgood_start_positions = []
+    ramberg_osgood_end_positions = []
 
     for n in range(nhole):
-        # Calculate the center of the plasticity
+        # Calculate the center of the ramberg_osgood
         x_center = (dhole + wsteg) * 1.5 + n * (dhole + wsteg)
         
-        # Calculate the start and end positions of the plasticity
+        # Calculate the start and end positions of the ramberg_osgood
         x_start = x_center - dhole / 2
         x_end = x_center + dhole / 2
         
         # Append the results to the lists
-        plasticity_start_positions.append(x_start)
-        plasticity_end_positions.append(x_end)
+        ramberg_osgood_start_positions.append(x_start)
+        ramberg_osgood_end_positions.append(x_end)
 
-    return plasticity_start_positions, plasticity_end_positions
+    return ramberg_osgood_start_positions, ramberg_osgood_end_positions
 
-def get_x_range_between_plasticitys(nhole, dhole, wsteg, start_plasticity, end_plasticity):
-    # Get all plasticity start and end positions
-    plasticity_starts, plasticity_ends = plasticity_positions(nhole, dhole, wsteg)
+def get_x_range_between_ramberg_osgoods(nhole, dhole, wsteg, start_ramberg_osgood, end_ramberg_osgood):
+    # Get all ramberg_osgood start and end positions
+    ramberg_osgood_starts, ramberg_osgood_ends = ramberg_osgood_positions(nhole, dhole, wsteg)
     
-    # Get the start position of the start_plasticity and the end position of the end_plasticity
-    x_start = plasticity_starts[start_plasticity]
-    x_end = plasticity_starts[end_plasticity]
+    # Get the start position of the start_ramberg_osgood and the end position of the end_ramberg_osgood
+    x_start = ramberg_osgood_starts[start_ramberg_osgood]
+    x_end = ramberg_osgood_starts[end_ramberg_osgood]
     
     return x_start, x_end
 
@@ -380,13 +380,13 @@ nhole = int(parameters["nholes"])
 dhole = parameters["dhole"]
 wsteg = parameters["wsteg"]
              
-start_positions, end_positions = plasticity_positions(nhole, 
+start_positions, end_positions = ramberg_osgood_positions(nhole, 
                                                 dhole,
                                                 wsteg)
 
 
-plasticity_positions_out = start_positions + end_positions
-plasticity_positions_out.sort()
+ramberg_osgood_positions_out = start_positions + end_positions
+ramberg_osgood_positions_out.sort()
 
 
 output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_linear_elastic.png')   
@@ -394,16 +394,16 @@ ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=ou
                         legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
                         xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
                         x_range=[-0.1, 20],
-                        # vlines=[plasticity_positions_out, plasticity_positions_out]
+                        # vlines=[ramberg_osgood_positions_out, ramberg_osgood_positions_out]
                         )
 
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
-ev.plot_columns(data, 3, 1, output_file,vlines=plasticity_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
+ev.plot_columns(data, 3, 1, output_file,vlines=ramberg_osgood_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
-output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elastic_plasticitys.png')
-ev.plot_multiple_columns([data, data_plasticitys],3,1,output_file,
-                        vlines=[plasticity_positions_out, plasticity_positions_out],
-                         legend_labels=[elastic_label, plasticity_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
+output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elastic_ramberg_osgoods.png')
+ev.plot_multiple_columns([data, data_ramberg_osgoods],3,1,output_file,
+                        vlines=[ramberg_osgood_positions_out, ramberg_osgood_positions_out],
+                         legend_labels=[elastic_label, ramberg_osgood_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
                          y_range=[0.0, 1.5],
                         markers_only=True,marker_size=4,
                         use_colors=True
@@ -421,13 +421,13 @@ ev.plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
-x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,starting_plasticity_to_evaluate,starting_plasticity_to_evaluate+2)
+x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_ramberg_osgood_to_evaluate,starting_ramberg_osgood_to_evaluate+2)
 low_boun = x_low-wsteg/8
 upper_boun = x_high-wsteg/8
 data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-data_in_x_range_plasticitys = filter_data_by_column_bounds(data_plasticitys,3,low_bound=low_boun, upper_bound=upper_boun)
-plasticity_postions_in_range = [hp for hp in plasticity_positions_out if low_boun <= hp <= upper_boun]
-ev.plot_columns(data_in_x_range, 3, 1, output_file,vlines=plasticity_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
+data_in_x_range_ramberg_osgoods = filter_data_by_column_bounds(data_ramberg_osgoods,3,low_bound=low_boun, upper_bound=upper_boun)
+ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
+ev.plot_columns(data_in_x_range, 3, 1, output_file,vlines=ramberg_osgood_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
 
 
 
@@ -460,11 +460,11 @@ for sim in simulation_results:
     wsteg_values.append(wsteg)
 
   
-    x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,starting_plasticity_to_evaluate,starting_plasticity_to_evaluate+2)
+    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_ramberg_osgood_to_evaluate,starting_ramberg_osgood_to_evaluate+2)
     low_boun = x_low-wsteg/8
     upper_boun = x_high-wsteg/8
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    plasticity_postions_in_range = [hp for hp in plasticity_positions_out if low_boun <= hp <= upper_boun]
+    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
     legend_entry = steg_width_label+f": {wsteg}$L$"
@@ -514,13 +514,13 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 
 
 
-## plasticitys
-simulation_results_plasticitys = ev.read_all_simulation_data(data_directory_plasticitys)
+## ramberg_osgoods
+simulation_results_ramberg_osgoods = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
 data_to_plot = []
 legend_entries = []
-wsteg_values_plasticitys = []
+wsteg_values_ramberg_osgoods = []
 
-for sim in simulation_results_plasticitys:
+for sim in simulation_results_ramberg_osgoods:
     data = sim[0]
     normalize_Jx_to_Gc_num(gc_num_quotient, data)
     param = sim[1]
@@ -528,27 +528,27 @@ for sim in simulation_results_plasticitys:
     nhole = int(param["nholes"])
     dhole = param["dhole"]
     wsteg = param["wsteg"]
-    wsteg_values_plasticitys.append(wsteg)
+    wsteg_values_ramberg_osgoods.append(wsteg)
 
     
-    x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,starting_plasticity_to_evaluate,starting_plasticity_to_evaluate+2)
+    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_ramberg_osgood_to_evaluate,starting_ramberg_osgood_to_evaluate+2)
     low_boun = x_low-wsteg/8
     upper_boun = x_high-wsteg/8
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    plasticity_postions_in_range = [hp for hp in plasticity_positions_out if low_boun <= hp <= upper_boun]
+    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
     
     data_to_plot.append(data_in_x_range)
     legend_entry = steg_width_label+f": {wsteg}$L$"
     legend_entries.append(legend_entry)
     
-sorted_indices_plasticitys = sorted(range(len(wsteg_values_plasticitys)), key=lambda i: wsteg_values_plasticitys[i])
-data_to_plot_sorted_plasticitys = [data_to_plot[i] for i in sorted_indices_plasticitys]
-legend_entries_sorted = [legend_entries[i] for i in sorted_indices_plasticitys]
+sorted_indices_ramberg_osgoods = sorted(range(len(wsteg_values_ramberg_osgoods)), key=lambda i: wsteg_values_ramberg_osgoods[i])
+data_to_plot_sorted_ramberg_osgoods = [data_to_plot[i] for i in sorted_indices_ramberg_osgoods]
+legend_entries_sorted = [legend_entries[i] for i in sorted_indices_ramberg_osgoods]
 
 
 
-output_file = os.path.join(script_path, 'PAPER_04_Jx_vs_xct_all_plasticitys.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted_plasticitys,
+output_file = os.path.join(script_path, 'PAPER_04_Jx_vs_xct_all_ramberg_osgoods.png')  
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted_ramberg_osgoods,
                       col_x=3,
                       col_y=1,
                       output_filename=output_file,
@@ -556,8 +556,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_plasticitys,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True,markers_only=True,use_colors=True)
 
-output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_plasticitys.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted_plasticitys,
+output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_ramberg_osgoods.png')  
+ev.plot_multiple_columns(data_objects=data_to_plot_sorted_ramberg_osgoods,
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
@@ -568,12 +568,12 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_plasticitys,
 
 
 
-output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_linear_elastic&plasticitys.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_plasticitys[len(data_to_plot_sorted_plasticitys)-1]], # 
+output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_linear_elastic&ramberg_osgoods.png')  
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_ramberg_osgoods[len(data_to_plot_sorted_ramberg_osgoods)-1]], # 
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
-                      legend_labels=[elastic_label, plasticity_label],
+                      legend_labels=[elastic_label, ramberg_osgood_label],
                       xlabel=  t_label,ylabel=label_crack_length,
                       usetex=True,
                       x_range=[19.5, 22.5],
@@ -585,12 +585,12 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
     arrowhead_size=30  # Arrowhead size)
 )
 
-output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_linear_elastic&plasticitys.png')  
-ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_plasticitys[len(data_to_plot_sorted_plasticitys)-1]],
+output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_linear_elastic&ramberg_osgoods.png')  
+ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_ramberg_osgoods[len(data_to_plot_sorted_ramberg_osgoods)-1]],
                       col_x=0,
                       col_y=3,
                       output_filename=output_file,
-                      legend_labels=[elastic_label, plasticity_label],
+                      legend_labels=[elastic_label, ramberg_osgood_label],
                       xlabel=  t_label,ylabel="$x_{ct} / L$",
                       usetex=True)
 
@@ -620,7 +620,7 @@ for sim in simulation_results:
     wsteg = param["wsteg"]
     wsteg_values.append(wsteg)
     
-    x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -628,7 +628,7 @@ for sim in simulation_results:
     data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 3, x_upper=x_high, x_lower=x_high-wsteg) # takes starting values ne x_high, x_low into account?
     # data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 9, x_upper=x_high, x_lower=x_high-wsteg)
     
-    plasticity_postions_in_range = [hp for hp in plasticity_positions_out if low_boun <= hp <= upper_boun]
+    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
     
     
     data_to_plot.append(data_in_x_range_norm)
@@ -694,8 +694,8 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,starting_plasticity_to_evaluate,starting_plasticity_to_evaluate+1)
-    # x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_ramberg_osgood_to_evaluate,starting_ramberg_osgood_to_evaluate+1)
+    # x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -732,8 +732,8 @@ Jx_max_master.append(Jx_max_values_sorted.copy())
 JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
 
-# data_directory_plasticity = os.path.join(script_path,"..","29-2D-pores-concept-study-plasticitys","5plasticitys")
-simulation_results = ev.read_all_simulation_data(data_directory_plasticitys)
+# data_directory_ramberg_osgood = os.path.join(script_path,"..","29-2D-pores-concept-study-ramberg_osgoods","5ramberg_osgoods")
+simulation_results = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -756,8 +756,8 @@ for sim in simulation_results:
     vol_ratio_material = (vol_cell - math.pi * (dhole/2)**2)/vol_cell
     vol_ratios.append(vol_ratio_material)
     
-    # x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,1,2)
-    x_low,x_high = get_x_range_between_plasticitys(nhole,dhole,wsteg,starting_plasticity_to_evaluate,starting_plasticity_to_evaluate+1)
+    # x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,1,2)
+    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_ramberg_osgood_to_evaluate,starting_ramberg_osgood_to_evaluate+1)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
     data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
@@ -791,8 +791,8 @@ w_steg_master.append(wsteg_values_sorted.copy())
 Jx_max_master.append(Jx_max_values_sorted.copy())
 JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
-wsteg_plasticitys_to_estimate = wsteg_values_sorted.copy()
-Jx_max_plasticitys = Jx_max_values_sorted.copy()
+wsteg_ramberg_osgoods_to_estimate = wsteg_values_sorted.copy()
+Jx_max_ramberg_osgoods = Jx_max_values_sorted.copy()
 
 import matplotlib.pyplot as plt
 
@@ -850,17 +850,17 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
 
 
     
-output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_plasticity&linear_elastic.png")
-ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",legend_labels=[elastic_label, plasticity_label],output_file=output_file, usetex=True,
+output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_ramberg_osgood&linear_elastic.png")
+ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",legend_labels=[elastic_label, ramberg_osgood_label],output_file=output_file, usetex=True,
 )
 
-output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_plasticity&linear_elastic.png")
+output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_ramberg_osgood&linear_elastic.png")
 ev.plot_multiple_lines(
     x_values=w_steg_master,
     y_values=Jx_max_master,
     x_label="$w_s / L$",
     y_label=J_x_max_label,
-    legend_labels=[elastic_label, plasticity_label],
+    legend_labels=[elastic_label, ramberg_osgood_label],
     output_file=output_file,
     usetex=True,
     markers_only=False,
@@ -875,8 +875,8 @@ ev.plot_multiple_lines(
 )
 
 
-output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_plasticity&linear_elastic.png")
-ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[elastic_label, plasticity_label],output_file=output_file, usetex=True)
+output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_ramberg_osgood&linear_elastic.png")
+ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[elastic_label, ramberg_osgood_label],output_file=output_file, usetex=True)
 
 
  
@@ -962,7 +962,7 @@ plot_KIc_div_volratios_vs_wsteg(KIc_effs_sorted,wsteg_values_sorted,vol_ratios_s
 def Gc_eff(E_eff_s, L, sig_ff):
     return (L * sig_ff ** 2) / E_eff_s
 
-def sig_ff_for_isolated_plasticity(dhole,epsilon,sig_loc_bar):
+def sig_ff_for_isolated_ramberg_osgood(dhole,epsilon,sig_loc_bar):
     a = dhole/2.0
     def antiderivative(r):
         # a = dhole / 2.0
@@ -975,7 +975,7 @@ def sig_ff_medium_steg(dhole,wsteg,sig_loc_bar,epsilon):
     r = dhole / 2
     w = wsteg + dhole 
     sig_ff = sig_loc_bar / (3.0 + (4.0 *r) / (w - 2.0 * r)) # estimation
-    # correct to averaged value, same as isolated plasticitym how?
+    # correct to averaged value, same as isolated ramberg_osgoodm how?
     return sig_ff
 
 def sig_ff_thin_steg(dhole,wsteg,sig_loc_bar):
@@ -1004,7 +1004,7 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     elif wsteg/dhole <= 6.0:
         sig_ff = sig_ff_medium_steg(dhole,wsteg,sig_c_2D_val,epsilon)
     else:
-        sig_ff = sig_ff_for_isolated_plasticity(dhole,epsilon,sig_c_2D_val)
+        sig_ff = sig_ff_for_isolated_ramberg_osgood(dhole,epsilon,sig_c_2D_val)
     E_star = e_star(la_eff,mu_eff)
     
     return Gc_eff(E_star,L,sig_ff)
@@ -1052,16 +1052,16 @@ wsteg_values_sorted = [wsteg_values[i] for i in sorted_indices]
 plot_KIc_vs_wsteg(Gc_eff_est_sorted,wsteg_values_sorted,os.path.join(script_path,"Gc_est_vs_wsteg.png"))
     
 
-output_file = os.path.join(script_path,"PAPER_07_Jx_vs_wsteg_plasticity&estimate.png")
-plot_multiple_lines([wsteg_plasticitys_to_estimate,wsteg_values_sorted],[Jx_max_plasticitys, Gc_eff_est_sorted],x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[plasticity_label, estimate_label],output_file=output_file, usetex=True)
+output_file = os.path.join(script_path,"PAPER_07_Jx_vs_wsteg_ramberg_osgood&estimate.png")
+plot_multiple_lines([wsteg_ramberg_osgoods_to_estimate,wsteg_values_sorted],[Jx_max_ramberg_osgoods, Gc_eff_est_sorted],x_label="$w_s / L$",y_label=J_x_max_label,legend_labels=[ramberg_osgood_label, estimate_label],output_file=output_file, usetex=True)
 
 
     
     
 
 # Effective Youngs modulus study
-simulation_results = ev.read_all_simulation_data(data_directory_plasticitys)
-E_star_plasticitys = []
+simulation_results = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
+E_star_ramberg_osgoods = []
 wsteg_values = []
 for sim in simulation_results:
     param = sim[1]
@@ -1073,11 +1073,11 @@ for sim in simulation_results:
     E_eff = le.get_emod(lam_eff,mue_eff)
     nu_eff = le.get_nu(lam_eff,mue_eff)
     E_star = E_eff/ (1-nu_eff**2)
-    E_star_plasticitys.append(E_star)
+    E_star_ramberg_osgoods.append(E_star)
 
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
-wsteg_values_sorted_plasticitys = [wsteg_values[i] for i in sorted_indices]
-E_star_plasticitys = [E_star_plasticitys[i] for i in sorted_indices]
+wsteg_values_sorted_ramberg_osgoods = [wsteg_values[i] for i in sorted_indices]
+E_star_ramberg_osgoods = [E_star_ramberg_osgoods[i] for i in sorted_indices]
 
 
 simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic)
@@ -1099,10 +1099,10 @@ sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
 wsteg_values_sorted_linear_elastic = [wsteg_values[i] for i in sorted_indices]
 E_star_linear_elastic = [E_star_linear_elastic[i] for i in sorted_indices]
 
-output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_plasticity&linear_elastic.png")
-ev.plot_multiple_lines([wsteg_values_sorted_plasticitys,wsteg_values_sorted_linear_elastic],[E_star_plasticitys, E_star_linear_elastic],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[plasticity_label, elastic_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
+output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_ramberg_osgood&linear_elastic.png")
+ev.plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods,wsteg_values_sorted_linear_elastic],[E_star_ramberg_osgoods, E_star_linear_elastic],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[ramberg_osgood_label, elastic_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
 
 # # only works if same number of wsteg for both
-# E_star_ratio = [E_star_plasticitys[i] / E_star_linear_elastic[i] for i in range(len(E_star_plasticitys))]
-# output_file = os.path.join(script_path,"PAPER_09_Estar_ratio_vs_wsteg_plasticity&linear_elastic.png")
-# plot_multiple_lines([wsteg_values_sorted_plasticitys],[E_star_ratio],x_label="$w_s / L$",y_label="$ E^{'{\mathrm{kreis}}}_{\mathrm{eff}} / E^{'\mathrm{quad}}_{\mathrm{eff}}$",output_file=output_file, usetex=True, show_legend=False)
+# E_star_ratio = [E_star_ramberg_osgoods[i] / E_star_linear_elastic[i] for i in range(len(E_star_ramberg_osgoods))]
+# output_file = os.path.join(script_path,"PAPER_09_Estar_ratio_vs_wsteg_ramberg_osgood&linear_elastic.png")
+# plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods],[E_star_ratio],x_label="$w_s / L$",y_label="$ E^{'{\mathrm{kreis}}}_{\mathrm{eff}} / E^{'\mathrm{quad}}_{\mathrm{eff}}$",output_file=output_file, usetex=True, show_legend=False)
