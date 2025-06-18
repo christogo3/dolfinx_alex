@@ -352,7 +352,8 @@ class StaticPhaseFieldProblem2D_incremental:
     #     return self.degradation_function(s,eta) * self.H
     
     def psiel_degraded(self,s,eta,u,lam,mu):
-        return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
+        return self.degradation_function(s,eta) * self.H
+        #return self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
     
     def getEshelby(self, w: any, eta: dlfx.fem.Constant, lam: dlfx.fem.Constant, mu: dlfx.fem.Constant):
         u, s = ufl.split(w)

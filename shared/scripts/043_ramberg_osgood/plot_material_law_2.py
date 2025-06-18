@@ -9,7 +9,7 @@ eps_0 = 0.2    # 1D yield strain
 
 # ---- Nonlinear shear model parameters ----
 b = 0.2     # Strain hardening parameter
-r = 50.0      # Transition sharpness
+r = 5.0      # Transition sharpness
 
 # ---- Derived constants ----
 K_0 = E_0 / (3 * (1 - 2 * nu_0))         # Bulk modulus

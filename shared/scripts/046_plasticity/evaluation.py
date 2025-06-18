@@ -60,8 +60,8 @@ gc_num_quotient = 1.0936 # from analysis w.o. crack#
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory = os.path.join(script_path,'..','045_standard_holes','results')
-
+#data_directory = os.path.join(script_path,'..','045_standard_holes','results')
+data_directory = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
 
 
 simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.0)

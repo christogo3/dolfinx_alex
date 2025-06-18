@@ -602,7 +602,6 @@
 \pgfsetdash{{7.400000pt}{3.200000pt}}{0.000000pt}%
 \pgfpathmoveto{\pgfqpoint{1.602273in}{3.418301in}}%
 \pgfpathlineto{\pgfqpoint{2.105519in}{3.882584in}}%
-\pgfpathlineto{\pgfqpoint{2.608766in}{4.235710in}}%
 \pgfpathlineto{\pgfqpoint{3.615260in}{4.728581in}}%
 \pgfpathlineto{\pgfqpoint{4.621753in}{5.048474in}}%
 \pgfpathlineto{\pgfqpoint{8.647727in}{5.629020in}}%
