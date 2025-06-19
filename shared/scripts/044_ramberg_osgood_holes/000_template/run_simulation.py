@@ -300,6 +300,13 @@ def after_timestep_success(t,dt,iters):
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
     um1, _ = ufl.split(wm1)
+        # update H 
+    
+    delta_u = u - um1  
+    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
+    #H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
+    
 
     dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
@@ -340,13 +347,7 @@ def after_timestep_success(t,dt,iters):
         print("Crack tip position x: " + str(x_ct))
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt, E_el)
 
-    # update H 
-    
-    delta_u = u - um1  
-    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
-    #H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
-    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
-    
+
     
     # update
     wm1.x.array[:] = w.x.array[:]

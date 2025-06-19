@@ -243,6 +243,20 @@ success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 def after_timestep_success(t,dt,iters):
+    
+    um1, _ = ufl.split(wm1)
+        # update 
+    
+    delta_u = u - um1  
+    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
+    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
+    
+    
+    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
+                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
+    
+    
     # update u from Δu
     
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
@@ -255,7 +269,7 @@ def after_timestep_success(t,dt,iters):
     
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
     Rx_top, Ry_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
-    um1, _ = ufl.split(wm1)
+    
 
     dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
@@ -288,18 +302,7 @@ def after_timestep_success(t,dt,iters):
 
  
     
-    # update 
-    
-    delta_u = u - um1  
-    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
-    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
-    
-    
-    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
-                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,
-                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
-    
-    
+
     
     
     # delta_u = u - um1        

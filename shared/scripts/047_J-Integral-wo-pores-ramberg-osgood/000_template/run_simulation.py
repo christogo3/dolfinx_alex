@@ -349,6 +349,12 @@ def after_timestep_success(t,dt,iters):
     Rx_top, Ry_top = pp.reaction_force(sigma,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
     um1, _ = ufl.split(wm1)
+    
+    delta_u = u - um1 
+    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu) 
+    #H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
+    
 
     dW = pp.work_increment_external_forces(sigma,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
@@ -389,36 +395,10 @@ def after_timestep_success(t,dt,iters):
     # if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
     if rank == 0:
         print("Crack tip position x: " + str(x_ct))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Jx, Jy,x_ct, xtip[0], Rx_top, Ry_top, dW, Work.value, A, dt, E_el)
 
-        # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
-    # update H 
     
-    delta_u = u - um1  
-    H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
-    H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
-    
-
-    # if in_steg_to_be_measured(x_ct=x_ct):
-    #     if rank == 0:
-    #         first_low, first_high, second_low, second_high = steg_bounds_to_be_measured()
-    #         print(f"Crack currently progressing in measured area [{first_low},{first_high}] or [{second_low},{second_high}]. dt restricted to max {dt_max_in_critical_area}")
-        
-    #     # restricting time step    
-    #     dt_max.value = dt_max_in_critical_area
-    #     dt_global.value = dt_max_in_critical_area
-        
-    #     # restart if dt is to large
-    #     # if (dt > dt_max_in_critical_area): # need to reset time and w in addition to time
-    #     #     w.x.array[:] = wrestart.x.array[:]
-    #     #     t_global.value = t_global.value - dt
-    #     #     #t_global.value = trestart_global.value
-             
-    # else:
-    #     dt_max.value = dt_start # reset to larger time step bound
-        
-
             # update
     wm1.x.array[:] = w.x.array[:]
     wrestart.x.array[:] = w.x.array[:]
@@ -444,7 +424,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Jx", "Jy","x_pf_crack","x_macr","Rx", "Ry", "dW", "W", "A", "dt", "E_el"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
