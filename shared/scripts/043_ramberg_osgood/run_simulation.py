@@ -379,22 +379,10 @@ def after_timestep_success(t,dt,iters):
     # update H 
     
     delta_u = u - um1  
-    H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    #H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
-    
-    
-    
-    # delta_u = u - um1        
-    # Hu, Hs = ufl.split(H)
-    # H_new = Hs + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
-    
-    # # H_s_field = dlfx.fem.Function(S)
-    # # H_s_field.interpolate(Hs,S.element.interpolation_points() )
-    
-    # vector_field_expression = dlfx.fem.Expression(H_new, 
-    #                                                     S.element.interpolation_points())
-    # H.sub(1).interpolate(vector_field_expression)
 
     # update
     wm1.x.array[:] = w.x.array[:]

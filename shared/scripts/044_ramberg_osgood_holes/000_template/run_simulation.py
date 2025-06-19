@@ -343,7 +343,8 @@ def after_timestep_success(t,dt,iters):
     # update H 
     
     delta_u = u - um1  
-    H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
+    H_expr = phaseFieldProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
+    #H_expr = H + ufl.inner(phaseFieldProblem.sigma_undegraded(u=u,lam=la,mu=mu),0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T))
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     

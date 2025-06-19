@@ -54,7 +54,9 @@ script_path = os.path.dirname(__file__)
 data_directory = os.path.join(script_path,'results')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.0)
+#simulation_data_folder = find_simulation_by_wsteg(data_directory,wsteg_value_in=1.0)
+
+simulation_data_folder = os.path.join(script_path,"results","simulation_20250618_202524")
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
 parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 
@@ -70,14 +72,14 @@ def normalize_Jx_to_Gc_num(gc_num_quotient, data):
     data.iloc[:, 1] = data.iloc[:, 1] / gc_num_quotient
 normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
-output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf_2.png')
-ev.plot_columns(data, 3, 1, output_file,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False, y_range=[0.0,1.2])
+# output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf_2.png')
+# ev.plot_columns(data, 3, 1, output_file,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False, y_range=[0.0,1.2])
 
 
-output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_griffith.png')  
-ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
-                        legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
-                        xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
-                        x_range=[-0.1, 20],
-                        # vlines=[hole_positions_out, hole_positions_out]
-                        )
+# output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_griffith.png')  
+# ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
+#                         legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
+#                         xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
+#                         x_range=[-0.1, 20],
+#                         # vlines=[hole_positions_out, hole_positions_out]
+#                         )

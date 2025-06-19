@@ -419,5 +419,36 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu):
                             [sig_3D[1,0], sig_3D[1,1]]])
     
     return sig_2D
+
+def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
+                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
+    e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
+    e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
+    e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
+    e_p_33_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_n_tmp = ufl.as_tensor([[e_p_11_n_tmp, e_p_12_n_tmp, 0.0], 
+                               [e_p_12_n_tmp, e_p_22_n_tmp, 0.0],
+                               [0.0         ,          0.0, e_p_33_n_tmp]])
     
+    alpha_tmp.x.array[:] = alpha_n.x.array[:]
+    alpha_expr = update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    alpha_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
+    
+    
+    
+    e_p_np1_expr = update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    
+    e_p_11_expr = e_p_np1_expr[0,0]
+    e_p_11_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
+    
+    e_p_22_expr = e_p_np1_expr[1,1]
+    e_p_22_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
+    
+    e_p_12_expr = e_p_np1_expr[0,1]
+    e_p_12_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+
+    e_p_33_expr = e_p_np1_expr[2,2]
+    e_p_33_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
+
     
