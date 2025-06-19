@@ -114,7 +114,7 @@ t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
 # Tend = 10.0 * dt_global.value
 dt_global.value = dt_max_in_critical_area
-# dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
+#dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)

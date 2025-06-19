@@ -114,7 +114,7 @@ t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
 # Tend = 10.0 * dt_global.value
 dt_global.value = dt_max_in_critical_area
-# dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
+dt_max = dlfx.fem.Constant(domain,5*dt_start)
 
 
 la = het.set_cell_function_heterogeneous_material(domain,la_micro, la_effective, micro_material_cells, effective_material_cells)
@@ -293,7 +293,7 @@ ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags
 Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
-postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+postprocessing_interval = dlfx.fem.Constant(domain,100)
 TEN = dlfx.fem.functionspace(domain, ("DP", deg_quad-1, (dim, dim)))
 def after_timestep_success(t,dt,iters):
     sigma = phaseFieldProblem.sigma_degraded(u,s,la,mu,eta)
@@ -392,7 +392,7 @@ sol.solve_with_newton_adaptive_time_stepping(
     comm=comm,
     print_bool=True,
     t=t_global,
-    # dt_max=dt_max,
+    dt_max=dt_max,
     trestart=trestart_global,
 )
 
