@@ -41,7 +41,7 @@ generate_job_script() {
     local mesh_file="mesh_fracture_adaptive.xdmf"
     local lam_micro_param=1.0
     local mue_micro_param=1.0
-    local gc_micro_param=0.4504156874174549
+    local gc_micro_param=1.0 #0.4504156874174549
     local eps_param=0.1
     local element_order=1
 
