@@ -60,7 +60,7 @@ gc_num_quotient = 0.5061 # from analysis w.o. crack#
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory_linear_elastic = os.path.join(script_path,'..','045_standard_holes','results','interpolation_as_in_plasticity_gc_reduced')
+data_directory_linear_elastic = os.path.join(script_path,'..','045_standard_holes','results','interpolation_standard_gc_1.0')
 #data_directory_linear_elastic = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
 
 
@@ -75,7 +75,7 @@ data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
 normalize_Jx_to_Gc_num(gc_num_quotient, data)
 
 
-data_directory_ramberg_osgoods = os.path.join(script_path,'.','results')
+data_directory_ramberg_osgoods = os.path.join(script_path,'.','results','update_H_midpoint')
 
 simulation_data_folder_ramberg_osgoods = find_simulation_by_wsteg(data_directory_ramberg_osgoods,wsteg_value_in=1.0)
 
@@ -97,8 +97,8 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_ramberg_osgoods)
 starting_ramberg_osgood_to_evaluate = 2
 crack_tip_position_label = "$x_{\mathrm{ct}}$"
 label_crack_length = "$A / L$"
-ramberg_osgood_label = "ramberg_osgood"
-elastic_label = "elastic"
+ramberg_osgood_label = "Ramberg Osgood"
+elastic_label = "linear elastic"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
 t_label = "$t / [ L / {\dot{x}}_{\mathrm{bc}} ]$"
@@ -404,7 +404,7 @@ output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elasti
 ev.plot_multiple_columns([data, data_ramberg_osgoods],3,1,output_file,
                         vlines=[ramberg_osgood_positions_out, ramberg_osgood_positions_out],
                          legend_labels=[elastic_label, ramberg_osgood_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                         y_range=[0.0, 3.0],
+                         y_range=[0.0, 5.0],
                         markers_only=True,marker_size=4,
                         use_colors=True
                          )

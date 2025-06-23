@@ -127,7 +127,7 @@ Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 yield_strain_1d = dlfx.fem.Constant(domain, 1.0/3.0)
-b_hardening_parameter = dlfx.fem.Constant(domain, 0.1)
+b_hardening_parameter = dlfx.fem.Constant(domain, 0.5)
 r_transition_smoothness_parameter = dlfx.fem.Constant(domain, 10.0)
 
 # Function space and FE functions ########################################################
