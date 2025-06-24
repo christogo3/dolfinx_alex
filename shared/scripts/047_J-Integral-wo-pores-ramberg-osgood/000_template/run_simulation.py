@@ -158,7 +158,7 @@ Mob = dlfx.fem.Constant(domain, 1000.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 
-yield_strain_1d = dlfx.fem.Constant(domain, 1.0/3.0)
+yield_stress_1d = dlfx.fem.Constant(domain, 1.0)
 b_hardening_parameter = dlfx.fem.Constant(domain, 0.1)
 r_transition_smoothness_parameter = dlfx.fem.Constant(domain, 10.0)
 
@@ -217,7 +217,7 @@ crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_stress_1d=yield_strain_1d.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_stress_1d=yield_stress_1d.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value,H=H)
 
 
 timer = dlfx.common.Timer()
