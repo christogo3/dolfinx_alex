@@ -308,7 +308,7 @@ class Ramberg_Osgood:
         return sig
     
     
-    def sig_ramberg_osgood_wiki(u, lam, mu,yield_strain_1d,b_hardening_parameter,r_transition_smoothness_parameter):
+    def sig_ramberg_osgood_wiki(u, lam, mu,yield_stress_1d,b_hardening_parameter,r_transition_smoothness_parameter):
         # b comparable to hardening modul
         # r lower -> smoother transition
         
@@ -325,6 +325,7 @@ class Ramberg_Osgood:
         #b_hardening_parameter = 0.1     # Strain hardening parameter
         #r = 10.0 
         
+        yield_strain_1d = (yield_stress_1d * 2.0 / 3.0) / (2.0*mu)
         
         
         mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((eps_dev_e/yield_strain_1d) * (eps_dev_e/yield_strain_1d)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( mu )

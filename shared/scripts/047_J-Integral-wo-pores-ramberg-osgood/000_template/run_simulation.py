@@ -217,7 +217,7 @@ crackdofs = dlfx.fem.locate_dofs_topological(W.sub(1), fdim, crackfacets)
 bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_strain_1d=yield_strain_1d.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_stress_1d=yield_strain_1d.value, b_hardening_parameter=b_hardening_parameter.value, r_transition_smoothness_parameter=r_transition_smoothness_parameter.value,H=H)
 
 
 timer = dlfx.common.Timer()

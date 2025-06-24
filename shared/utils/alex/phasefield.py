@@ -187,7 +187,7 @@ class StaticPhaseFieldProblem2D_split:
             equi = ufl.derivative(pot, u, du)
             if H is not None: # Irreversibility
                 potH = (self.psiel_degraded_history_field(s,eta,u,lam,mu,H) + self.psisurf(s,Gc,epsilon))*ufl.dx
-                sdrive = ufl.derivative(pot,s,ds)
+                sdrive = ufl.derivative(potH,s,ds)
             else:
                 sdrive = ufl.derivative(pot, s, ds)
             rate = (s-sm1)/delta_t*ds*ufl.dx
@@ -266,7 +266,7 @@ class StaticPhaseFieldProblem2D_incremental:
     # Constructor method
     def __init__(self, degradationFunction: Callable,
                        psisurf: Callable,
-                       yield_strain_1d: any,
+                       yield_stress_1d: any,
                        b_hardening_parameter: any,
                        r_transition_smoothness_parameter: any,
                        H: any,
@@ -282,7 +282,7 @@ class StaticPhaseFieldProblem2D_incremental:
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = self.sigma_undegraded #.sigma_as_tensor # plane strain
         self.dx = dx
-        self.yield_strain_1d = yield_strain_1d
+        self.yield_stress_1d = yield_stress_1d
         self.b_hardening_parameter = b_hardening_parameter
         self.r_transition_smoothness_parameter = r_transition_smoothness_parameter
         self.H = H
@@ -330,7 +330,7 @@ class StaticPhaseFieldProblem2D_incremental:
     
     
     def sigma_undegraded(self,u,lam,mu):        
-        sig = plasticity.Ramberg_Osgood.sig_ramberg_osgood_wiki(u, lam, mu,yield_strain_1d=self.yield_strain_1d,b_hardening_parameter=self.b_hardening_parameter,r_transition_smoothness_parameter=self.r_transition_smoothness_parameter)
+        sig = plasticity.Ramberg_Osgood.sig_ramberg_osgood_wiki(u, lam, mu,yield_stress_1d=self.yield_stress_1d,b_hardening_parameter=self.b_hardening_parameter,r_transition_smoothness_parameter=self.r_transition_smoothness_parameter)
         return sig
 
     

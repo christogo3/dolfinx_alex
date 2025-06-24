@@ -124,7 +124,7 @@ mu = dlfx.fem.Constant(domain, 1.0)
 gc = dlfx.fem.Constant(domain, 1.0)
 eta = dlfx.fem.Constant(domain, 0.00001)
 epsilon = dlfx.fem.Constant(domain, 0.1)
-Mob = dlfx.fem.Constant(domain, 1000.0)
+Mob = dlfx.fem.Constant(domain, 10.0)
 iMob = dlfx.fem.Constant(domain, 1.0/Mob.value)
 
 # Function space and FE functions ########################################################
@@ -179,7 +179,7 @@ bccrack = dlfx.fem.dirichletbc(0.0, crackdofs, W.sub(1))
 
 
 phaseFieldProblem = pf.StaticPhaseFieldProblem2D_incremental(degradationFunction=pf.degrad_cubic,
-                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_strain_1d=0.5, b_hardening_parameter=0.1, r_transition_smoothness_parameter=10.0,H=H)
+                                                   psisurf=pf.psisurf_from_function,dx=dx, yield_stress_1d=1.5, b_hardening_parameter=0.1, r_transition_smoothness_parameter=10.0,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
