@@ -1048,21 +1048,23 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
 
     
     
-def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', 
-                        legend_labels=None, output_file='plot.png', figsize=(10, 7), 
-                        usetex=False, log_y=False, 
-                        x_range=None, y_range=None, 
-                        xlabel_fontsize=24, ylabel_fontsize=24, title_fontsize=24, 
-                        tick_fontsize=22, legend_fontsize=22,
-                        show_markers=False, markers_only=False, marker_size=6,
-                        arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
-                        arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10,
-                        use_bw_palette=True, use_colors=False, use_broad_palette=False,
-                        line_colors=None, line_styles=None,
-                        bold_text=False):
+def plot_multiple_lines(
+    x_values, y_values, title='', x_label='', y_label='', 
+    legend_labels=None, output_file='plot.png', figsize=(10, 7), 
+    usetex=False, log_y=False, 
+    x_range=None, y_range=None, 
+    xlabel_fontsize=24, ylabel_fontsize=24, title_fontsize=24, 
+    tick_fontsize=22, legend_fontsize=22,
+    show_markers=False, markers_only=False, marker_size=6,
+    arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
+    arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10,
+    use_bw_palette=True, use_colors=False, use_broad_palette=False,
+    line_colors=None, line_styles=None,
+    bold_text=False
+):
     """
     Styled multi-line plot with consistent visual settings. Outputs PNG, PGF, and PDF.
-    
+
     Parameters
     ----------
     bold_text : bool
@@ -1071,6 +1073,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
     import matplotlib.pyplot as plt
     from matplotlib.ticker import LogLocator, MaxNLocator
 
+    # LaTeX settings
     if usetex:
         plt.rcParams['text.usetex'] = True
         plt.rcParams['pgf.texsystem'] = 'pdflatex'
@@ -1079,7 +1082,7 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
 
     plt.figure(figsize=figsize)
 
-    # Colors and styles
+    # Color and line style logic
     if use_bw_palette and not use_colors:
         colors = ['black', 'dimgray', 'dimgrey', 'darkgray', 'silver', 'lightgray']
         linestyles = ['-', '--', '-.', ':']
@@ -1097,36 +1100,43 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
         linestyle = line_styles[i] if line_styles and i < len(line_styles) else linestyles[i % len(linestyles)]
         marker = markers[i % len(markers)] if show_markers or markers_only else None
 
-        label = (
-            f"$\\mathbf{{{legend_labels[i]}}}$" if legend_labels and bold_text and usetex 
-            else f"\\textbf{{{legend_labels[i]}}}" if legend_labels and bold_text and not usetex 
-            else legend_labels[i] if legend_labels 
-            else f'Line {i+1}'
-        )
+        # Preserve spaces in legend labels
+        raw_label = legend_labels[i] if legend_labels else f'Line {i+1}'
 
-        plt.plot(x_values[i], y_values[i],
-                marker=marker,
-                markersize=marker_size,
-                linestyle='None' if markers_only else linestyle,
-                color=color,
-                linewidth=2.0 if not markers_only else 0,
-                label=label)
+        if bold_text and usetex:
+            # Use \; for spacing in LaTeX, optional
+            latex_label = raw_label.replace(' ', r'\;')
+            label = f"$\\mathbf{{{latex_label}}}$"
+        elif bold_text and not usetex:
+            label = raw_label  # Fontweight handled by prop, not formatting
+        else:
+            label = raw_label
+
+        plt.plot(
+            x_values[i], y_values[i],
+            marker=marker,
+            markersize=marker_size,
+            linestyle='None' if markers_only else linestyle,
+            color=color,
+            linewidth=2.0 if not markers_only else 0,
+            label=label
+        )
 
     ax = plt.gca()
 
-    # Log y
+    # Y-axis log scale
     if log_y:
         ax.set_yscale('log')
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
         ax.yaxis.set_minor_formatter(plt.NullFormatter())
 
-    # Range
+    # Set axis ranges
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
 
-    # Labels, title
+    # Labels and title
     plt.xlabel(x_label, fontsize=xlabel_fontsize, fontweight='bold' if bold_text else 'normal')
     plt.ylabel(y_label, fontsize=ylabel_fontsize, fontweight='bold' if bold_text else 'normal')
     plt.title(title, fontsize=title_fontsize, fontweight='bold' if bold_text else 'normal')
@@ -1144,17 +1154,28 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='',
         for label in ax.get_xticklabels() + ax.get_yticklabels():
             label.set_fontweight('bold')
 
-    # Arrow
+    # Optional arrow annotation
     if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
-        plt.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
-                     arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
+        plt.annotate(
+            '', 
+            xy=(arrow_x, arrow_y_end), 
+            xytext=(arrow_x, arrow_y_start),
+            arrowprops=dict(
+                arrowstyle='<->', 
+                color=arrow_color, 
+                linewidth=arrow_linewidth,
+                shrinkA=0, shrinkB=0
+            )
+        )
 
-    # Save
+    # Save plot in multiple formats
     plt.savefig(output_file, dpi=300)
     plt.savefig(output_file.replace('.png', '.pgf'))
     plt.savefig(output_file.replace('.png', '.pdf'))
     plt.close()
+
     print(f"Plot saved as {output_file}, {output_file.replace('.png', '.pgf')}, and {output_file.replace('.png', '.pdf')}")
+
 
     
 def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y",

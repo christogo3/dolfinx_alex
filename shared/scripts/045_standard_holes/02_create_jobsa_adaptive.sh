@@ -36,7 +36,7 @@ generate_job_script() {
     # Fixed values for the placeholders in job_script.sh
     local nholes=6
     local dhole=1.0
-    local e0=0.02
+    local e0=0.01
     local e1=0.6
     local mesh_file="mesh_fracture_adaptive.xdmf"
     local lam_micro_param=1.0

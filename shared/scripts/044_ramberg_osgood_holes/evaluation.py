@@ -53,18 +53,18 @@ def normalize_Jx_to_Gc_num(gc_num_quotient, data):
 
 element_size = 0.01
 epsilon_param = 0.1
-gc_num_quotient = 0.5061 # from analysis w.o. crack# 
+gc_num_quotient = 1.0 # from analysis w.o. crack# 
 # gc_num_quotient = (1.0 + element_size / (4.0 * epsilon_param)
 
 # Define the path to the file based on the script directory
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory_linear_elastic = os.path.join(script_path,'..','045_standard_holes','results','interpolation_standard_gc_1.0')
-#data_directory_linear_elastic = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
+data_directory_linear_elastic_gc05679 = os.path.join(script_path,'..','045_standard_holes','results','interpolation_as_in_plasticity_gc_0.5679')
+#data_directory_linear_elastic_gc05679 = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory_linear_elastic,wsteg_value_in=1.0)
+simulation_data_folder = find_simulation_by_wsteg(data_directory_linear_elastic_gc05679,wsteg_value_in=1.0)
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
@@ -389,7 +389,7 @@ ramberg_osgood_positions_out = start_positions + end_positions
 ramberg_osgood_positions_out.sort()
 
 
-output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_linear_elastic.png')   
+output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_linear_elastic_gc05679.png')   
 ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
                         legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
                         xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
@@ -400,7 +400,7 @@ ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=ou
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
 ev.plot_columns(data, 3, 1, output_file,vlines=ramberg_osgood_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
-output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elastic_ramberg_osgoods.png')
+output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elastic_gc05679_ramberg_osgoods.png')
 ev.plot_multiple_columns([data, data_ramberg_osgoods],3,1,output_file,
                         vlines=[ramberg_osgood_positions_out, ramberg_osgood_positions_out],
                          legend_labels=[elastic_label, ramberg_osgood_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
@@ -443,7 +443,7 @@ ev.plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A
 
 
 
-simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic)
+simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
 data_to_plot = []
 legend_entries = []
@@ -478,7 +478,7 @@ legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
  
 
-output_file = os.path.join(script_path, 'PAPER_03_Jx_vs_xct_all_linear_elastic.png')  
+output_file = os.path.join(script_path, 'PAPER_03_Jx_vs_xct_all_linear_elastic_gc05679.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=3,
                       col_y=1,
@@ -489,7 +489,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       use_colors=True,
                       markers_only=True)
 
-output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_linear_elastic.png')  
+output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_linear_elastic_gc05679.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       col_x=0,
                       col_y=9,
@@ -568,7 +568,7 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_ramberg_osgoods,
 
 
 
-output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_linear_elastic&ramberg_osgoods.png')  
+output_file = os.path.join(script_path, 'PAPER_05a_A_vs_t_between_linear_elastic_gc05679&ramberg_osgoods.png')  
 ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_ramberg_osgoods[len(data_to_plot_sorted_ramberg_osgoods)-1]], # 
                       col_x=0,
                       col_y=9,
@@ -585,7 +585,7 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
     arrowhead_size=30  # Arrowhead size)
 )
 
-output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_linear_elastic&ramberg_osgoods.png')  
+output_file = os.path.join(script_path, 'PAPER_05b_xct_vs_t_between_linear_elastic_gc05679&ramberg_osgoods.png')  
 ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sorted)-1], data_to_plot_sorted_ramberg_osgoods[len(data_to_plot_sorted_ramberg_osgoods)-1]],
                       col_x=0,
                       col_y=3,
@@ -671,7 +671,7 @@ w_steg_master = []
 Jx_max_master = []
 JxXEstar_max_master = []
 
-simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic)
+simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
 # computing KIc 
 KIc_effs = []
 vol_ratios = []
@@ -850,11 +850,11 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
 
 
     
-output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_ramberg_osgood&linear_elastic.png")
+output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
 ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",legend_labels=[elastic_label, ramberg_osgood_label],output_file=output_file, usetex=True,
 )
 
-output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_ramberg_osgood&linear_elastic.png")
+output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
 ev.plot_multiple_lines(
     x_values=w_steg_master,
     y_values=Jx_max_master,
@@ -875,7 +875,7 @@ ev.plot_multiple_lines(
 )
 
 
-output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_ramberg_osgood&linear_elastic.png")
+output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
 ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[elastic_label, ramberg_osgood_label],output_file=output_file, usetex=True)
 
 
@@ -1010,7 +1010,7 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     return Gc_eff(E_star,L,sig_ff)
        
 
-simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic)
+simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
 wsteg_values = []
 Gc_eff_est = []
 
@@ -1080,8 +1080,8 @@ wsteg_values_sorted_ramberg_osgoods = [wsteg_values[i] for i in sorted_indices]
 E_star_ramberg_osgoods = [E_star_ramberg_osgoods[i] for i in sorted_indices]
 
 
-simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic)
-E_star_linear_elastic = []
+simulation_results = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
+E_star_linear_elastic_gc05679 = []
 wsteg_values = []
 for sim in simulation_results:
     param = sim[1]
@@ -1093,16 +1093,16 @@ for sim in simulation_results:
     E_eff = le.get_emod(lam_eff,mue_eff)
     nu_eff = le.get_nu(lam_eff,mue_eff)
     E_star = E_eff/ (1-nu_eff**2)
-    E_star_linear_elastic.append(E_star)
+    E_star_linear_elastic_gc05679.append(E_star)
 
 sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
-wsteg_values_sorted_linear_elastic = [wsteg_values[i] for i in sorted_indices]
-E_star_linear_elastic = [E_star_linear_elastic[i] for i in sorted_indices]
+wsteg_values_sorted_linear_elastic_gc05679 = [wsteg_values[i] for i in sorted_indices]
+E_star_linear_elastic_gc05679 = [E_star_linear_elastic_gc05679[i] for i in sorted_indices]
 
-output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_ramberg_osgood&linear_elastic.png")
-ev.plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods,wsteg_values_sorted_linear_elastic],[E_star_ramberg_osgoods, E_star_linear_elastic],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[ramberg_osgood_label, elastic_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
+output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
+ev.plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods,wsteg_values_sorted_linear_elastic_gc05679],[E_star_ramberg_osgoods, E_star_linear_elastic_gc05679],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[ramberg_osgood_label, elastic_label],output_file=output_file, usetex=True,y_range=[0.0,2.7])
 
 # # only works if same number of wsteg for both
-# E_star_ratio = [E_star_ramberg_osgoods[i] / E_star_linear_elastic[i] for i in range(len(E_star_ramberg_osgoods))]
-# output_file = os.path.join(script_path,"PAPER_09_Estar_ratio_vs_wsteg_ramberg_osgood&linear_elastic.png")
+# E_star_ratio = [E_star_ramberg_osgoods[i] / E_star_linear_elastic_gc05679[i] for i in range(len(E_star_ramberg_osgoods))]
+# output_file = os.path.join(script_path,"PAPER_09_Estar_ratio_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
 # plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods],[E_star_ratio],x_label="$w_s / L$",y_label="$ E^{'{\mathrm{kreis}}}_{\mathrm{eff}} / E^{'\mathrm{quad}}_{\mathrm{eff}}$",output_file=output_file, usetex=True, show_legend=False)
