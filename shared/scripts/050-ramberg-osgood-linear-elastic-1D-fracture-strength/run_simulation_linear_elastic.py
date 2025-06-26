@@ -87,7 +87,7 @@ W = dlfx.fem.functionspace(domain, basix.ufl.mixed_element([Ve, Se]))
 SS = dlfx.fem.functionspace(domain, Se)
 x = ufl.SpatialCoordinate(domain)
 
-gc_val = 0.4#0.5679
+gc_val = 0.7346#0.5679
 gc_expr = dlfx.fem.Expression(ufl.conditional(ufl.Or(ufl.le(x[0],-3.0*element_size),
                             ufl.ge(x[0],3.0*element_size)),gc_val,0.99*gc_val),SS.element.interpolation_points())
 
