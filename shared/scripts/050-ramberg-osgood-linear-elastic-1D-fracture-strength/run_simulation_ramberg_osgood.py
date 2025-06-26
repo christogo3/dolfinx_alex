@@ -346,7 +346,7 @@ def after_timestep_success(t,dt,iters):
     # if (rank == 0 and in_steg_to_be_measured(x_ct=x_ct) and dt <= dt_max_in_critical_area) or ( rank == 0 and not in_steg_to_be_measured(x_ct=x_ct)):
     if rank == 0:
         print("Crack tip position x: " + str(x_ct))
-        pp.write_to_graphs_output_file(outputfile_graph_path,t,Rx_right)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t,Rx_right,Work.value)
 
         # pp.write_to_graphs_output_file(outputfile_graph_path,t,Jx, Jy, Jx_vol, Jy_vol, x_ct)
 
@@ -398,7 +398,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Rx"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["Rx","W"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(

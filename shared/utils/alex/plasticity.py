@@ -330,7 +330,7 @@ class Ramberg_Osgood:
         
         mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((eps_dev_e/yield_strain_1d) * (eps_dev_e/yield_strain_1d)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( mu )
        
-        K = le.get_K(lam=lam,mu=mu)
+        K = le.get_K(lam=lam,mu=mu_r)
         sig_3D = K * ufl.tr(eps) * ufl.Identity(3)  + 2.0 * mu_r * eps_dev
         
         sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],

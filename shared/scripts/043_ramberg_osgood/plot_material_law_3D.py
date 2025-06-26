@@ -6,7 +6,7 @@ import alex.evaluation as ev  # plot_multiple_columns is assumed to be here
 # === Material Parameters ===
 mu0 = 1.0       # Initial shear modulus
 lam0 = 1.0      # Initial Lamé parameter
-K = lam0 + 2.0 * mu0 / 3.0  # Bulk modulus
+#K = lam0 + 2.0 * mu0 / 3.0  # Bulk modulus
 sigma_y = 1.0   # Yield stress
 r = 10          # Smoothness
 b_values = [0.1, 0.5, 1.0]  # Material law parameter
@@ -39,6 +39,7 @@ def stress_tensor(eps_tensor, mu_func, b, sigma_y, r):
     e_dev = deviatoric(eps_tensor)
     e_eq = np.sqrt(2/3 * np.sum(e_dev**2))
     mu_val = mu_func(e_eq, mu0, b, sigma_y, r)
+    K = lam0 + 2.0 * mu_val / 3.0
     return K * np.trace(eps_tensor) * np.eye(3) + 2 * mu_val * e_dev
 
 # === Output containers ===

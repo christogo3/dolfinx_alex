@@ -1068,17 +1068,20 @@ def plot_multiple_lines(
     Parameters
     ----------
     bold_text : bool
-        If True, all labels, ticks, and legend will use bold font.
+        If True, axis labels, title, and tick labels will use bold font.
+        Legend labels will remain normal weight.
     """
     import matplotlib.pyplot as plt
     from matplotlib.ticker import LogLocator, MaxNLocator
 
     # LaTeX settings
     if usetex:
-        plt.rcParams['text.usetex'] = True
-        plt.rcParams['pgf.texsystem'] = 'pdflatex'
-        plt.rcParams['font.family'] = 'serif'
-        plt.rcParams['pgf.rcfonts'] = False
+        plt.rcParams.update({
+            'text.usetex': True,
+            'pgf.texsystem': 'pdflatex',
+            'font.family': 'serif',
+            'pgf.rcfonts': False,
+        })
 
     plt.figure(figsize=figsize)
 
@@ -1100,17 +1103,8 @@ def plot_multiple_lines(
         linestyle = line_styles[i] if line_styles and i < len(line_styles) else linestyles[i % len(linestyles)]
         marker = markers[i % len(markers)] if show_markers or markers_only else None
 
-        # Preserve spaces in legend labels
-        raw_label = legend_labels[i] if legend_labels else f'Line {i+1}'
-
-        if bold_text and usetex:
-            # Use \; for spacing in LaTeX, optional
-            latex_label = raw_label.replace(' ', r'\;')
-            label = f"$\\mathbf{{{latex_label}}}$"
-        elif bold_text and not usetex:
-            label = raw_label  # Fontweight handled by prop, not formatting
-        else:
-            label = raw_label
+        # Always use raw label, no bolding for legend entries
+        label = legend_labels[i] if legend_labels else f'Line {i+1}'
 
         plt.plot(
             x_values[i], y_values[i],
@@ -1124,25 +1118,25 @@ def plot_multiple_lines(
 
     ax = plt.gca()
 
-    # Y-axis log scale
+    # Log-scale handling
     if log_y:
         ax.set_yscale('log')
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
         ax.yaxis.set_minor_formatter(plt.NullFormatter())
 
-    # Set axis ranges
+    # Set axis ranges if specified
     if x_range:
         plt.xlim(x_range)
     if y_range:
         plt.ylim(y_range)
 
-    # Labels and title
+    # Axis labels and title
     plt.xlabel(x_label, fontsize=xlabel_fontsize, fontweight='bold' if bold_text else 'normal')
     plt.ylabel(y_label, fontsize=ylabel_fontsize, fontweight='bold' if bold_text else 'normal')
     plt.title(title, fontsize=title_fontsize, fontweight='bold' if bold_text else 'normal')
 
-    # Legend
-    plt.legend(prop={'weight': 'bold' if bold_text else 'normal', 'size': legend_fontsize})
+    # Legend (always normal weight)
+    plt.legend(prop={'weight': 'normal', 'size': legend_fontsize})
 
     # Ticks
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
@@ -1154,7 +1148,7 @@ def plot_multiple_lines(
         for label in ax.get_xticklabels() + ax.get_yticklabels():
             label.set_fontweight('bold')
 
-    # Optional arrow annotation
+    # Optional arrow
     if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
         plt.annotate(
             '', 
@@ -1168,14 +1162,13 @@ def plot_multiple_lines(
             )
         )
 
-    # Save plot in multiple formats
+    # Save to PNG, PGF, and PDF
     plt.savefig(output_file, dpi=300)
     plt.savefig(output_file.replace('.png', '.pgf'))
     plt.savefig(output_file.replace('.png', '.pdf'))
     plt.close()
 
     print(f"Plot saved as {output_file}, {output_file.replace('.png', '.pgf')}, and {output_file.replace('.png', '.pdf')}")
-
 
     
 def plot_single_line(x, y, filename, plot_type="line", title="", xlabel="X", ylabel="Y",
