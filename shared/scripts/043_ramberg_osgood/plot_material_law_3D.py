@@ -39,7 +39,7 @@ def stress_tensor(eps_tensor, mu_func, b, sigma_y, r):
     e_dev = deviatoric(eps_tensor)
     e_eq = np.sqrt(2/3 * np.sum(e_dev**2))
     mu_val = mu_func(e_eq, mu0, b, sigma_y, r)
-    K = lam0 + 2.0 * mu_val / 3.0
+    K = lam0 + 2.0 * mu0 / 3.0
     return K * np.trace(eps_tensor) * np.eye(3) + 2 * mu_val * e_dev
 
 # === Output containers ===

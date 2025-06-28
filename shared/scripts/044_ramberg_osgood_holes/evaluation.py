@@ -18,6 +18,8 @@ import alex.homogenization as hom
 import alex.linearelastic as le
 import math
 import alex.evaluation as ev
+from scipy.signal import savgol_filter
+
 
 
 def find_simulation_by_wsteg(path, wsteg_value_in):
@@ -60,22 +62,22 @@ gc_num_quotient = 1.12 # from analysis w.o. crack#
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory_linear_elastic_gc05679 = os.path.join(script_path,'..','045_standard_holes','results','interpolation_as_in_plasticity_gc_0.5679')
+data_directory_sig = os.path.join(script_path,'..','045_standard_holes','results','gc_0.371')
 #data_directory_linear_elastic_gc05679 = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
 
 
-simulation_data_folder = find_simulation_by_wsteg(data_directory_linear_elastic_gc05679,wsteg_value_in=1.0)
+simulation_data_folder = find_simulation_by_wsteg(data_directory_sig,wsteg_value_in=1.0)
 #simulation_data_folder= os.path.join(script_path,"simulation_20241205_065319")
 
 data_path = os.path.join(simulation_data_folder, 'run_simulation_graphs.txt')
 parameter_path = os.path.join(simulation_data_folder,"parameters.txt")
 
 # Load the data from the text file, skipping the first row
-data = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
-normalize_Jx_to_Gc_num(gc_num_quotient, data)
+data_sig = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1)
+normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
 
 
-data_directory_ramberg_osgoods = os.path.join(script_path,'.','results','update_H_midpoint')
+data_directory_ramberg_osgoods = os.path.join(script_path,'.','results','K_eps')
 
 simulation_data_folder_ramberg_osgoods = find_simulation_by_wsteg(data_directory_ramberg_osgoods,wsteg_value_in=1.0)
 
@@ -86,8 +88,11 @@ parameter_path_ramberg_osgoods = os.path.join(simulation_data_folder_ramberg_osg
 
 # Load the data from the text file, skipping the first row
 data_ramberg_osgoods = pd.read_csv(data_path_ramberg_osgoods, delim_whitespace=True, header=None, skiprows=1)
-
-
+smoothed_col1 = savgol_filter(data_ramberg_osgoods[1], window_length=200, polyorder=5)
+# Replace column 1 with the smoothed version
+data_ramberg_osgoods[1] = smoothed_col1
+# Downsample: keep every 5th row (change 5 to adjust reduction)
+data_ramberg_osgoods = data_ramberg_osgoods.iloc[::5].reset_index(drop=True)
 normalize_Jx_to_Gc_num(gc_num_quotient, data_ramberg_osgoods)
 
 
@@ -95,23 +100,40 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_ramberg_osgoods)
 
 
 # --- Third dataset: linear_elastic_gc10 ---
-data_directory_linear_elastic_gc10 = os.path.join(script_path,'..','045_standard_holes','results','interpolation_standard_gc_1.0')
+data_directory_Jc = os.path.join(script_path,'..','045_standard_holes','results','interpolation_standard_gc_1.0')
 
-simulation_data_folder_linear_elastic_gc10 = find_simulation_by_wsteg(data_directory_linear_elastic_gc10, wsteg_value_in=1.0)
+simulation_data_folder_linear_elastic_Jc = find_simulation_by_wsteg(data_directory_Jc, wsteg_value_in=1.0)
 
 # Make sure a matching simulation folder was found
-if simulation_data_folder_linear_elastic_gc10 is None:
+if simulation_data_folder_linear_elastic_Jc is None:
     raise FileNotFoundError("No matching simulation folder found for wsteg=1.0 in linear_elastic_gc10 directory.")
 
-data_path_linear_elastic_gc10 = os.path.join(simulation_data_folder_linear_elastic_gc10, 'run_simulation_graphs.txt')
-parameter_path_linear_elastic_gc10 = os.path.join(simulation_data_folder_linear_elastic_gc10, 'parameters.txt')
+data_path_linear_elastic_Jc = os.path.join(simulation_data_folder_linear_elastic_Jc, 'run_simulation_graphs.txt')
+parameter_path_linear_elastic_Jc = os.path.join(simulation_data_folder_linear_elastic_Jc, 'parameters.txt')
 
 # Load and normalize third dataset
-data_linear_elastic_gc10 = pd.read_csv(data_path_linear_elastic_gc10, delim_whitespace=True, header=None, skiprows=1)
-normalize_Jx_to_Gc_num(gc_num_quotient, data_linear_elastic_gc10)
+data_Jc = pd.read_csv(data_path_linear_elastic_Jc, delim_whitespace=True, header=None, skiprows=1)
+normalize_Jx_to_Gc_num(gc_num_quotient, data_Jc)
 
 
 
+# --- Fourth dataset: custom_simulation_gcX ---
+data_directory_Pi = os.path.join(script_path,'..','045_standard_holes','results','gc_0.7346')
+
+#data_directory_Pi = data_directory_sig
+
+simulation_data_folder_Pi = find_simulation_by_wsteg(data_directory_Pi, wsteg_value_in=1.0)
+
+# Check if the folder is found
+if simulation_data_folder_Pi is None:
+    raise FileNotFoundError("No matching simulation folder found for wsteg=1.0 in custom_simulation_gcX directory.")
+
+data_path_custom_Pi = os.path.join(simulation_data_folder_Pi, 'run_simulation_graphs.txt')
+parameter_path_custom_Pi = os.path.join(simulation_data_folder_Pi, 'parameters.txt')
+
+# Load and normalize fourth dataset
+data_Pi = pd.read_csv(data_path_custom_Pi, delim_whitespace=True, header=None, skiprows=1)
+normalize_Jx_to_Gc_num(gc_num_quotient, data_Pi)
 
 
 
@@ -121,9 +143,10 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_linear_elastic_gc10)
 starting_hole_to_evaluate = 2
 crack_tip_position_label = "$x_{\mathrm{ct}}$"
 label_crack_length = "$A / L$"
-ramberg_osgood_label = "Ramberg Osgood"
-elastic_label_gc05679 = "linear elastic ${J_c} = 0.5679{J_c}^{0}$"
-elastic_label_gc10 = "linear elastic ${J_c} = 1.0{J_c}^{0}$"
+ramberg_osgood_label = r"\textbf{RO}"
+elastic_label_sig = r"\textbf{Eq}$\mathbf{\sigma^*}$"
+elastic_label_Jc = r"\textbf{Eq}$\mathbf{J_c}$"
+elastic_label_Pi = r"\textbf{Eq}$\mathbf{\Pi^*}$"
 steg_width_label = "$w_s$"
 estimate_label = "estimate"
 t_label = "$t / [ L / {\dot{x}}_{\mathrm{bc}} ]$"
@@ -402,12 +425,12 @@ start_positions, end_positions = ramberg_osgood_positions(nhole,
                                                 wsteg)
 
 
-ramberg_osgood_positions_out = start_positions + end_positions
-ramberg_osgood_positions_out.sort()
+hole_positions = start_positions + end_positions
+hole_positions.sort()
 
 
 output_file = os.path.join(script_path, 'PAPER_00_xct_pf_vs_xct_KI_linear_elastic_gc05679.png')   
-ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=output_file,
+ev.plot_columns_multiple_y(data=data_sig,col_x=0,col_y_list=[3,4],output_filename=output_file,
                         legend_labels=[crack_tip_position_label, "$x_{\mathrm{bc}}$"],usetex=True, title=" ", plot_dots=False,
                         xlabel=  t_label,ylabel="crack tip position"+" $/ L$",
                         x_range=[-0.1, 20],
@@ -415,35 +438,43 @@ ev.plot_columns_multiple_y(data=data,col_x=0,col_y_list=[3,4],output_filename=ou
                         )
 
 output_file = os.path.join(script_path, 'PAPER_01_all_Jx_vs_xct_pf.png')
-ev.plot_columns(data, 3, 1, output_file,vlines=ramberg_osgood_positions_out,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
+ev.plot_columns(data_sig, 3, 1, output_file,vlines=hole_positions,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=True, title=" ", plot_dots=False)
 
 output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elastic_gc05679_ramberg_osgoods.png')
-ev.plot_multiple_columns([data, data_linear_elastic_gc10,data_ramberg_osgoods],3,1,output_file,
-                        vlines=[ramberg_osgood_positions_out, ramberg_osgood_positions_out],
-                         legend_labels=[elastic_label_gc05679, elastic_label_gc10, ramberg_osgood_label],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
+# ev.plot_multiple_columns([data_ramberg_osgoods, data_linear_elastic_Jc, data_sig, data_Pi],3,1,output_file,
+#                         vlines=[hole_positions, hole_positions],
+#                          legend_labels=[ ramberg_osgood_label, elastic_label_Jc, elastic_label_sig, elastic_label_Pi],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
+#                          y_range=[0.0, 3.0],
+#                         markers_only=True,marker_size=2,
+#                         use_colors=True
+#                          )
+ev.plot_multiple_columns([data_ramberg_osgoods, data_Jc, data_sig,data_Pi],3,1,output_file,
+                        vlines=[hole_positions, hole_positions],
+                         legend_labels=[ ramberg_osgood_label, elastic_label_Jc, elastic_label_sig, elastic_label_Pi],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
                          y_range=[0.0, 3.0],
-                        markers_only=True,marker_size=2,
-                        use_colors=True
+                        markers_only=True,
+                        marker_size=3,
+                        use_colors=True,
                          )
 
 
 
 
 output_file = os.path.join(script_path, 'all_Jx_vs_A_pf.png')
-ev.plot_columns(data, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=False, title=" ")
+ev.plot_columns(data_sig, 9, 1, output_file,vlines=None,xlabel="$x_{ct} / L$",ylabel=J_x_label, usetex=False, title=" ")
 
 
 output_file = os.path.join(script_path, 'all_A_vs_t_pf.png')
-ev.plot_columns(data, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=f"wsteg: {wsteg}")
+ev.plot_columns(data_sig, 0, 9, output_file,vlines=None,xlabel="$t / T$",ylabel="$A[-]$", usetex=False, title=f"wsteg: {wsteg}")
 
 
 output_file = os.path.join(script_path, 'range_Jx_vs_xct_pf.png')
 x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
 low_boun = x_low-wsteg/8
 upper_boun = x_high-wsteg/8
-data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
+data_in_x_range = filter_data_by_column_bounds(data_sig,3,low_bound=low_boun, upper_bound=upper_boun)
 data_in_x_range_ramberg_osgoods = filter_data_by_column_bounds(data_ramberg_osgoods,3,low_bound=low_boun, upper_bound=upper_boun)
-ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
+ramberg_osgood_postions_in_range = [hp for hp in hole_positions if low_boun <= hp <= upper_boun]
 ev.plot_columns(data_in_x_range, 3, 1, output_file,vlines=ramberg_osgood_postions_in_range,xlabel="xct_pf",ylabel="Jx",title="")
 
 
@@ -458,38 +489,73 @@ ev.plot_columns(data_shifted, 0, 9, output_file,vlines=None,xlabel="t",ylabel="A
 
 
 
-
-
-simulation_results_gc05679 = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
+def data_for_plot_wsteg_in_legend(normalize_Jx_to_Gc_num, gc_num_quotient, simulation_results, starting_hole_to_evaluate, steg_width_label, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods, hole_positions_out):
+    # simulation_results = ev.read_all_simulation_data(data_directory)
 # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
-data_to_plot = []
-legend_entries = []
-wsteg_values = []
+    data_to_plot = []
+    legend_entries = []
+    wsteg_values = []
 
-for sim in simulation_results_gc05679:
-    data = sim[0]
-    normalize_Jx_to_Gc_num(gc_num_quotient, data)
-    param = sim[1]
+    for sim in simulation_results:
+        data_sig = sim[0]
+        normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
+        param = sim[1]
     
-    nhole = int(param["nholes"])
-    dhole = param["dhole"]
-    wsteg = param["wsteg"]
-    wsteg_values.append(wsteg)
+        nhole = int(param["nholes"])
+        dhole = param["dhole"]
+        wsteg = param["wsteg"]
+        wsteg_values.append(wsteg)
 
   
-    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
-    low_boun = x_low-wsteg/8
-    upper_boun = x_high-wsteg/8
-    data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
+        x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
+        low_boun = x_low-wsteg/8
+        upper_boun = x_high-wsteg/8
+        data_in_x_range = filter_data_by_column_bounds(data_sig,3,low_bound=low_boun, upper_bound=upper_boun)
+        ramberg_osgood_postions_in_range = [hp for hp in hole_positions_out if low_boun <= hp <= upper_boun]
     
-    data_to_plot.append(data_in_x_range)
-    legend_entry = steg_width_label+f": {wsteg}$L$"
-    legend_entries.append(legend_entry)
+        data_to_plot.append(data_in_x_range)
+        legend_entry = steg_width_label+f": {wsteg}$L$"
+        legend_entries.append(legend_entry)
     
-sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
-data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
-legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
+    sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
+    data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
+    legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
+    return data_to_plot_sorted,legend_entries_sorted
+
+
+simulation_results_sig = ev.read_all_simulation_data(data_directory_sig)
+data_to_plot_sorted, legend_entries_sorted = data_for_plot_wsteg_in_legend(normalize_Jx_to_Gc_num, gc_num_quotient, simulation_results_sig, starting_hole_to_evaluate, steg_width_label, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods, hole_positions)
+
+
+# # output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
+# data_to_plot = []
+# legend_entries = []
+# wsteg_values = []
+
+# for sim in simulation_results_gc05679:
+#     data_sig = sim[0]
+#     normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
+#     param = sim[1]
+    
+#     nhole = int(param["nholes"])
+#     dhole = param["dhole"]
+#     wsteg = param["wsteg"]
+#     wsteg_values.append(wsteg)
+
+  
+#     x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
+#     low_boun = x_low-wsteg/8
+#     upper_boun = x_high-wsteg/8
+#     data_in_x_range = filter_data_by_column_bounds(data_sig,3,low_bound=low_boun, upper_bound=upper_boun)
+#     ramberg_osgood_postions_in_range = [hp for hp in hole_positions if low_boun <= hp <= upper_boun]
+    
+#     data_to_plot.append(data_in_x_range)
+#     legend_entry = steg_width_label+f": {wsteg}$L$"
+#     legend_entries.append(legend_entry)
+    
+# sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
+# data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
+# legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
 
 
 
@@ -506,14 +572,14 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       use_colors=True,
                       markers_only=True)
 
-output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_linear_elastic_gc05679.png')  
-ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
-                      col_x=0,
-                      col_y=9,
-                      output_filename=output_file,
-                      legend_labels=legend_entries_sorted,
-                      xlabel=  t_label,ylabel=label_crack_length,
-                      usetex=True)
+# output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_linear_elastic_gc05679.png')  
+# ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+#                       col_x=0,
+#                       col_y=9,
+#                       output_filename=output_file,
+#                       legend_labels=legend_entries_sorted,
+#                       xlabel=  t_label,ylabel=label_crack_length,
+#                       usetex=True)
 
 output_file = os.path.join(script_path, 'Jx_vs_t_all.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,col_x=0,col_y=1,output_filename=output_file,
@@ -532,38 +598,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
 
 
 
-## gc10
-simulation_results_gc10 = ev.read_all_simulation_data(data_directory_linear_elastic_gc10)
-# output_file = os.path.join(script_path, 'Jx_vs_xct_all.png')
-data_to_plot = []
-legend_entries = []
-wsteg_values = []
-
-for sim in simulation_results_gc10:
-    data = sim[0]
-    normalize_Jx_to_Gc_num(gc_num_quotient, data)
-    param = sim[1]
-    
-    nhole = int(param["nholes"])
-    dhole = param["dhole"]
-    wsteg = param["wsteg"]
-    wsteg_values.append(wsteg)
-
-  
-    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
-    low_boun = x_low-wsteg/8
-    upper_boun = x_high-wsteg/8
-    data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
-    
-    data_to_plot.append(data_in_x_range)
-    legend_entry = steg_width_label+f": {wsteg}$L$"
-    legend_entries.append(legend_entry)
-    
-sorted_indices = sorted(range(len(wsteg_values)), key=lambda i: wsteg_values[i])
-data_to_plot_sorted = [data_to_plot[i] for i in sorted_indices]
-legend_entries_sorted = [legend_entries[i] for i in sorted_indices]
-
+simulation_results_Jc= ev.read_all_simulation_data(data_directory_Jc)
+data_to_plot_sorted, legend_entries_sorted = data_for_plot_wsteg_in_legend(normalize_Jx_to_Gc_num, gc_num_quotient, simulation_results_Jc, starting_hole_to_evaluate, steg_width_label, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods, hole_positions)
 
 
 
@@ -578,46 +614,75 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       use_colors=True,
                       markers_only=True)
 
-output_file = os.path.join(script_path, 'PAPER_03aA_A_vs_t_all_linear_elastic_g10.png')  
+# output_file = os.path.join(script_path, 'PAPER_03aA_A_vs_t_all_linear_elastic_g10.png')  
+# ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+#                       col_x=0,
+#                       col_y=9,
+#                       output_filename=output_file,
+#                       legend_labels=legend_entries_sorted,
+#                       xlabel=  t_label,ylabel=label_crack_length,
+#                       usetex=True)
+
+
+simulation_results_Pi= ev.read_all_simulation_data(data_directory_Pi)
+data_to_plot_sorted, legend_entries_sorted = data_for_plot_wsteg_in_legend(normalize_Jx_to_Gc_num, gc_num_quotient, simulation_results_Pi, starting_hole_to_evaluate, steg_width_label, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods, hole_positions)
+
+
+
+output_file = os.path.join(script_path, 'PAPER_03B_Jx_vs_xct_all_linear_elastic_Pi.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
-                      col_x=0,
-                      col_y=9,
+                      col_x=3,
+                      col_y=1,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
-                      xlabel=  t_label,ylabel=label_crack_length,
-                      usetex=True)
+                      xlabel="$x_{ct} / L$",ylabel=J_x_label,
+                      usetex=True,
+                      use_colors=True,
+                      markers_only=True)
+
+# output_file = os.path.join(script_path, 'PAPER_03aB_A_vs_t_all_linear_elastic_gPi.png')  
+# ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
+#                       col_x=0,
+#                       col_y=9,
+#                       output_filename=output_file,
+#                       legend_labels=legend_entries_sorted,
+#                       xlabel=  t_label,ylabel=label_crack_length,
+#                       usetex=True)
 
 
 ## ramberg_osgoods
 simulation_results_ramberg_osgoods = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
-data_to_plot = []
-legend_entries = []
-wsteg_values_ramberg_osgoods = []
+data_to_plot_sorted_ramberg_osgoods, legend_entries_sorted = data_for_plot_wsteg_in_legend(normalize_Jx_to_Gc_num, gc_num_quotient, simulation_results_ramberg_osgoods, starting_hole_to_evaluate, steg_width_label, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods, hole_positions)
 
-for sim in simulation_results_ramberg_osgoods:
-    data = sim[0]
-    normalize_Jx_to_Gc_num(gc_num_quotient, data)
-    param = sim[1]
+
+# data_to_plot = []
+# legend_entries = []
+# wsteg_values_ramberg_osgoods = []
+
+# for sim in simulation_results_ramberg_osgoods:
+#     data_sig = sim[0]
+#     normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
+#     param = sim[1]
     
-    nhole = int(param["nholes"])
-    dhole = param["dhole"]
-    wsteg = param["wsteg"]
-    wsteg_values_ramberg_osgoods.append(wsteg)
+#     nhole = int(param["nholes"])
+#     dhole = param["dhole"]
+#     wsteg = param["wsteg"]
+#     wsteg_values_ramberg_osgoods.append(wsteg)
 
     
-    x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
-    low_boun = x_low-wsteg/8
-    upper_boun = x_high-wsteg/8
-    data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
-    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
+#     x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,starting_hole_to_evaluate,starting_hole_to_evaluate+2)
+#     low_boun = x_low-wsteg/8
+#     upper_boun = x_high-wsteg/8
+#     data_in_x_range = filter_data_by_column_bounds(data_sig,3,low_bound=low_boun, upper_bound=upper_boun)
+#     ramberg_osgood_postions_in_range = [hp for hp in hole_positions if low_boun <= hp <= upper_boun]
     
-    data_to_plot.append(data_in_x_range)
-    legend_entry = steg_width_label+f": {wsteg}$L$"
-    legend_entries.append(legend_entry)
+#     data_to_plot.append(data_in_x_range)
+#     legend_entry = steg_width_label+f": {wsteg}$L$"
+#     legend_entries.append(legend_entry)
     
-sorted_indices_ramberg_osgoods = sorted(range(len(wsteg_values_ramberg_osgoods)), key=lambda i: wsteg_values_ramberg_osgoods[i])
-data_to_plot_sorted_ramberg_osgoods = [data_to_plot[i] for i in sorted_indices_ramberg_osgoods]
-legend_entries_sorted = [legend_entries[i] for i in sorted_indices_ramberg_osgoods]
+# sorted_indices_ramberg_osgoods = sorted(range(len(wsteg_values_ramberg_osgoods)), key=lambda i: wsteg_values_ramberg_osgoods[i])
+# data_to_plot_sorted_ramberg_osgoods = [data_to_plot[i] for i in sorted_indices_ramberg_osgoods]
+# legend_entries_sorted = [legend_entries[i] for i in sorted_indices_ramberg_osgoods]
 
 
 
@@ -647,7 +712,7 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
                       col_x=0,
                       col_y=9,
                       output_filename=output_file,
-                      legend_labels=[elastic_label_gc05679, ramberg_osgood_label],
+                      legend_labels=[elastic_label_sig, ramberg_osgood_label],
                       xlabel=  t_label,ylabel=label_crack_length,
                       usetex=True,
                       x_range=[19.5, 22.5],
@@ -664,7 +729,7 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
                       col_x=0,
                       col_y=3,
                       output_filename=output_file,
-                      legend_labels=[elastic_label_gc05679, ramberg_osgood_label],
+                      legend_labels=[elastic_label_sig, ramberg_osgood_label],
                       xlabel=  t_label,ylabel="$x_{ct} / L$",
                       usetex=True)
 
@@ -684,9 +749,9 @@ ev.plot_multiple_columns(data_objects=[data_to_plot_sorted[len(data_to_plot_sort
 data_to_plot = []
 legend_entries = []
 wsteg_values = []
-for sim in simulation_results_gc05679:
-    data = sim[0]
-    normalize_Jx_to_Gc_num(gc_num_quotient, data)
+for sim in simulation_results_sig:
+    data_sig = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
     param = sim[1]
     
     nhole = int(param["nholes"])
@@ -697,12 +762,12 @@ for sim in simulation_results_gc05679:
     x_low,x_high = get_x_range_between_ramberg_osgoods(nhole,dhole,wsteg,1,2)
     low_boun = x_high-(1.01*wsteg) #x_high-wsteg-0.01
     upper_boun = x_high + (0.01*wsteg)    #x_high+0.01
-    data_in_x_range = filter_data_by_column_bounds(data,3,low_bound=low_boun, upper_bound=upper_boun)
+    data_in_x_range = filter_data_by_column_bounds(data_sig,3,low_bound=low_boun, upper_bound=upper_boun)
     data_in_x_range_norm = normalize_columns(data_in_x_range, [0,1], x_upper=x_high, x_lower=x_high-wsteg)
     data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 3, x_upper=x_high, x_lower=x_high-wsteg) # takes starting values ne x_high, x_low into account?
     # data_in_x_range_norm = normalize_column_to_scale(data_in_x_range_norm, 9, x_upper=x_high, x_lower=x_high-wsteg)
     
-    ramberg_osgood_postions_in_range = [hp for hp in ramberg_osgood_positions_out if low_boun <= hp <= upper_boun]
+    ramberg_osgood_postions_in_range = [hp for hp in hole_positions if low_boun <= hp <= upper_boun]
     
     
     data_to_plot.append(data_in_x_range_norm)
@@ -862,31 +927,7 @@ def data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory, start
     return Jx_max_values_sorted,JxXEstar_max_values_sorted,KIc_effs_sorted,wsteg_values_sorted,vol_ratios_sorted
 
 
-Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
-data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_linear_elastic_gc05679, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
-
-KIc_master.append(KIc_effs_sorted.copy())
-
-w_steg_master.append(wsteg_values_sorted.copy())
-Jx_max_master.append(Jx_max_values_sorted.copy())
-JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
-
-wsteg_linear_elastic_gc05679_to_estimate = wsteg_values_sorted.copy()
-Jx_max_linear_elastic_gc05679 = Jx_max_values_sorted.copy()
-
-Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
-data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_linear_elastic_gc10, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
-
-KIc_master.append(KIc_effs_sorted.copy())
-
-w_steg_master.append(wsteg_values_sorted.copy())
-Jx_max_master.append(Jx_max_values_sorted.copy())
-JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
-
-wsteg_linear_elastic_gc10_to_estimate = wsteg_values_sorted.copy()
-Jx_max_linear_elastic_gc10 = Jx_max_values_sorted.copy()
-
-
+# RO
 Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
 data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_ramberg_osgoods, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
 
@@ -898,6 +939,50 @@ JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
 
 wsteg_ramberg_osgoods_to_estimate = wsteg_values_sorted.copy()
 Jx_max_ramberg_osgoods = Jx_max_values_sorted.copy()
+
+
+# Jc
+Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
+data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_Jc, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
+
+KIc_master.append(KIc_effs_sorted.copy())
+
+w_steg_master.append(wsteg_values_sorted.copy())
+Jx_max_master.append(Jx_max_values_sorted.copy())
+JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
+
+wsteg_linear_elastic_Jc_to_estimate = wsteg_values_sorted.copy()
+Jx_max_linear_elastic_Jc = Jx_max_values_sorted.copy()
+
+# sig
+Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
+data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_sig, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
+
+KIc_master.append(KIc_effs_sorted.copy())
+
+w_steg_master.append(wsteg_values_sorted.copy())
+Jx_max_master.append(Jx_max_values_sorted.copy())
+JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
+
+wsteg_linear_elastic_sig_to_estimate = wsteg_values_sorted.copy()
+Jx_max_linear_elastic_sig = Jx_max_values_sorted.copy()
+
+
+
+# sig
+Jx_max_values_sorted, JxXEstar_max_values_sorted, KIc_effs_sorted, wsteg_values_sorted, vol_ratios_sorted = \
+data_vs_wsteg(normalize_Jx_to_Gc_num, gc_num_quotient, data_directory_Pi, starting_hole_to_evaluate, filter_data_by_column_bounds, get_x_range_between_ramberg_osgoods)
+
+KIc_master.append(KIc_effs_sorted.copy())
+
+w_steg_master.append(wsteg_values_sorted.copy())
+Jx_max_master.append(Jx_max_values_sorted.copy())
+JxXEstar_max_master.append(JxXEstar_max_values_sorted.copy())
+
+wsteg_linear_elastic_Pi_to_estimate = wsteg_values_sorted.copy()
+Jx_max_linear_elastic_Pi = Jx_max_values_sorted.copy()
+
+
 
 
 
@@ -959,7 +1044,9 @@ def plot_multiple_lines(x_values, y_values, title='', x_label='', y_label='', le
 
     
 output_file = os.path.join(script_path,"PAPER_06a_KIc_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
-ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",legend_labels=[elastic_label_gc05679, elastic_label_gc10,ramberg_osgood_label],output_file=output_file, usetex=True,
+ev.plot_multiple_lines(w_steg_master,KIc_master,x_label="$w_s / L$",y_label="$K_{Ic}^{\mathrm{eff}} / \sqrt{2.0\mu{G}_c^{\mathrm{num}}}$",
+                       legend_labels=[ramberg_osgood_label, elastic_label_Jc,elastic_label_sig,elastic_label_Pi],
+                       output_file=output_file, usetex=True,
 )
 
 output_file = os.path.join(script_path,"PAPER_06b_Jx_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
@@ -968,23 +1055,23 @@ ev.plot_multiple_lines(
     y_values=Jx_max_master,
     x_label="$w_s / L$",
     y_label=J_x_max_label,
-    legend_labels=[elastic_label_gc05679, elastic_label_gc10, ramberg_osgood_label],
+    legend_labels=[ramberg_osgood_label, elastic_label_Jc,elastic_label_sig,elastic_label_Pi],
     output_file=output_file,
     usetex=True,
     markers_only=False,
     use_colors=True,
     marker_size=6,
-    xlabel_fontsize=36,
-    ylabel_fontsize=36,
-    legend_fontsize=36,
-    tick_fontsize=34,
-    title_fontsize=24,
+    # xlabel_fontsize=36,
+    # ylabel_fontsize=36,
+    # legend_fontsize=36,
+    # tick_fontsize=34,
+    # title_fontsize=24,
     bold_text=True
 )
 
 
 output_file = os.path.join(script_path,"PAPER_06c_JxXEstar_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
-ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[elastic_label_gc05679,elastic_label_gc10, ramberg_osgood_label],output_file=output_file, usetex=True)
+ev.plot_multiple_lines(w_steg_master,JxXEstar_max_master,x_label="$w_s / L$",y_label="$J_{x}^{\mathrm{max}}E_{\mathrm{eff}}^{'} / (G_c^{\mathrm{num}}\mu)$",legend_labels=[ramberg_osgood_label,elastic_label_Jc,elastic_label_sig,elastic_label_Pi],output_file=output_file, usetex=True)
 
 
  
@@ -1118,14 +1205,14 @@ def Gc_eff_estimate(Gc_local,la_local,mu_local,la_eff,mu_eff,epsilon,dhole,wsteg
     return Gc_eff(E_star,L,sig_ff)
        
 
-simulation_results_gc05679 = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
+simulation_results_sig = ev.read_all_simulation_data(data_directory_sig)
 wsteg_values = []
 Gc_eff_est = []
 
 L = 27.0
-for sim in simulation_results_gc05679:
-    data = sim[0]
-    normalize_Jx_to_Gc_num(gc_num_quotient, data)
+for sim in simulation_results_sig:
+    data_sig = sim[0]
+    normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
     param = sim[1]
     
     lam_eff = param["lam_effective"]
@@ -1168,10 +1255,10 @@ plot_multiple_lines([wsteg_ramberg_osgoods_to_estimate,wsteg_values_sorted],[Jx_
     
 
 # Effective Youngs modulus study
-simulation_results_gc05679 = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
+simulation_results_sig = ev.read_all_simulation_data(data_directory_ramberg_osgoods)
 E_star_ramberg_osgoods = []
 wsteg_values = []
-for sim in simulation_results_gc05679:
+for sim in simulation_results_sig:
     param = sim[1]
     lam_eff = param["lam_eff_simulation"]
     mue_eff = param["mue_eff_simulation"]
@@ -1188,10 +1275,10 @@ wsteg_values_sorted_ramberg_osgoods = [wsteg_values[i] for i in sorted_indices]
 E_star_ramberg_osgoods = [E_star_ramberg_osgoods[i] for i in sorted_indices]
 
 
-simulation_results_gc05679 = ev.read_all_simulation_data(data_directory_linear_elastic_gc05679)
+simulation_results_sig = ev.read_all_simulation_data(data_directory_sig)
 E_star_linear_elastic_gc05679 = []
 wsteg_values = []
-for sim in simulation_results_gc05679:
+for sim in simulation_results_sig:
     param = sim[1]
     lam_eff = param["lam_eff_simulation"]
     mue_eff = param["mue_eff_simulation"]
@@ -1208,7 +1295,7 @@ wsteg_values_sorted_linear_elastic_gc05679 = [wsteg_values[i] for i in sorted_in
 E_star_linear_elastic_gc05679 = [E_star_linear_elastic_gc05679[i] for i in sorted_indices]
 
 output_file = os.path.join(script_path,"PAPER_08_Estar_eff_vs_wsteg_ramberg_osgood&linear_elastic_gc05679.png")
-ev.plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods,wsteg_values_sorted_linear_elastic_gc05679],[E_star_ramberg_osgoods, E_star_linear_elastic_gc05679],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[ramberg_osgood_label, elastic_label_gc05679],output_file=output_file, usetex=True,y_range=[0.0,2.7])
+ev.plot_multiple_lines([wsteg_values_sorted_ramberg_osgoods,wsteg_values_sorted_linear_elastic_gc05679],[E_star_ramberg_osgoods, E_star_linear_elastic_gc05679],x_label="$w_s / L$",y_label="$ E^{\mathrm{eff}} / \mu$",legend_labels=[ramberg_osgood_label, elastic_label_sig],output_file=output_file, usetex=True,y_range=[0.0,2.7])
 
 # # only works if same number of wsteg for both
 # E_star_ratio = [E_star_ramberg_osgoods[i] / E_star_linear_elastic_gc05679[i] for i in range(len(E_star_ramberg_osgoods))]

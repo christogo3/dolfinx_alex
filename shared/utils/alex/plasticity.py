@@ -330,8 +330,190 @@ class Ramberg_Osgood:
         
         mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((eps_dev_e/yield_strain_1d) * (eps_dev_e/yield_strain_1d)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( mu )
        
-        K = le.get_K(lam=lam,mu=mu_r)
+        K = le.get_K(lam=lam,mu=mu)
         sig_3D = K * ufl.tr(eps) * ufl.Identity(3)  + 2.0 * mu_r * eps_dev
+        
+        sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
+                            [sig_3D[1,0], sig_3D[1,1]]])
+        
+        return sig_2D
+    
+    
+    def sig_ramberg_osgood_wiki_matrix(u, lam, mu,yield_stress_1d,b_hardening_parameter,r_transition_smoothness_parameter):
+        # b comparable to hardening modul
+        # r lower -> smoother transition
+        # C = ufl.as_matrix(
+        #     [
+        #     [lam + 2*mu, lam,        lam,        0,   0,   0],
+        #     [lam,        lam + 2*mu, lam,        0,   0,   0],
+        #     [lam,        lam,        lam + 2*mu, 0,   0,   0],
+        #     [0,          0,          0,          mu,  0,   0],
+        #     [0,          0,          0,          0,   mu,  0],
+        #     [0,          0,          0,          0,   0,   mu]
+        # ]
+        # )
+        # S = ufl.inv(C)
+        
+        
+        # Tr = ufl.as_matrix(
+        #     [
+        #     [1, 1, 1,        0,   0,   0],
+        #     [1, 1 , 1,        0,   0,   0],
+        #     [1, 1 , 1 , 0,   0,   0],
+        #     [0,          0,          0,          0,  0,   0],
+        #     [0,          0,          0,          0,   0,  0],
+        #     [0,          0,          0,          0,   0,   0]
+        # ]
+        # )
+        
+        # I =  Tr = ufl.as_tensor(
+        #     [
+        #     [1,0,0,0,0,0],
+        #     [0,1,0,0,0,0],
+        #     [0,0,1,0,0,0],
+        #     [0,0,0,1,0,0],
+        #     [0,0,0,0,1,0],
+        #     [0,0,0,0,0,1]
+        # ]
+        # )
+        
+        
+        # Matrix C (6x6)
+        C = np.array([
+        [lam.value + 2*mu.value, lam.value,        lam.value,        0,   0,   0],
+        [lam.value,        lam.value + 2*mu.value, lam.value,        0,   0,   0],
+        [lam.value,        lam.value,        lam.value + 2*mu.value, 0,   0,   0],
+        [0,          0,          0,          mu.value,  0,   0],
+        [0,          0,          0,          0,   mu.value,  0],
+        [0,          0,          0,          0,   0,   mu.value]
+        ],dtype=float)
+
+        # Inverse of C
+        S = np.linalg.inv(C)
+
+        # Matrix Tr (6x6)
+        Tr = np.array([
+            [1, 1, 1, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0],
+            [1, 1, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0]
+        ],dtype=float)
+
+        # Identity matrix I (6x6)
+        I = np.eye(6)
+        
+        
+        
+        eps = assemble_3D_representation_of_plane_strain_eps(u)
+        eps_dev = ufl.dev(eps)
+        
+        eps_dev_voigt = ufl.as_vector(
+            [eps_dev[0,0], 
+             eps_dev[1,1], 
+             eps_dev[2,2],   
+             eps_dev[1,2],   
+             eps_dev[0,2], 
+             eps_dev[0,1]],
+        )
+        
+        K_0 = le.get_K(lam=lam.value,mu=mu.value)
+        
+        # M = (I-K_0*ufl.dot(Tr,S))
+        # Minv = ufl.inv(M)
+        
+        # Matrix multiplication (Tr dot S)
+        TS = np.dot(Tr, S)
+
+        # Final matrix M
+        M = I - K_0 * TS
+        Minv = np.linalg.inv(M)
+
+        
+        
+        
+        eps_dev_e_val = ufl.sqrt(2.0/3.0*ufl.inner(eps_dev,eps_dev))
+        # prevent zero 
+        eps_dev_e = ufl.conditional(ufl.lt(eps_dev_e_val, 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, eps_dev_e_val)
+        #norm_eps_crit_dev = 0.5
+        #yield_stress_1d = mu*2.0*yield_strain_1d
+        #norm_sig_dev_crit = yield_stress_1d*np.sqrt(2.0/3.0) # 
+        
+        #b_hardening_parameter = 0.1     # Strain hardening parameter
+        #r = 10.0 
+        
+        yield_strain_1d = (yield_stress_1d * 2.0 / 3.0) / (2.0*mu)
+        
+        
+        mu_r = (b_hardening_parameter + (1-b_hardening_parameter) / ((1.0 + ufl.sqrt((eps_dev_e/yield_strain_1d) * (eps_dev_e/yield_strain_1d)) ** r_transition_smoothness_parameter )  ** (1.0/r_transition_smoothness_parameter))) * ( mu )
+       
+       
+        sig_3D_voigt_0 = 2.0 * mu_r * (
+            Minv[0,0] * eps_dev_voigt[0] +
+            Minv[0,1] * eps_dev_voigt[1] +
+            Minv[0,2] * eps_dev_voigt[2] +
+            Minv[0,3] * eps_dev_voigt[3] +
+            Minv[0,4] * eps_dev_voigt[4] +
+            Minv[0,5] * eps_dev_voigt[5]
+)
+
+        sig_3D_voigt_1 = 2.0 * mu_r * (
+            Minv[1,0] * eps_dev_voigt[0] +
+            Minv[1,1] * eps_dev_voigt[1] +
+            Minv[1,2] * eps_dev_voigt[2] +
+            Minv[1,3] * eps_dev_voigt[3] +
+            Minv[1,4] * eps_dev_voigt[4] +
+            Minv[1,5] * eps_dev_voigt[5]
+        )
+
+        sig_3D_voigt_2 = 2.0 * mu_r * (
+            Minv[2,0] * eps_dev_voigt[0] +
+            Minv[2,1] * eps_dev_voigt[1] +
+            Minv[2,2] * eps_dev_voigt[2] +
+            Minv[2,3] * eps_dev_voigt[3] +
+            Minv[2,4] * eps_dev_voigt[4] +
+            Minv[2,5] * eps_dev_voigt[5]
+        )
+
+        sig_3D_voigt_3 = 2.0 * mu_r * (
+            Minv[3,0] * eps_dev_voigt[0] +
+            Minv[3,1] * eps_dev_voigt[1] +
+            Minv[3,2] * eps_dev_voigt[2] +
+            Minv[3,3] * eps_dev_voigt[3] +
+            Minv[3,4] * eps_dev_voigt[4] +
+            Minv[3,5] * eps_dev_voigt[5]
+        )
+
+        sig_3D_voigt_4 = 2.0 * mu_r * (
+            Minv[4,0] * eps_dev_voigt[0] +
+            Minv[4,1] * eps_dev_voigt[1] +
+            Minv[4,2] * eps_dev_voigt[2] +
+            Minv[4,3] * eps_dev_voigt[3] +
+            Minv[4,4] * eps_dev_voigt[4] +
+            Minv[4,5] * eps_dev_voigt[5]
+        )
+
+        sig_3D_voigt_5 = 2.0 * mu_r * (
+            Minv[5,0] * eps_dev_voigt[0] +
+            Minv[5,1] * eps_dev_voigt[1] +
+            Minv[5,2] * eps_dev_voigt[2] +
+            Minv[5,3] * eps_dev_voigt[3] +
+            Minv[5,4] * eps_dev_voigt[4] +
+            Minv[5,5] * eps_dev_voigt[5]
+        )
+
+        
+        sig_3D = np.array([
+            [sig_3D_voigt_0, sig_3D_voigt_5, sig_3D_voigt_4],
+            [sig_3D_voigt_5, sig_3D_voigt_1, sig_3D_voigt_3],
+            [sig_3D_voigt_4, sig_3D_voigt_3, sig_3D_voigt_2]
+        ])
+
+         
+       
+        # K = le.get_K(lam=lam,mu=mu_r)
+        # sig_3D = K * ufl.tr(eps) * ufl.Identity(3)  + 2.0 * mu_r * eps_dev
         
         sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
                             [sig_3D[1,0], sig_3D[1,1]]])

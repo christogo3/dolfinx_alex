@@ -1038,12 +1038,13 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     pgf_filename = output_filename.replace('.png', '.pgf')
     plt.savefig(pgf_filename)
     
-    # Save as PDF for LaTeX
+    # # Save as PDF for LaTeX
     pdf_filename = output_filename.replace('.png', '.pdf')
     plt.savefig(pdf_filename)
     
     plt.close()
     print(f"Plot saved as {output_filename}, {pgf_filename}, and {pdf_filename}")
+    # print(f"Plot saved as {output_filename}, {pgf_filename}")
 
 
     
