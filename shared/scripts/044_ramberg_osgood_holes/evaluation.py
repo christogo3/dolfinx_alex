@@ -62,7 +62,7 @@ gc_num_quotient = 1.12 # from analysis w.o. crack#
 script_path = os.path.dirname(__file__)
 # data_directory = os.path.join(script_path,'lam_mue_1.0_coarse')
 # data_directory = os.path.join(script_path,'cubic_degrad')
-data_directory_sig = os.path.join(script_path,'..','045_standard_holes','results','gc_0.371')
+data_directory_sig = os.path.join(script_path,'..','045_standard_holes','results','interpolation_as_in_plasticity_gc_0.5679')
 #data_directory_linear_elastic_gc05679 = os.path.join(script_path,'..','044_ramberg_osgood_holes','results')
 
 
@@ -77,7 +77,7 @@ data_sig = pd.read_csv(data_path, delim_whitespace=True, header=None, skiprows=1
 normalize_Jx_to_Gc_num(gc_num_quotient, data_sig)
 
 
-data_directory_ramberg_osgoods = os.path.join(script_path,'.','results','K_eps')
+data_directory_ramberg_osgoods = os.path.join(script_path,'.','results','K_constant')
 
 simulation_data_folder_ramberg_osgoods = find_simulation_by_wsteg(data_directory_ramberg_osgoods,wsteg_value_in=1.0)
 
@@ -100,7 +100,7 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_ramberg_osgoods)
 
 
 # --- Third dataset: linear_elastic_gc10 ---
-data_directory_Jc = os.path.join(script_path,'..','045_standard_holes','results','interpolation_standard_gc_1.0')
+data_directory_Jc = os.path.join(script_path,'..','045_standard_holes','results','gc_1.0')
 
 simulation_data_folder_linear_elastic_Jc = find_simulation_by_wsteg(data_directory_Jc, wsteg_value_in=1.0)
 
@@ -118,7 +118,7 @@ normalize_Jx_to_Gc_num(gc_num_quotient, data_Jc)
 
 
 # --- Fourth dataset: custom_simulation_gcX ---
-data_directory_Pi = os.path.join(script_path,'..','045_standard_holes','results','gc_0.7346')
+data_directory_Pi = os.path.join(script_path,'..','045_standard_holes','results','gc_0.912')
 
 #data_directory_Pi = data_directory_sig
 
@@ -451,10 +451,12 @@ output_file = os.path.join(script_path, 'PAPER_02_all_Jx_vs_xct_pf_linear_elasti
 ev.plot_multiple_columns([data_ramberg_osgoods, data_Jc, data_sig,data_Pi],3,1,output_file,
                         vlines=[hole_positions, hole_positions],
                          legend_labels=[ ramberg_osgood_label, elastic_label_Jc, elastic_label_sig, elastic_label_Pi],usetex=True,xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                         y_range=[0.0, 3.0],
+                         y_range=[0.0, 2.5],
+                         x_range=[0,15],
                         markers_only=True,
                         marker_size=3,
                         use_colors=True,
+                        legend_outside=True
                          )
 
 
@@ -570,7 +572,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True,
                       use_colors=True,
-                      markers_only=True)
+                      markers_only=True,
+                      y_range=[0,2])
 
 # output_file = os.path.join(script_path, 'PAPER_03a_A_vs_t_all_linear_elastic_gc05679.png')  
 # ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -612,7 +615,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True,
                       use_colors=True,
-                      markers_only=True)
+                      markers_only=True,
+                      y_range=[0,2])
 
 # output_file = os.path.join(script_path, 'PAPER_03aA_A_vs_t_all_linear_elastic_g10.png')  
 # ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -638,7 +642,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
                       usetex=True,
                       use_colors=True,
-                      markers_only=True)
+                      markers_only=True,
+                      y_range=[0,2])
 
 # output_file = os.path.join(script_path, 'PAPER_03aB_A_vs_t_all_linear_elastic_gPi.png')  
 # ev.plot_multiple_columns(data_objects=data_to_plot_sorted,
@@ -693,7 +698,8 @@ ev.plot_multiple_columns(data_objects=data_to_plot_sorted_ramberg_osgoods,
                       output_filename=output_file,
                       legend_labels=legend_entries_sorted,
                       xlabel="$x_{ct} / L$",ylabel=J_x_label,
-                      usetex=True,markers_only=True,use_colors=True)
+                      usetex=True,markers_only=True,use_colors=True,
+                      y_range=[0,2])
 
 output_file = os.path.join(script_path, 'PAPER_04a_A_vs_t_all_ramberg_osgoods.png')  
 ev.plot_multiple_columns(data_objects=data_to_plot_sorted_ramberg_osgoods,
@@ -1061,6 +1067,7 @@ ev.plot_multiple_lines(
     markers_only=False,
     use_colors=True,
     marker_size=6,
+    y_range=[0,2.0],
     # xlabel_fontsize=36,
     # ylabel_fontsize=36,
     # legend_fontsize=36,

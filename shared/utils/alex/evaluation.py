@@ -948,29 +948,31 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
                           x_range=None, y_range=None, use_bw_palette=True, 
                           use_colors=False, show_markers=False, markers_only=False, marker_size=6,
                           arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
-                          arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10):
+                          arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10,
+                          legend_outside=False):
     """
     Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
     with an optional logarithmic y-axis. Saves the plot as PNG, PGF, and PDF for LaTeX integration.
-    
+
     Allows adding a vertical double-tipped arrow with customizable position, length, and color.
-    
+
     arrow_x: float or None - X position of the arrow
     arrow_y_start: float or None - Y starting position of the arrow
     arrow_y_end: float or None - Y ending position of the arrow
     arrow_color: str - Color of the arrow
     arrow_linewidth: float - Line width of the arrow
     arrowhead_size: float - Size of arrowheads
+    legend_outside: bool - Whether to place the legend outside the plot (right side)
     """
-    
+
     if usetex:
         plt.rcParams['text.usetex'] = True
         plt.rcParams['pgf.texsystem'] = 'pdflatex'
         plt.rcParams['font.family'] = 'serif'
         plt.rcParams['pgf.rcfonts'] = False
-    
-    plt.figure(figsize=figsize)
-    
+
+    fig, ax = plt.subplots(figsize=figsize)
+
     if use_bw_palette and not use_colors:
         greys = ['black', 'dimgray', 'dimgrey', 'darkgray', 'silver', 'lightgray']
         linestyles = ['-', '--', '-.', ':']
@@ -981,70 +983,73 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
     else:
         colors = list(plt.cm.tab10.colors)
         linestyles = ['-']
-    
+
     markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h']
-    
+
     for i, data in enumerate(data_objects):
         color = colors[i % len(colors)]
         linestyle = linestyles[i % len(linestyles)]
         marker = markers[i % len(markers)] if show_markers or markers_only else None
-        
-        plt.plot(data[col_x], data[col_y], 
-                 marker=marker, 
-                 markersize=marker_size,
-                 linestyle='None' if markers_only else linestyle, 
-                 color=color, 
-                 label=legend_labels[i] if legend_labels else f'Data {i+1}')
+
+        ax.plot(data[col_x], data[col_y], 
+                marker=marker, 
+                markersize=marker_size,
+                linestyle='None' if markers_only else linestyle, 
+                color=color, 
+                label=legend_labels[i] if legend_labels else f'Data {i+1}')
 
         if vlines and i < len(vlines):
             for vline in vlines[i]:
-                plt.axvline(x=vline, color="black", linestyle='--', linewidth=0.5)
+                ax.axvline(x=vline, color="black", linestyle='--', linewidth=0.5)
 
         if hlines and i < len(hlines):
             for hline in hlines[i]:
-                plt.axhline(y=hline, color="black", linestyle='--', linewidth=0.5)
-    
-    ax = plt.gca()
+                ax.axhline(y=hline, color="black", linestyle='--', linewidth=0.5)
+
     if log_y:
         ax.set_yscale('log')
         ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs='auto'))
         ax.yaxis.set_minor_formatter(plt.NullFormatter())
-    
+
     if x_range:
-        plt.xlim(x_range)
+        ax.set_xlim(x_range)
     if y_range:
-        plt.ylim(y_range)
-    
-    plt.xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
-    plt.ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
-    plt.title(title if title else ' ', fontsize=title_fontsize)
-    plt.legend(fontsize=legend_fontsize)
-    
+        ax.set_ylim(y_range)
+
+    ax.set_xlabel(xlabel if xlabel else f'Column {col_x}', fontsize=xlabel_fontsize)
+    ax.set_ylabel(ylabel if ylabel else f'Column {col_y}', fontsize=ylabel_fontsize)
+    ax.set_title(title if title else ' ', fontsize=title_fontsize)
+
     ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
     if not log_y:
         ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
-    
+
     ax.tick_params(axis='both', which='major', labelsize=tick_fontsize)
-    
+
     # Add vertical double-tipped arrow if specified
     if arrow_x is not None and arrow_y_start is not None and arrow_y_end is not None:
-        plt.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
-                     arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
-    
-    # Save as PNG
-    plt.savefig(output_filename)
-    
-    # Save as PGF for LaTeX
+        ax.annotate('', xy=(arrow_x, arrow_y_end), xytext=(arrow_x, arrow_y_start),
+                    arrowprops=dict(arrowstyle='<->', color=arrow_color, linewidth=arrow_linewidth))
+
+    # Legend configuration
+    if legend_outside:
+        ax.legend(fontsize=legend_fontsize, loc='center left', bbox_to_anchor=(1.0, 0.5))
+        plt.tight_layout(rect=[0, 0, 0.85, 1])  # adjust plot area to make room for legend
+    else:
+        ax.legend(fontsize=legend_fontsize)
+        plt.tight_layout()
+
+    # Save figures
+    plt.savefig(output_filename, bbox_inches='tight')
+
     pgf_filename = output_filename.replace('.png', '.pgf')
-    plt.savefig(pgf_filename)
-    
-    # # Save as PDF for LaTeX
     pdf_filename = output_filename.replace('.png', '.pdf')
-    plt.savefig(pdf_filename)
-    
+
+    plt.savefig(pgf_filename, bbox_inches='tight')
+    plt.savefig(pdf_filename, bbox_inches='tight')
+
     plt.close()
     print(f"Plot saved as {output_filename}, {pgf_filename}, and {pdf_filename}")
-    # print(f"Plot saved as {output_filename}, {pgf_filename}")
 
 
     

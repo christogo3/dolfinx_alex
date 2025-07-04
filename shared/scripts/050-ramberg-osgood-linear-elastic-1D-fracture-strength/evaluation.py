@@ -3,8 +3,8 @@ import pandas as pd
 import alex.evaluation as ev
 
 # Define J_c scaling factors
-jc_scale = 0.371
-jc_scale_2 = 0.7346
+jc_scale = 0.5679
+jc_scale_2 = 0.912
 
 # Get script path
 script_path = os.path.dirname(__file__)
@@ -19,7 +19,7 @@ data_linear_elastic_gc1 = pd.read_csv(path_gc1, delim_whitespace=True, header=No
 path_gc_scaled = os.path.join(script_path, 'run_simulation_linear_elastic_graphs0.5679.txt')
 data_linear_elastic_gc_scaled = pd.read_csv(path_gc_scaled, delim_whitespace=True, header=None, skiprows=1)
 
-path_gc_scaled_2 = os.path.join(script_path, 'run_simulation_linear_elastic_graphs.txt')
+path_gc_scaled_2 = os.path.join(script_path, 'run_simulation_linear_elastic_graphs0.912.txt')
 data_linear_elastic_gc_scaled_2 = pd.read_csv(path_gc_scaled_2, delim_whitespace=True, header=None, skiprows=1)
 
 # Compute maxima

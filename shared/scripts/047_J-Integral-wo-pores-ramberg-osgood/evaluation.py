@@ -77,7 +77,7 @@ label_1 = label_1_prefix + label_1_value + label_1_suffix
 
 # === Linear Elastic Dataset 2 ===
 linear_elastic_2 = pd.read_csv(
-    os.path.join(script_path, '..', '049-J-Integral-wo-pores-deg-cubic', 'results', 'simulation_20250626_205832_0.371', 'run_simulation_graphs.txt'),
+    os.path.join(script_path, '..', '049-J-Integral-wo-pores-deg-cubic', 'results', 'simulation_20250625_133139_gc0.5679', 'run_simulation_graphs.txt'),
     delim_whitespace=True, header=None, skiprows=1
 )
 normalize_Jx_to_Gc_num(gc_num_quotient, linear_elastic_2)
@@ -91,7 +91,7 @@ label_2 = label_2_prefix + label_2_value + label_2_suffix
 
 # === Linear Elastic Dataset 3 ===
 linear_elastic_3 = pd.read_csv(
-    os.path.join(script_path, '..', '049-J-Integral-wo-pores-deg-cubic', 'results', 'simulation_20250626_215527_0.7346', 'run_simulation_graphs.txt'),
+    os.path.join(script_path, '..', '049-J-Integral-wo-pores-deg-cubic', 'results', 'simulation_20250630_093423_0.912', 'run_simulation_graphs.txt'),
     delim_whitespace=True, header=None, skiprows=1
 )
 normalize_Jx_to_Gc_num(gc_num_quotient, linear_elastic_3)
