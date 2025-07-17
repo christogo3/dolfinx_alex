@@ -46,14 +46,15 @@ with dlfx.io.XDMFFile(comm, os.path.join(script_path, 'dlfx_mesh.xdmf'), 'r') as
     domain = mesh_inp.read_mesh()
 
 
-dt = dlfx.fem.Constant(domain,1.0)
+dt = dlfx.fem.Constant(domain,0.000001)
+dt_max = dlfx.fem.Constant(domain,0.00001)
 t = dlfx.fem.Constant(domain,0.00)
-column = dlfx.fem.Constant(domain,0.0)
-Tend = 6.0 * dt.value
+Tend = 1000.0 * dt.value
 
 # elastic constants
 lam = dlfx.fem.Constant(domain, 51100.0)
 mu = dlfx.fem.Constant(domain, 26300.0)
+sigvm_threshhold = 200.0
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 
 # function space using mesh and degree
@@ -92,15 +93,9 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = linearElasticProblem.prep_newton(u,du,ddu,lam,mu)
     return [Res, dResdw]
 
-
-
-
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain,comm)
 
 atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
-
-
-u_D = dlfx.fem.Function(V)
 
 
 
@@ -110,87 +105,44 @@ facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary)
 dofs_at_boundary = dlfx.fem.locate_dofs_topological(V, fdim, facets_at_boundary) 
 
 
-eps_mac = dlfx.fem.Constant(domain, np.array([[0.0, 0.0, 0.0],
-                     [0.0, 0.0, 0.0],
-                     [0.0, 0.0, 0.0]]))
 
 
 def get_bcs(t):
-    Eps_Voigt = np.zeros((6,))
-    Eps_Voigt[int(t)] = 1.0
+    amplitude = -1.0
+    bc_front = bc.define_dirichlet_bc_from_value(domain,amplitude*t,1,bc.get_front_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     
-    eps_mac.value = np.array([[Eps_Voigt[0], Eps_Voigt[5]/2.0, Eps_Voigt[4]/2.0],
-                                              [Eps_Voigt[5]/2.0, Eps_Voigt[1], Eps_Voigt[3]/2.0],
-                                              [Eps_Voigt[4]/2.0, Eps_Voigt[3]/2.0, Eps_Voigt[2]]])
-        
-    if (t>5):
-         eps_mac.value = np.array([[0.0, 0.0, 0.0],
-                     [0.0, 0.0, 0.0],
-                     [0.0, 0.0, 0.0]])
+    bc_back_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_back_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_back_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     
-    comm.barrier()
-    
-    def compute_linear_displacement():
-        x = ufl.SpatialCoordinate(domain)
-        
-        u_x = eps_mac.value[0,0]*x[0] + eps_mac.value[0,1]*x[1] + eps_mac.value[0,2]*x[2]
-        u_y = eps_mac.value[1,0]*x[0] + eps_mac.value[1,1]*x[1] + eps_mac.value[1,2]*x[2]
-        u_z = eps_mac.value[2,0]*x[0] + eps_mac.value[2,1]*x[1] + eps_mac.value[2,2]*x[2]
-        #u_linear_displacement = ufl.inner(eps_mac,x)
-        return ufl.as_vector([u_x, u_y, u_z])
-    
-    bc_expression = dlfx.fem.Expression(compute_linear_displacement(),V.element.interpolation_points())
-    
-    u_D.interpolate(bc_expression)
-    bc_linear_displacement = dlfx.fem.dirichletbc(u_D,dofs_at_boundary)
-    
-    bcs = [bc_linear_displacement]
+    bcs = [bc_front, bc_back_x,bc_back_y,bc_back_z]
     return bcs
 
-#n = ufl.FacetNormal(domain)
+n = ufl.FacetNormal(domain)
 simulation_result = np.array([0.0])
 
-Chom = np.zeros((6, 6))
-
-
-
-## create integration measure for homogenization
-tag_value_hom_cells = 1
-marker1 = bc.dont_get_boundary_of_box_as_function(domain,comm,atol=atol)
-marked_cells = dlfx.mesh.locate_entities(domain, dim=3, marker=marker1)
-marked_values = np.full(len(marked_cells), tag_value_hom_cells, dtype=np.int32)
-cell_tags = dlfx.mesh.meshtags(domain, 3, marked_cells, marked_values)
-
-dx_hom_cells = ufl.Measure("dx", domain=domain, subdomain_data=cell_tags)
-x_min_all_hom, x_max_all_hom, y_min_all_hom, y_max_all_hom, z_min_all_hom, z_max_all_hom = bc.get_subdomain_bounding_box(domain, marked_cells, comm)
-vol = (x_max_all_hom-x_min_all_hom) * (y_max_all_hom - y_min_all_hom) * (z_max_all_hom - z_min_all_hom)
-vol_material = alex.homogenization.get_filled_vol(dx_hom_cells(tag_value_hom_cells),comm)
-vol_overall = (x_max_all-x_min_all) * (y_max_all - y_min_all) * (z_max_all - z_min_all)
-
-if rank == 0:
-    print("Volume of Cuboid for Homogenization: " + str(vol))
-    print("Volume of Cuboid total: " + str(vol_overall))
-    print("Volume of Real material in Homogenization Box: " + str(vol_material))
-    
-
+front_surface_tag = 9
+top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0),front_surface_tag)
+ds_front_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 def after_timestep_success(t,dt,iters):
     u.name = "u"
     pp.write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
-    sigma_for_unit_strain = alex.homogenization.compute_averaged_sigma(u,lam,mu, vol,comm=comm,dx=dx_hom_cells(tag_value_hom_cells))
+    
+    sigma = le.sigma_as_tensor(u,lam,mu)
+   
+    Rx_front, Ry_front, Rz_front = pp.reaction_force(sigma,n=n,ds=ds_front_tagged(front_surface_tag),comm=comm)
+    
+    sig_vm = le.sigvM(le.sigma_as_tensor(u,lam,mu))
+    simulation_result[0] = pp.percentage_of_volume_above(domain,sig_vm,sigvm_threshhold,comm,ufl.dx)
+    
+    eps_strain = ufl.sym(ufl.grad(u))
+    pp.write_tensor_fields(domain,comm,[sigma, eps_strain],["sigma", "eps"],outputfile_xdmf_path,t)
+    pp.write_scalar_fields(domain,comm,scalar_fields_as_functions=[sig_vm],scalar_field_names=["sig_vm"],outputfile_xdmf_path=outputfile_xdmf_path,t=t)
     
     
-    # write to newton-log-file
-    comm.barrier()
     if rank == 0:
-        if column.value < 6:
-            Chom[int(column.value)] = sigma_for_unit_strain
-        else:
-            t = 2.0*Tend # exit
-            return
-        #print(column.value)
-        column.value = column.value + 1
-        sol.write_to_newton_logfile(logfile_path,t,dt,iters)
+        pp.write_to_graphs_output_file(outputfile_graph_path, t, comm.allreduce(simulation_result[0],MPI.MAX),Rz_front)
         
     urestart.x.array[:] = u.x.array[:] 
                
@@ -203,14 +155,7 @@ def after_last_timestep():
     timer.stop()
 
     if rank == 0:
-        print(np.array_str(Chom, precision=2))
-        print(alex.homogenization.print_results(Chom))
-
-        # Save Chom to JSON
-        chom_path = os.path.join(script_path, "Chom.json")
-        with open(chom_path, "w") as f:
-            json.dump(Chom.tolist(), f, indent=4)
-        print(f"Saved Chom matrix to: {chom_path}")
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=["volume above sigvm ="+str(), "R_z [ N ]"])
 
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
@@ -231,5 +176,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     comm=comm,
     print_bool=True,
     t=t,
-    dt_never_scale_up=True
+    dt_never_scale_up=True,
+    dt_max=dt_max
 )

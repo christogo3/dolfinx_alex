@@ -42,6 +42,26 @@ def psiel_voigt(u: any, eps_funct: Callable, cmat: any) -> any:
 def psiel(u: dlfx.fem.Function, sigma: any):
     return 0.5*ufl.inner(sigma, ufl.sym(ufl.grad(u)))
 
+def lame_parameters(E, nu):
+    """
+    Calculate the Lamé parameters (lambda and mu) from Young's modulus and Poisson's ratio.
+
+    Parameters:
+        youngs_modulus (float): Young's modulus (E)
+        poisson_ratio (float): Poisson's ratio (ν)
+
+    Returns:
+        tuple: (lambda, mu)
+    """
+
+    if nu <= -1.0 or nu >= 0.5:
+        raise ValueError("Poisson's ratio must be between -1.0 and 0.5 (excluding the limits)")
+
+    mu = E / (2 * (1 + nu))
+    lam = E * nu / ((1 + nu) * (1 - 2 * nu))
+
+    return lam, mu
+
 def get_nu(lam: float, mu: float):
     return lam/(2*(lam+mu))
 

@@ -102,6 +102,55 @@ def get_dimensions(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm):
         comm.Barrier()
         return x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all
     
+    
+def get_subdomain_bounding_box(domain, marked_cells, comm: MPI.Intercomm):
+    """
+    Computes the global bounding box (x_min, x_max, y_min, y_max, z_min, z_max)
+    of the vertices belonging to a set of marked cells in a 3D FEniCSx mesh.
+
+    Parameters:
+        domain : dolfinx.mesh.Mesh
+            The 3D mesh.
+        marked_cells : np.ndarray
+            Array of cell indices (dimension = 3) to include in the bounding box.
+
+    Returns:
+        A tuple: (x_min, x_max, y_min, y_max, z_min, z_max)
+    """
+
+    # Ensure cell-to-vertex connectivity exists
+    domain.topology.create_connectivity(3, 0)
+    connectivity = domain.topology.connectivity(3, 0)
+
+    # Get unique vertex indices used by the marked cells
+    vertices = []
+    for cell in marked_cells:
+        vertices.extend(connectivity.links(cell))
+    vertices = np.unique(vertices)
+
+    # Extract coordinates of those vertices
+    coords = domain.geometry.x[vertices]
+
+    # Handle empty coordinate case (no cells matched)
+    if len(coords) == 0:
+        local_min = np.array([np.inf, np.inf, np.inf])
+        local_max = np.array([-np.inf, -np.inf, -np.inf])
+    else:
+        local_min = coords.min(axis=0)
+        local_max = coords.max(axis=0)
+
+    # Global bounding box via MPI reduction
+    global_min = np.empty(3)
+    global_max = np.empty(3)
+    global_min = comm.allreduce(local_min, op=MPI.MIN)
+    global_max = comm.allreduce(local_max, op=MPI.MAX)
+
+    return (
+        global_min[0], global_max[0],  # x_min, x_max
+        global_min[1], global_max[1],  # y_min, y_max
+        global_min[2], global_max[2],  # z_min, z_max
+    )
+    
 def print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all, comm: MPI.Intercomm):
     if comm.rank == 0:
         print('x_min, x_max: '+str(x_min_all)+', '+str(x_max_all))
@@ -123,6 +172,34 @@ def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm,
             boundaries = [xmin, xmax, ymin, ymax]
         return reduce(np.logical_or, boundaries)
     return boundary
+
+
+def dont_get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        lower_x = x[0] > x_min_all + atol
+        upper_x = x[0] < x_max_all - atol
+        lower_y = x[1] > y_min_all + atol
+        upper_y = x[1] < y_max_all - atol
+        lower_z = x[2] > z_min_all + atol
+        upper_z = x[2] < z_max_all - atol
+        
+        boundaries = [lower_x, upper_x,lower_y, upper_y,lower_z, upper_z]
+        return reduce(np.logical_and, boundaries)
+        # xmin = away_func(x[0],x_min_all,atol=atol)
+        # xmax = away_func(x[0],x_max_all,atol=atol)
+        # ymin = away_func(x[1],y_min_all,atol=atol)
+        # ymax = away_func(x[1],y_max_all,atol=atol)
+        # if domain.geometry.dim == 3:
+        #     zmin = away_func(x[2],z_min_all,atol=atol)
+        #     zmax = away_func(x[2],z_max_all,atol=atol)
+        #     boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
+        # else: #2D
+        #     boundaries = [xmin, xmax, ymin, ymax]
+        # return reduce(np.logical_and, boundaries)
+    return boundary
+
+
 
 
 def get_frontback_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
@@ -376,6 +453,13 @@ def close_func(x,value,atol):
             return np.isclose(x,value,atol=atol)
         else:
             return np.isclose(x,value)
+        
+def away_func(x,value,atol):
+        if atol:
+            reduce(np.logical_not, [np.isclose(x,value,atol=atol)])
+        else:
+            return reduce(np.logical_not,[np.isclose(x,value)])
+    
 
 def get_total_linear_displacement_boundary_condition_at_box(domain: dlfx.mesh.Mesh, 
                                                                comm: MPI.Intercomm,

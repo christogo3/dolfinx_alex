@@ -18,6 +18,11 @@ def compute_averaged_sigma(u,lam,mu, vol, dx: ufl.Measure = ufl.dx, comm: MPI.In
     return  sigma_for_unit_strain_global
 
 
+def get_filled_vol(dx: ufl.Measure = ufl.dx, comm: MPI.Intracomm = MPI.COMM_WORLD):
+    vol_filled_local = dlfx.fem.assemble_scalar(dlfx.fem.form(ufl.as_ufl(1.0) * dx))  
+    vol_filled_global = comm.allreduce(vol_filled_local,op=MPI.SUM) 
+    return vol_filled_global
+
 def unit_macro_strain_tensor_for_voigt_eps(domain: dlfx.mesh.Mesh, voigt_index: int):
     if domain.topology.dim == 3:
         Eps_Voigt = np.zeros((6,))
