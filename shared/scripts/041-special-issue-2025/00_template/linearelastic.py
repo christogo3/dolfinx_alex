@@ -161,16 +161,46 @@ marked_cells = dlfx.mesh.locate_entities(domain, dim=3, marker=marker1)
 marked_values = np.full(len(marked_cells), tag_value_hom_cells, dtype=np.int32)
 cell_tags = dlfx.mesh.meshtags(domain, 3, marked_cells, marked_values)
 
+submesh, _ , _, _ = dlfx.mesh.create_submesh(domain, 3, cell_tags.indices[cell_tags.values == tag_value_hom_cells])
+coords = submesh.geometry.x
+
 dx_hom_cells = ufl.Measure("dx", domain=domain, subdomain_data=cell_tags)
-x_min_all_hom, x_max_all_hom, y_min_all_hom, y_max_all_hom, z_min_all_hom, z_max_all_hom = bc.get_subdomain_bounding_box(domain, marked_cells, comm)
-vol = (x_max_all_hom-x_min_all_hom) * (y_max_all_hom - y_min_all_hom) * (z_max_all_hom - z_min_all_hom)
+x_min_hom_all, x_max_hom_all, y_min_hom_all, y_max_hom_all, z_min_hom_all, z_max_hom_all = bc.get_tagged_subdomain_bounds(domain, cell_tags, tag_value_hom_cells, comm)
+
+# x_min_hom = np.min(coords[:,0]) 
+# x_max_hom = np.max(coords[:,0])   
+# y_min_hom = np.min(coords[:,1]) 
+# y_max_hom = np.max(coords[:,1])   
+# z_min_hom = np.min(coords[:,2]) 
+# z_max_hom = np.max(coords[:,2])
+
+# comm.Barrier()
+# x_min_hom_all = comm.allreduce(x_min_hom, op=MPI.MIN)
+# x_max_hom_all = comm.allreduce(x_max_hom, op=MPI.MAX)
+# y_min_hom_all = comm.allreduce(y_min_hom, op=MPI.MIN)
+# y_max_hom_all = comm.allreduce(y_max_hom, op=MPI.MAX)
+# z_min_hom_all = comm.allreduce(z_min_hom, op=MPI.MIN)
+# z_max_hom_all = comm.allreduce(z_max_hom, op=MPI.MAX)
+# comm.Barrier()
+
+vol = (x_max_hom_all-x_min_hom_all) * (y_max_hom_all - y_min_hom_all) * (z_max_hom_all - z_min_hom_all)
 vol_material = alex.homogenization.get_filled_vol(dx_hom_cells(tag_value_hom_cells),comm)
 vol_overall = (x_max_all-x_min_all) * (y_max_all - y_min_all) * (z_max_all - z_min_all)
 
 if rank == 0:
+    print("=== Homogenization Box Boundaries ===")
+    print(f"x: [{x_min_hom_all}, {x_max_hom_all}]")
+    print(f"y: [{y_min_hom_all}, {y_max_hom_all}]")
+    print(f"z: [{z_min_hom_all}, {z_max_hom_all}]")
     print("Volume of Cuboid for Homogenization: " + str(vol))
-    print("Volume of Cuboid total: " + str(vol_overall))
-    print("Volume of Real material in Homogenization Box: " + str(vol_material))
+    print("Volume of Real Material in Homogenization Box: " + str(vol_material))
+
+    print("\n=== Total Domain Boundaries ===")
+    print(f"x: [{x_min_all}, {x_max_all}]")
+    print(f"y: [{y_min_all}, {y_max_all}]")
+    print(f"z: [{z_min_all}, {z_max_all}]")
+    print("Volume of Cuboid Total: " + str(vol_overall))
+
     
 
 

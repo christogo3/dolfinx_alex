@@ -103,53 +103,61 @@ def get_dimensions(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm):
         return x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all
     
     
-def get_subdomain_bounding_box(domain, marked_cells, comm: MPI.Intercomm):
+
+def get_tagged_subdomain_bounds(domain, cell_tags, tag_value, comm: MPI.Intracomm):
     """
-    Computes the global bounding box (x_min, x_max, y_min, y_max, z_min, z_max)
-    of the vertices belonging to a set of marked cells in a 3D FEniCSx mesh.
+    Create a submesh for a tagged subdomain and compute its global bounding box.
 
-    Parameters:
-        domain : dolfinx.mesh.Mesh
-            The 3D mesh.
-        marked_cells : np.ndarray
-            Array of cell indices (dimension = 3) to include in the bounding box.
+    Parameters
+    ----------
+    domain : dolfinx.mesh.Mesh
+        The parent mesh.
+    cell_tags : dolfinx.mesh.MeshTags
+        MeshTags object tagging the subdomain.
+    tag_value : int
+        The tag value identifying the subdomain.
+    comm : MPI.Intracomm
+        The MPI communicator.
 
-    Returns:
-        A tuple: (x_min, x_max, y_min, y_max, z_min, z_max)
+    Returns
+    -------
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all : float
+        Global min/max coordinates of the subdomain across all ranks.
     """
+    # Extract tagged cell indices
+    tagged_cells = cell_tags.indices[cell_tags.values == tag_value]
 
-    # Ensure cell-to-vertex connectivity exists
-    domain.topology.create_connectivity(3, 0)
-    connectivity = domain.topology.connectivity(3, 0)
+    # Create submesh
+    submesh, *_ = dlfx.mesh.create_submesh(domain, 3, tagged_cells)
 
-    # Get unique vertex indices used by the marked cells
-    vertices = []
-    for cell in marked_cells:
-        vertices.extend(connectivity.links(cell))
-    vertices = np.unique(vertices)
+    # Get submesh coordinates
+    coords = submesh.geometry.x
 
-    # Extract coordinates of those vertices
-    coords = domain.geometry.x[vertices]
-
-    # Handle empty coordinate case (no cells matched)
-    if len(coords) == 0:
-        local_min = np.array([np.inf, np.inf, np.inf], dtype=np.float64)
-        local_max = np.array([-np.inf, -np.inf, -np.inf], dtype=np.float64)
+    # Handle case where this rank has no submesh cells
+    if coords.size == 0:
+        x_min = np.inf
+        x_max = -np.inf
+        y_min = np.inf
+        y_max = -np.inf
+        z_min = np.inf
+        z_max = -np.inf
     else:
-        local_min = np.array(coords.min(axis=0), dtype=np.float64)
-        local_max = np.array(coords.max(axis=0), dtype=np.float64)
+        x_min = np.min(coords[:, 0])
+        x_max = np.max(coords[:, 0])
+        y_min = np.min(coords[:, 1])
+        y_max = np.max(coords[:, 1])
+        z_min = np.min(coords[:, 2])
+        z_max = np.max(coords[:, 2])
 
-    # Global bounding box via MPI reduction
-    # global_min = np.empty(3)
-    # global_max = np.empty(3)
-    global_min = comm.allreduce(local_min, op=MPI.MIN)
-    global_max = comm.allreduce(local_max, op=MPI.MAX)
+    # Allreduce to get global min/max across all ranks
+    x_min_all = comm.allreduce(x_min, op=MPI.MIN)
+    x_max_all = comm.allreduce(x_max, op=MPI.MAX)
+    y_min_all = comm.allreduce(y_min, op=MPI.MIN)
+    y_max_all = comm.allreduce(y_max, op=MPI.MAX)
+    z_min_all = comm.allreduce(z_min, op=MPI.MIN)
+    z_max_all = comm.allreduce(z_max, op=MPI.MAX)
 
-    return (
-        global_min[0], global_max[0],  # x_min, x_max
-        global_min[1], global_max[1],  # y_min, y_max
-        global_min[2], global_max[2],  # z_min, z_max
-    )
+    return x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all
     
 def print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all, comm: MPI.Intercomm):
     if comm.rank == 0:
