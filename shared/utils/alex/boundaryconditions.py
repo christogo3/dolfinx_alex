@@ -133,15 +133,15 @@ def get_subdomain_bounding_box(domain, marked_cells, comm: MPI.Intercomm):
 
     # Handle empty coordinate case (no cells matched)
     if len(coords) == 0:
-        local_min = np.array([np.inf, np.inf, np.inf])
-        local_max = np.array([-np.inf, -np.inf, -np.inf])
+        local_min = np.array([np.inf, np.inf, np.inf], dtype=np.float64)
+        local_max = np.array([-np.inf, -np.inf, -np.inf], dtype=np.float64)
     else:
-        local_min = coords.min(axis=0)
-        local_max = coords.max(axis=0)
+        local_min = np.array(coords.min(axis=0), dtype=np.float64)
+        local_max = np.array(coords.max(axis=0), dtype=np.float64)
 
     # Global bounding box via MPI reduction
-    global_min = np.empty(3)
-    global_max = np.empty(3)
+    # global_min = np.empty(3)
+    # global_max = np.empty(3)
     global_min = comm.allreduce(local_min, op=MPI.MIN)
     global_max = comm.allreduce(local_max, op=MPI.MAX)
 
