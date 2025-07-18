@@ -200,7 +200,7 @@ def get_boundary_of_box_as_function(
 
 def dont_get_boundary_of_box_as_function(
     domain: dlfx.mesh.Mesh,
-    comm: Intercomm,
+    comm: MPI.Intercomm,
     atol: Optional[float] = None,
     atol_x: Optional[float] = None,
     atol_y: Optional[float] = None,
