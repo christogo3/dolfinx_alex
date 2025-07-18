@@ -1,6 +1,6 @@
 #linear displacements
 import dolfinx as dlfx
-from typing import Callable
+from typing import Callable, Optional
 import numpy as np
 from mpi4py import MPI
 from functools import reduce
@@ -165,46 +165,69 @@ def print_dimensions(x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_ma
         print('y_min, y_max: '+str(y_min_all)+', '+str(y_max_all))
         print('z_min, z_max: '+str(z_min_all)+', '+str(z_max_all))  
 
-def get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+def get_boundary_of_box_as_function(
+    domain: dlfx.mesh.Mesh,
+    comm: MPI.Intracomm,
+    atol: Optional[float] = None,
+    atol_x: Optional[float] = None,
+    atol_y: Optional[float] = None,
+    atol_z: Optional[float] = None
+) -> Callable:
+    
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+
     def boundary(x):
-        xmin = close_func(x[0],x_min_all,atol=atol)
-        xmax = close_func(x[0],x_max_all,atol=atol)
-        ymin = close_func(x[1],y_min_all,atol=atol)
-        ymax = close_func(x[1],y_max_all,atol=atol)
+        ax = atol_x if atol_x is not None else atol
+        ay = atol_y if atol_y is not None else atol
+        az = atol_z if atol_z is not None else atol
+
+        xmin = close_func(x[0], x_min_all, atol=ax)
+        xmax = close_func(x[0], x_max_all, atol=ax)
+        ymin = close_func(x[1], y_min_all, atol=ay)
+        ymax = close_func(x[1], y_max_all, atol=ay)
+        
         if domain.geometry.dim == 3:
-            zmin = close_func(x[2],z_min_all,atol=atol)
-            zmax = close_func(x[2],z_max_all,atol=atol)
+            zmin = close_func(x[2], z_min_all, atol=az)
+            zmax = close_func(x[2], z_max_all, atol=az)
             boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
-        else: #2D
+        else:
             boundaries = [xmin, xmax, ymin, ymax]
+
         return reduce(np.logical_or, boundaries)
+
     return boundary
 
 
-def dont_get_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
+def dont_get_boundary_of_box_as_function(
+    domain: dlfx.mesh.Mesh,
+    comm: Intercomm,
+    atol: Optional[float] = None,
+    atol_x: Optional[float] = None,
+    atol_y: Optional[float] = None,
+    atol_z: Optional[float] = None
+) -> Callable:
+    
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+
     def boundary(x):
-        lower_x = x[0] > x_min_all + atol
-        upper_x = x[0] < x_max_all - atol
-        lower_y = x[1] > y_min_all + atol
-        upper_y = x[1] < y_max_all - atol
-        lower_z = x[2] > z_min_all + atol
-        upper_z = x[2] < z_max_all - atol
-        
-        boundaries = [lower_x, upper_x,lower_y, upper_y,lower_z, upper_z]
+        ax = atol_x if atol_x is not None else atol
+        ay = atol_y if atol_y is not None else atol
+        az = atol_z if atol_z is not None else atol
+
+        lower_x = x[0] > x_min_all + (ax if ax is not None else 0.0)
+        upper_x = x[0] < x_max_all - (ax if ax is not None else 0.0)
+        lower_y = x[1] > y_min_all + (ay if ay is not None else 0.0)
+        upper_y = x[1] < y_max_all - (ay if ay is not None else 0.0)
+
+        boundaries = [lower_x, upper_x, lower_y, upper_y]
+
+        if domain.geometry.dim == 3:
+            lower_z = x[2] > z_min_all + (az if az is not None else 0.0)
+            upper_z = x[2] < z_max_all - (az if az is not None else 0.0)
+            boundaries.extend([lower_z, upper_z])
+
         return reduce(np.logical_and, boundaries)
-        # xmin = away_func(x[0],x_min_all,atol=atol)
-        # xmax = away_func(x[0],x_max_all,atol=atol)
-        # ymin = away_func(x[1],y_min_all,atol=atol)
-        # ymax = away_func(x[1],y_max_all,atol=atol)
-        # if domain.geometry.dim == 3:
-        #     zmin = away_func(x[2],z_min_all,atol=atol)
-        #     zmax = away_func(x[2],z_max_all,atol=atol)
-        #     boundaries = [xmin, xmax, ymin, ymax, zmin, zmax]
-        # else: #2D
-        #     boundaries = [xmin, xmax, ymin, ymax]
-        # return reduce(np.logical_and, boundaries)
+
     return boundary
 
 
