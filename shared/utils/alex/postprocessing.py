@@ -181,12 +181,12 @@ def compute_and_write_tensor_eigenvalue(domain: dlfx.mesh.Mesh,
     eigen_fn.name = tensor_name+"_0"
     write_field(domain,outputfile_path,eigen_fn,time,comm,S)
     
-    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
+    expr = dlfx.fem.Expression(real_eigenvalue_x1, S.element.interpolation_points())
     eigen_fn.interpolate(expr)
     eigen_fn.name = tensor_name+"_1"
     write_field(domain,outputfile_path,eigen_fn,time,comm,S)
     
-    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
+    expr = dlfx.fem.Expression(real_eigenvalue_x2, S.element.interpolation_points())
     eigen_fn.interpolate(expr)
     eigen_fn.name = tensor_name+"_2"
     write_field(domain,outputfile_path,eigen_fn,time,comm,S)
