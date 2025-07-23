@@ -141,58 +141,42 @@ def compute_and_write_tensor_eigenvalue(domain: dlfx.mesh.Mesh,
                                         tensor_name: str,
                                         time: dlfx.fem.Constant,
                                         outputfile_path: str,
-                                        comm: MPI.Intracomm):
+                                        comm: MPI.Intercomm):
     """
-    Compute and write one eigenvalue of a symmetric 3x3 tensor field to a function.
+    Compute and write the three real eigenvalues of a symmetric 3x3 tensor field.
+    Based on real-only formulation of Cardano's method.
     """
-    #https://fenicsproject.discourse.group/t/finding-eigenvalues-of-a-3x3-tensor-in-dolfinx/8852/3
 
-    # Characteristic polynomial coefficients for 3x3 matrix
     a = ScalarType(-1)
     b = ufl.tr(tensor)
-    c = -0.5 * (ufl.tr(tensor) ** 2 - ufl.tr(tensor * tensor))
+    c = -0.5 * (ufl.tr(tensor)**2 - ufl.tr(tensor * tensor))
     d = ufl.det(tensor)
 
-    delta_0 = b**2 - 3*a*c
-    delta_1 = 2*b**3 - 9*a*b*c + 27*a**2*d
+    # Cardano's formula parameters
+    q = (3 * a * c - b**2) / (9 * a**2)
+    r = (9 * a * b * c - 27 * a**2 * d - 2 * b**3) / (54 * a**3)
 
-    # Cube root expression (avoiding branch cut)
-    C_pos = (0.5 * (delta_1 + ufl.sqrt(delta_1**2 - 4 * delta_0**3))) ** (1/3)
+    # Clamp acos argument to [-1, 1] to avoid NaNs
+    cos_arg = r / ufl.sqrt(-q**3)
+    cos_arg = ufl.max_value(ufl.min_value(cos_arg, 1.0), -1.0)
+    theta = ufl.acos(cos_arg)
+    sqrt_q = ufl.sqrt(-q)
 
-    # Cube roots of unity
-    prim = 0.5 * (-1 + ufl.sqrt(ScalarType(-3)))  # complex
+    eig1 = 2 * sqrt_q * ufl.cos(theta / 3) - b / (3 * a)
+    eig2 = 2 * sqrt_q * ufl.cos((theta + 2 * np.pi) / 3) - b / (3 * a)
+    eig3 = 2 * sqrt_q * ufl.cos((theta + 4 * np.pi) / 3) - b / (3 * a)
 
-    # Eigenvalues via Cardano's formula
-    x0 = (-1/(3*a)) * (b + C_pos + delta_0 / C_pos)
-    x1 = (-1/(3*a)) * (b + prim*C_pos + delta_0 / (prim*C_pos))
-    x2 = (-1/(3*a)) * (b + prim**2*C_pos + delta_0 / (prim**2*C_pos))
+    # Scalar function space
+    element = basix.ufl.element("P", domain.basix_cell(), 1, shape=())
+    function_space = dlfx.fem.functionspace(domain, element)
 
-    # Use only the real part of one eigenvalue (e.g., x0)
-    real_eigenvalue_x0 = ufl.real(x0)
-    real_eigenvalue_x1 = ufl.real(x1)
-    real_eigenvalue_x2 = ufl.real(x2)
+    for i, eig in enumerate([eig1, eig2, eig3]):
+        expr = dlfx.fem.Expression(eig, function_space.element.interpolation_points())
+        fn = dlfx.fem.Function(function_space)
+        fn.interpolate(expr)
+        fn.name = f"{tensor_name}_{i}"
+        write_field(domain, outputfile_path, fn, time, comm, function_space)
 
-    Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())
-    S = dlfx.fem.functionspace(domain, Se)
-    eigen_fn = dlfx.fem.Function(S)
-
-    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
-    eigen_fn.interpolate(expr)
-    eigen_fn.name = tensor_name+"_0"
-    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
-    
-    expr = dlfx.fem.Expression(real_eigenvalue_x1, S.element.interpolation_points())
-    eigen_fn.interpolate(expr)
-    eigen_fn.name = tensor_name+"_1"
-    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
-    
-    expr = dlfx.fem.Expression(real_eigenvalue_x2, S.element.interpolation_points())
-    eigen_fn.interpolate(expr)
-    eigen_fn.name = tensor_name+"_2"
-    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
-
-    # Write using user-provided helper
-   # write_vector_field(domain, outputfile_path, eigen_fn, time, comm, V=V)
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
