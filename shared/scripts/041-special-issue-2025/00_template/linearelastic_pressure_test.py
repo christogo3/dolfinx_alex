@@ -51,20 +51,30 @@ with dlfx.io.XDMFFile(comm, os.path.join(script_path, 'dlfx_mesh.xdmf'), 'r') as
 dt = dlfx.fem.Constant(domain, 0.02)
 dt_max = dlfx.fem.Constant(domain, dt.value)
 t = dlfx.fem.Constant(domain, 0.00)
-Tend = 50.0 * dt.value
+Tend = 2.0 * dt.value
 
 # ---------- Material Parameters ----------
-if material_set.lower() == "am":
+material = material_set.lower()
+
+if material == "am":
     E_mod = 73000.0
     nu = 0.36
     sigvm_threshhold = 140.0
-else:
+elif material == "std":
+    E_mod = 70000.0  
+    nu = 0.35
+    sigvm_threshhold = 140.0
+elif material == "conv":
     E_mod = 82000.0
     nu = 0.35
     sigvm_threshhold = 110.0
+else:
+    raise ValueError(f"Unknown material option '{material_set.lower()}'. Choose from 'am', 'std'")
+
+
 
 lam = dlfx.fem.Constant(domain, alex.linearelastic.get_lambda(E_mod, nu))
-mu = dlfx.fem.Constant(domain, alex.linearelastic.get_mu(E_mod, nu))
+mu = dlfx.fem.Constant(domain, alex.linearelastic.get_mu(E_mod, nu))  
 
 # ---------- Function Spaces ----------
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1)
@@ -96,7 +106,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = bc.get_dimensions(domain, comm)
 if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
-atol = (x_max_all - x_min_all) * 0.05
+atol = (x_max_all - x_min_all) * 0.01
 
 # ---------- Boundary Conditions ----------
 def get_bcs(t):
@@ -135,7 +145,7 @@ else:
 ds_front_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
 success_timestep_counter = dlfx.fem.Constant(domain, 0.0)
-postprocessing_interval = dlfx.fem.Constant(domain, 10.0)
+postprocessing_interval = dlfx.fem.Constant(domain, 1.0)
 
 def after_timestep_success(t, dt, iters):
     u.name = "u"
@@ -148,10 +158,10 @@ def after_timestep_success(t, dt, iters):
     simulation_result[0] = vol_above / vol * 100.0
 
     if rank == 0:
-        if loading_direction.lower() == "y":
-            pp.write_to_graphs_output_file(outputfile_graph_path, t, simulation_result[0], Ry_front)
-        else:
-            pp.write_to_graphs_output_file(outputfile_graph_path, t, simulation_result[0], Rx_front)
+    #     if loading_direction.lower() == "y":
+    #         pp.write_to_graphs_output_file(outputfile_graph_path, t, simulation_result[0], Ry_front)
+    #     else:
+        pp.write_to_graphs_output_file(outputfile_graph_path, t, simulation_result[0], Rx_front, Ry_front)
 
 
     success_timestep_counter.value += 1.0
@@ -174,7 +184,7 @@ def after_last_timestep():
     if rank == 0:
         pp.print_graphs_plot(outputfile_graph_path, script_path, legend_labels=[
             f"volume percent above sigvm = {sigvm_threshhold}",
-            "R_x [ N ]"
+            "R_x [ N ]", "R_y[ N ]"
         ])
         runtime = timer.elapsed()
         sol.print_runtime(runtime)

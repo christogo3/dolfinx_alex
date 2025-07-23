@@ -36,14 +36,14 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
-# N = 16 
+N = 16 
 
 #     # generate domain
 #     #domain = dlfx.mesh.create_unit_square(comm, N, N, cell_type=dlfx.mesh.CellType.quadrilateral)
-# domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
+domain = dlfx.mesh.create_unit_cube(comm,N,N,N,cell_type=dlfx.mesh.CellType.hexahedron)
 
-with dlfx.io.XDMFFile(comm, os.path.join(script_path, 'dlfx_mesh.xdmf'), 'r') as mesh_inp:
-    domain = mesh_inp.read_mesh()
+# with dlfx.io.XDMFFile(comm, os.path.join(script_path, 'dlfx_mesh.xdmf'), 'r') as mesh_inp:
+#    domain = mesh_inp.read_mesh()
 
 
 dt = dlfx.fem.Constant(domain,1.0)
@@ -51,9 +51,15 @@ t = dlfx.fem.Constant(domain,0.00)
 column = dlfx.fem.Constant(domain,0.0)
 Tend = 6.0 * dt.value
 
+# mu_val = alex.linearelastic.get_mu(1000,0.35)
+# la_val = alex.linearelastic.get_lambda(1000,0.35)
+
 # elastic constants
+# lam = dlfx.fem.Constant(domain, la_val)
+# mu = dlfx.fem.Constant(domain, mu_val)
 lam = dlfx.fem.Constant(domain, 51100.0)
 mu = dlfx.fem.Constant(domain, 26300.0)
+
 E_mod = alex.linearelastic.get_emod(lam.value, mu.value)
 
 # function space using mesh and degree
@@ -209,6 +215,8 @@ def after_timestep_success(t,dt,iters):
     pp.write_vector_field(domain,outputfile_xdmf_path,u,t,comm)
     sigma_for_unit_strain = alex.homogenization.compute_averaged_sigma(u,lam,mu, vol,comm=comm,dx=dx_hom_cells(tag_value_hom_cells))
     
+    eps = alex.linearelastic.eps_as_tensor(u)
+    pp.compute_and_write_tensor_eigenvalue(domain,eps,"epsilon_main",t,outputfile_xdmf_path,comm)
     
     # write to newton-log-file
     comm.barrier()

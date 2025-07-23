@@ -23,7 +23,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR/00_template"
 TARGET_DIR="$SCRIPT_DIR/meshes"
 #MESH_INPUT_DIR="/home/resources/special-issue-2025/JM-25-24/1cube/JM-25-24_segmented_3D"  # <<< Set this to your actual mesh input directory
-MESH_INPUT_DIR="/home/resources/special_issue_2025/JM-25-24_segmented_3D"
+MESH_INPUT_DIR="/home/resources/special_issue_2025/JM-25-33_segmented_3D"
 
 # Convert mesh files to DolfinX-compatible format
 echo "Converting mesh files in: $MESH_INPUT_DIR"
@@ -56,7 +56,7 @@ for subfolder in "$TARGET_DIR"/*/; do
 
     # Run each step with error checking
     echo "Running: mpirun -n 10 python3 linearelastic_pressure_test.py"
-    mpirun -n 10 python3 linearelastic_pressure_test.py conv y || { echo "linearelastic_pressure_test.py failed"; exit 1; }
+    mpirun -n 10 python3 linearelastic_pressure_test.py std x || { echo "linearelastic_pressure_test.py failed"; exit 1; }
 
 
     # Go back to the original script directory

@@ -10,6 +10,7 @@ import glob
 import os
 import sys
 import basix
+from petsc4py.PETSc import ScalarType
 
 from petsc4py import PETSc as petsc
 
@@ -19,6 +20,8 @@ import alex.imageprocessing as img
 
 import numpy as np
 from mpi4py import MPI
+
+
 
 def write_meshoutputfile(domain: dlfx.mesh.Mesh,
                                        outputfile_path: str,
@@ -131,6 +134,65 @@ def interpolate_to_vertices_for_output(field, S, field_interp):
     # expr = dlfx.fem.Expression(field,S.element.interpolation_points())
     # field_interp.interpolate(expr)
     field_interp.name = field.name
+    
+    
+def compute_and_write_tensor_eigenvalue(domain: dlfx.mesh.Mesh,
+                                        tensor: ufl.tensors.ListTensor,
+                                        tensor_name: str,
+                                        time: dlfx.fem.Constant,
+                                        outputfile_path: str,
+                                        comm: MPI.Intracomm):
+    """
+    Compute and write one eigenvalue of a symmetric 3x3 tensor field to a function.
+    """
+    #https://fenicsproject.discourse.group/t/finding-eigenvalues-of-a-3x3-tensor-in-dolfinx/8852/3
+
+    # Characteristic polynomial coefficients for 3x3 matrix
+    a = ScalarType(-1)
+    b = ufl.tr(tensor)
+    c = -0.5 * (ufl.tr(tensor) ** 2 - ufl.tr(tensor * tensor))
+    d = ufl.det(tensor)
+
+    delta_0 = b**2 - 3*a*c
+    delta_1 = 2*b**3 - 9*a*b*c + 27*a**2*d
+
+    # Cube root expression (avoiding branch cut)
+    C_pos = (0.5 * (delta_1 + ufl.sqrt(delta_1**2 - 4 * delta_0**3))) ** (1/3)
+
+    # Cube roots of unity
+    prim = 0.5 * (-1 + ufl.sqrt(ScalarType(-3)))  # complex
+
+    # Eigenvalues via Cardano's formula
+    x0 = (-1/(3*a)) * (b + C_pos + delta_0 / C_pos)
+    x1 = (-1/(3*a)) * (b + prim*C_pos + delta_0 / (prim*C_pos))
+    x2 = (-1/(3*a)) * (b + prim**2*C_pos + delta_0 / (prim**2*C_pos))
+
+    # Use only the real part of one eigenvalue (e.g., x0)
+    real_eigenvalue_x0 = ufl.real(x0)
+    real_eigenvalue_x1 = ufl.real(x1)
+    real_eigenvalue_x2 = ufl.real(x2)
+
+    Se = basix.ufl.element("P", domain.basix_cell(), 1, shape=())
+    S = dlfx.fem.functionspace(domain, Se)
+    eigen_fn = dlfx.fem.Function(S)
+
+    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
+    eigen_fn.interpolate(expr)
+    eigen_fn.name = tensor_name+"_0"
+    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
+    
+    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
+    eigen_fn.interpolate(expr)
+    eigen_fn.name = tensor_name+"_1"
+    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
+    
+    expr = dlfx.fem.Expression(real_eigenvalue_x0, S.element.interpolation_points())
+    eigen_fn.interpolate(expr)
+    eigen_fn.name = tensor_name+"_2"
+    write_field(domain,outputfile_path,eigen_fn,time,comm,S)
+
+    # Write using user-provided helper
+   # write_vector_field(domain, outputfile_path, eigen_fn, time, comm, V=V)
 
 def write_vector_field(domain: dlfx.mesh.Mesh,
                                     outputfile_path: str,
@@ -625,7 +687,7 @@ def reaction_force(sigma_func, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.In
         return [comm.allreduce(Rx,MPI.SUM), comm.allreduce(Ry,MPI.SUM)]
     else:
         raise NotImplementedError(f"dim {sigma_func.function_space.mesh.geometry.dim} not implemented")
-
+    
 
 def work_increment_external_forces(sigma_func, u: dlfx.fem.Function, um1: dlfx.fem.Function, n: ufl.FacetNormal, ds: ufl.Measure, comm: MPI.Intercomm,):
     du = u-um1
