@@ -6,6 +6,7 @@ from petsc4py import PETSc
 import basix
 import numpy as np
 import dolfinx as dlfx
+from mpi4py import MPI
 
 
 
@@ -633,5 +634,67 @@ def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_3
 
     e_p_33_expr = e_p_np1_expr[2,2]
     e_p_33_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
+    
+    
+class Plasticity_incremental_2D:
+    # Constructor method
+    def __init__(self, 
+                       sig_y: any,
+                       hard: any,
+                       alpha_n: any,
+                       e_p_n: any,
+                       H: any,
+                       dx: any = ufl.dx,
+                 ):
+
+
+        # Set all parameters here! Material etc
+        self.dx = dx
+        self.sig_y = sig_y
+        self.hard = hard
+        self.e_p_n = e_p_n
+        self.alpha_n = alpha_n
+        self.H = H
+        
+        
+    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function ):
+        def residuum(u: any, du: any,  um1:any):
+            
+            delta_u = u - um1
+            
+            equi =  (ufl.inner(self.sigma(u,lam,mu),  0.5*(ufl.grad(du) + ufl.grad(du).T)))*self.dx # ufl.derivative(pot, u, du)
+            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)
+            
+            Res = equi
+            return [ Res, None]        
+        return residuum(u,du,um1)
+    
+    def sigma(self, u,lam,mu):
+        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
+        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+    
+    def eps(self,u):
+        return ufl.sym(ufl.grad(u)) #0.5*(ufl.grad(u) + ufl.grad(u).T)
+    
+    def deveps(self,u):
+        return ufl.dev(self.eps(u))
+    
+    def eqeps(self,u):
+        return ufl.sqrt(2.0/3.0 * ufl.inner(self.eps(u),self.eps(u))) 
+    
+    def update_H(self, u, delta_u,lam,mu):
+        u_n = u-delta_u
+        delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
+        W_np1 = ufl.inner(self.sigma(u=u,lam=lam,mu=mu), delta_eps )
+        W_n = ufl.inner(self.sigma(u=u_n,lam=lam,mu=mu), delta_eps )
+        H_np1 = ( self.H + 0.5 * (W_n+W_np1))
+        return H_np1
+    
+    def psiel(self,u,lam,mu):
+        return  self.H
+    
+    def get_E_el_global(self,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+        Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
+        return comm.allreduce(Pi,MPI.SUM)
 
     

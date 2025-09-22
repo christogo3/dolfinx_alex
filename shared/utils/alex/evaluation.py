@@ -949,20 +949,13 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
                           use_colors=False, show_markers=False, markers_only=False, marker_size=6,
                           arrow_x=None, arrow_y_start=None, arrow_y_end=None, 
                           arrow_color="black", arrow_linewidth=1.5, arrowhead_size=10,
-                          legend_outside=False):
+                          legend_outside=False, vary_linestyles=False):
     """
     Plots multiple datasets with the same x and y columns, allowing individual vertical and horizontal lines for each,
     with an optional logarithmic y-axis. Saves the plot as PNG, PGF, and PDF for LaTeX integration.
-
-    Allows adding a vertical double-tipped arrow with customizable position, length, and color.
-
-    arrow_x: float or None - X position of the arrow
-    arrow_y_start: float or None - Y starting position of the arrow
-    arrow_y_end: float or None - Y ending position of the arrow
-    arrow_color: str - Color of the arrow
-    arrow_linewidth: float - Line width of the arrow
-    arrowhead_size: float - Size of arrowheads
-    legend_outside: bool - Whether to place the legend outside the plot (right side)
+    
+    New parameter:
+    vary_linestyles: bool - If True, cycles through multiple linestyles to help distinguish datasets.
     """
 
     if usetex:
@@ -975,20 +968,24 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
 
     if use_bw_palette and not use_colors:
         greys = ['black', 'dimgray', 'dimgrey', 'darkgray', 'silver', 'lightgray']
-        linestyles = ['-', '--', '-.', ':']
         colors = greys
     elif use_broad_palette or use_colors:
         colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'cyan', 'magenta', 'yellow']
-        linestyles = ['-']
     else:
         colors = list(plt.cm.tab10.colors)
-        linestyles = ['-']
+
+    # Define linestyles
+    linestyles = ['-', '--', '-.', ':']
+    if vary_linestyles:
+        linestyle_cycle = linestyles * ((len(data_objects) // len(linestyles)) + 1)
+    else:
+        linestyle_cycle = ['-'] * len(data_objects)
 
     markers = ['o', 's', 'D', '^', 'v', '<', '>', 'p', '*', 'h']
 
     for i, data in enumerate(data_objects):
         color = colors[i % len(colors)]
-        linestyle = linestyles[i % len(linestyles)]
+        linestyle = linestyle_cycle[i % len(linestyle_cycle)]
         marker = markers[i % len(markers)] if show_markers or markers_only else None
 
         ax.plot(data[col_x], data[col_y], 
@@ -1050,7 +1047,6 @@ def plot_multiple_columns(data_objects, col_x, col_y, output_filename,
 
     plt.close()
     print(f"Plot saved as {output_filename}, {pgf_filename}, and {pdf_filename}")
-
 
     
     

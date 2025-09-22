@@ -76,7 +76,7 @@ for b in b_values:
 e_p_n = deviatoric(strain_tensor(0))
 alpha_n = 0
 b_ref = b_values[0]
-H = b_ref * mu0 / (1 - b_ref)
+H = b_ref * 2*mu0 / (1 - b_ref)
 sigma_11_plasti = []
 e_dev_norm_plasti = []
 s_dev_norm_plasti = []

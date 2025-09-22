@@ -407,7 +407,9 @@ import matplotlib.pyplot as plt
 #     plt.savefig(print_path + '/J.png') 
 #     plt.close()
     
-def print_graphs_plot(output_file_path, print_path, legend_labels=None, default_label="Column"):
+import matplotlib.pyplot as plt
+
+def print_graphs_plot(output_file_path, print_path, legend_labels=None, default_label="Column", filename=None):
     def read_from_graphs_output_file(output_file_path):
         with open(output_file_path, 'r') as file:
             data = [line.strip().split() for line in file.readlines() if not line.startswith('#')]
@@ -435,8 +437,12 @@ def print_graphs_plot(output_file_path, print_path, legend_labels=None, default_
     plt.ylabel('Values')
     plt.title('Columns vs Time')
     plt.legend()
-    plt.savefig(print_path + '/graphs.png') 
+
+    # Use provided filename or default to 'graphs.png'
+    save_filename = filename if filename else 'graphs.png'
+    plt.savefig(f"{print_path}/{save_filename}")
     plt.close()
+
     
 
 

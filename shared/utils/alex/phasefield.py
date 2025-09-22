@@ -261,6 +261,10 @@ class StaticPhaseFieldProblem2D_split:
         S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
         return S
     
+    def get_E_el_global(self,s,eta,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+        Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel_degraded(s,eta,u,lam,mu) * dx))
+        return comm.allreduce(Pi,MPI.SUM)
+    
     
 class StaticPhaseFieldProblem2D_incremental:
     # Constructor method
