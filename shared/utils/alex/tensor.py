@@ -83,3 +83,49 @@ def pos(x):
 
 def neg(x):
     return 0.5 * (x - abs(x))
+
+
+def eig_plus_2D(A):
+    return (ufl.tr(A) / 2 + ufl.sqrt((ufl.tr(A) / 2)**2 - ufl.det(A)))
+
+
+def eig_minus_2D(A):
+    return (ufl.tr(A) / 2 - ufl.sqrt((ufl.tr(A) / 2)**2 - ufl.det(A)))
+
+
+def eig_vecs_2D(A):
+    a = A[0,0]
+    d = A[1,1]
+    b = A[0,1]
+    
+    n = a - d
+    # Prevent division by zero
+    n_safe = ufl.conditional(
+        ufl.lt(abs(n), 1000.0*np.finfo(np.float64).resolution),
+        1000.0*np.finfo(np.float64).resolution,
+        n
+    )
+    
+    theta = 0.5 * ufl.atan2(2*b, n_safe)
+    
+    # Candidate eigenvectors
+    v1 = ufl.as_vector([ufl.cos(theta), ufl.sin(theta)])
+    v2 = ufl.as_vector([-ufl.sin(theta), ufl.cos(theta)])
+    
+    # Associate v1 with lambda+
+    lam_plus = eig_plus_2D(A)
+    rayleigh = ufl.dot(v1, ufl.dot(A, v1))
+
+    v1_largest = ufl.conditional(ufl.gt(abs(rayleigh - lam_plus),
+                                      1e-12),
+                               v2, v1)
+    v2_smallest = ufl.as_vector([-v1_largest[1], v1_largest[0]])  # orthogonal
+    
+    return v1_largest, v2_smallest
+
+
+def entry_safe(e):
+    e_safe = ufl.conditional(
+                ufl.lt(abs(e), 100.0*np.finfo(np.float64).resolution),
+            1000.0*np.finfo(np.float64).resolution, e)
+    return e_safe

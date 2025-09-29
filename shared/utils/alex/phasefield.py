@@ -176,6 +176,11 @@ class StaticPhaseFieldProblem2D_split:
         self.psisurf : Callable = psisurf
         self.sigma_undegraded : Callable = le.sigma_as_tensor # plane strain
         self.split = split
+        
+        if degradationFunction.__name__.__contains__("quadratic"):
+            self.degds = degds_quadratic
+        elif degradationFunction.__name__.__contains__("cubic"):
+            self.degds = degds_cubic
         # self.z = dlfx.fem.Constant(domain,0.0)
         # self.Id = ufl.as_matrix([[1,self.z],
         #             [self.z,1]])
@@ -189,7 +194,16 @@ class StaticPhaseFieldProblem2D_split:
                 potH = (self.psiel_degraded_history_field(s,eta,u,lam,mu,H) + self.psisurf(s,Gc,epsilon))*ufl.dx
                 sdrive = ufl.derivative(potH,s,ds)
             else:
-                sdrive = ufl.derivative(pot, s, ds)
+                
+                
+                if self.split =="spectral":
+                    degds = self.degds
+                    _ , psiel_pos = self.psiel_neg_pos_spectral_split(u,lam,mu)
+                    # test = degds(s) * ( psiel_pos )
+                    sdrive = ( ( degds(s) * ( psiel_pos ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * ufl.dx
+                else:
+                    sdrive = ufl.derivative(pot, s, ds)
+                    
             rate = (s-sm1)/delta_t*ds*ufl.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
@@ -213,11 +227,88 @@ class StaticPhaseFieldProblem2D_split:
     
     def sigma_degraded(self, u,s,lam,mu, eta):
         #return self.degradation_function(s=s,eta=eta) * self.sigma_as_tensor_test(u,lam,mu)
-        if self.split:
+        if self.split == "volumetric":
             return self.sigma_degraded_vol_split(u,s,lam,mu,eta)
+        elif self.split == "spectral":
+            return self.sig_degraded_spectral_split(u,s,lam,mu,eta)
         else:
            return self.degradation_function(s=s,eta=eta) * self.sigma_as_tensor_test(u,lam,mu) 
         # return self.degradation_function(s=s,eta=eta) * self.sigma_undegraded(u=u,lam=lam,mu=mu)
+    
+    
+    def eps_neg_pos_spectral(self,u):
+        eps = ufl.sym(ufl.grad(u))
+        
+        eps_1 = tensor.eig_minus_2D(eps)
+        eps_2 = tensor.eig_plus_2D(eps)
+        
+        n2, n1 = tensor.eig_vecs_2D(eps)
+        
+        
+
+       
+        
+        P1 = ufl.as_matrix([
+            [tensor.entry_safe(n1[0]*n1[0]), tensor.entry_safe(n1[0]*n1[1]) ],
+            [tensor.entry_safe(n1[1]*n1[0]), tensor.entry_safe(n1[1]*n1[1]) ],
+        ])
+        
+        P2 = ufl.as_matrix([
+            [tensor.entry_safe(n2[0]*n2[0]), tensor.entry_safe(n2[0]*n2[1]) ],
+            [tensor.entry_safe(n2[1]*n2[0]), tensor.entry_safe(n2[1]*n2[1]) ],
+        ])
+        
+        # P1 = ufl.as_matrix([
+        #     [n1[0]*n1[0], n1[0]*n1[1] ],
+        #     [n1[1]*n1[0], n1[1]*n1[1] ],
+        # ])
+        
+        # P2 = ufl.as_matrix([
+        #     [n2[0]*n2[0], n2[0]*n2[1] ],
+        #     [n2[1]*n2[0], n2[1]*n2[1] ],
+        # ])
+        
+        
+        # P1 = ufl.outer(n1, n1)
+        # P2 = ufl.outer(n2, n2)
+        
+        
+        # eps_neg = tensor.neg(eps_1) * P1  + tensor.neg(eps_2) * P2
+        # eps_pos = tensor.pos(eps_1) * P1  + tensor.pos(eps_2) * P2
+        
+        eps_neg = tensor.entry_safe(tensor.neg(eps_1)) * P1  + tensor.entry_safe(tensor.neg(eps_2)) * P2
+        eps_pos = tensor.entry_safe(tensor.pos(eps_1)) * P1  + tensor.entry_safe(tensor.pos(eps_2)) * P2
+        
+        return eps_neg, eps_pos
+    
+    def sig_neg_pos_spectral(self,u,lam,mu):
+        eps = ufl.sym(ufl.grad(u))
+        eps_neg, eps_pos = self.eps_neg_pos_spectral(u)
+        
+        sig_neg = lam * tensor.neg(ufl.tr(eps)) * ufl.Identity(2) + 2.0 * mu * eps_neg
+        sig_pos = lam * tensor.pos(ufl.tr(eps)) * ufl.Identity(2) + 2.0 * mu * eps_pos
+        return sig_neg, sig_pos
+    
+    def sig_degraded_spectral_split(self,u,s,lam,mu,eta):
+        sig_neg, sig_pos = self.sig_neg_pos_spectral(u,lam,mu)
+        sig = self.degradation_function(s=s,eta=eta) * sig_pos + sig_neg
+        return sig
+    
+    def psiel_neg_pos_spectral_split(self,u,lam,mu):
+        eps = ufl.sym(ufl.grad(u))
+        eps_neg, eps_pos = self.eps_neg_pos_spectral(u)
+        # psiel_neg = (0.5 * lam * tensor.entry_safe((tensor.neg(ufl.tr(eps)))) ** 2 + mu * ufl.inner(eps_neg,eps_neg))
+        # psiel_pos = (0.5 * lam * tensor.entry_safe((tensor.pos(ufl.tr(eps)))) ** 2 + mu * ufl.inner(eps_pos,eps_pos))
+        psiel_neg = (0.5 * lam * (tensor.neg(ufl.tr(eps))) ** 2 + mu * ufl.inner(eps_neg,eps_neg))
+        psiel_pos = (0.5 * lam * (tensor.pos(ufl.tr(eps))) ** 2 + mu * ufl.inner(eps_pos,eps_pos))
+        return psiel_neg, psiel_pos
+    
+    def psiel_degraded_spectral_split(self,s,eta,u,lam,mu):
+        psiel_neg, psiel_pos = self.psiel_neg_pos_spectral_split(u,lam,mu)
+        psiel_deg = self.degradation_function(s=s,eta=eta) * psiel_pos + psiel_neg
+        return psiel_deg
+        
+         
     
     def sigma_degraded_vol_split(self,u,s,lam,mu,eta):
         K = le.get_K_2D(lam=lam,mu=mu)
@@ -232,14 +323,21 @@ class StaticPhaseFieldProblem2D_split:
         sigma_degraded = K * tensor.neg(trEps) * ufl.Identity(2)+ self.degradation_function(s=s,eta=eta) * (K * tensor.pos(trEps) * ufl.Identity(2) + 2.0 * mu * epsD)
         return sigma_degraded
         
+    
+    
+        
+    
     def psiel_degraded(self,s,eta,u,lam,mu):
         eps = le.eps_as_tensor(u)
         epsD =  ufl.dev(eps)
         trEps = ufl.tr(eps)
         K = le.get_K_2D(lam=lam,mu=mu)
         
-        if self.split:
+        if self.split == "volumetric":
             psi = 0.5 * K * tensor.neg(trEps) ** 2 + self.degradation_function(s,eta) * (0.5 * K * tensor.pos(trEps) ** 2 + mu * ufl.inner(epsD,epsD))
+        elif self.split == "spectral":
+            #psi = 0.5* ufl.inner(self.sigma_degraded(u,s,lam,mu,eta),eps)
+            psi = self.psiel_degraded_spectral_split(s,eta,u,lam,mu)
         else:
             psi = self.degradation_function(s,eta) * le.psiel(u,self.sigma_undegraded(u=u,lam=lam,mu=mu))
         return psi
@@ -258,7 +356,7 @@ class StaticPhaseFieldProblem2D_split:
     
     
     def getGlobalFractureSurface(s: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, dx: ufl.Measure):
-        S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon)))
+        S = dlfx.fem.assemble_scalar(dlfx.fem.form(psisurf_from_function(s,Gc,epsilon) * dx))
         return S
     
     def get_E_el_global(self,s,eta,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:

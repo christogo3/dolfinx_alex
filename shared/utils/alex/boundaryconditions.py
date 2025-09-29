@@ -267,6 +267,22 @@ def get_top_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Interc
         return reduce(np.logical_or, boundaries)
     return boundary
 
+def get_x_range_at_top_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, x_range_width, x_range_center, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        ymax = close_func(x[1],y_max_all,atol=atol)
+        x_range = close_func(x[0],x_range_center,atol=x_range_width/2.0)
+        return reduce(np.logical_and, [ymax,x_range])
+    return boundary
+
+def get_x_range_at_bottom_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, x_range_width, x_range_center, atol: float=None) -> Callable:
+    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    def boundary(x):
+        ymin = close_func(x[1],y_min_all,atol=atol)
+        x_range = close_func(x[0],x_range_center,atol=x_range_width/2.0)
+        return reduce(np.logical_and, [ymin,x_range])
+    return boundary
+
 def get_left_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):

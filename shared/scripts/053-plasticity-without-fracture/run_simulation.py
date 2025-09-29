@@ -116,7 +116,7 @@ domain.topology.create_connectivity(fdim, tdim)
 
 e_p_n_3D = ufl.as_tensor([[e_p_11_n, e_p_12_n, 0.0], 
                           [e_p_12_n, e_p_22_n, 0.0],
-                          [0.0         ,          0.0, e_p_33_n]])
+                          [0.0, 0.0, e_p_33_n]])
 
 plasticityProblem = alex.plasticity.Plasticity_incremental_2D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
 
@@ -261,7 +261,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "Ry", "u_y"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "R_y", "u_y"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
