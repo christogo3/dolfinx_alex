@@ -188,26 +188,27 @@ class StaticPhaseFieldProblem2D_split:
         
     def prep_newton(self, w: any, wm1: any, dw: ufl.TestFunction, ddw: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, Gc: dlfx.fem.Function, epsilon: dlfx.fem.Constant, eta: dlfx.fem.Constant, iMob: dlfx.fem.Constant, delta_t: dlfx.fem.Constant, H: dlfx.fem.Function = None):
         def residuum(u: any, s: any, du: any, ds: any, sm1: any):
-            pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
-            equi = ufl.derivative(pot, u, du)
+            
+            
             if H is not None: # Irreversibility
                 potH = (self.psiel_degraded_history_field(s,eta,u,lam,mu,H) + self.psisurf(s,Gc,epsilon))*ufl.dx
                 sdrive = ufl.derivative(potH,s,ds)
             else:
-                
-                
                 if self.split =="spectral":
-                    degds = self.degds
-                    _ , psiel_pos = self.psiel_neg_pos_spectral_split(u,lam,mu)
+                    pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
+                    #degds = self.degds
+                    #_ , psiel_pos = self.psiel_neg_pos_spectral_split(u,lam,mu)
                     # test = degds(s) * ( psiel_pos )
-                    sdrive = ( ( degds(s) * ( psiel_pos ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * ufl.dx
-                else:
-                    sdrive = ufl.derivative(pot, s, ds)
+                    #sdrive = ( ( degds(s) * ( psiel_pos ) - Gc * (1-s) / (2.0 * epsilon)  ) * ds + 2.0 * epsilon * Gc * ufl.inner(ufl.grad(s), ufl.grad(ds)) ) * ufl.dx
+                elif self.split =="volumetric":
+                    pot = (self.psiel_degraded(s,eta,u,lam,mu)+self.psisurf(s,Gc,epsilon))*ufl.dx
+            sdrive = ufl.derivative(pot, s, ds)
+            equi = ufl.derivative(pot, u, du)
                     
             rate = (s-sm1)/delta_t*ds*ufl.dx
             Res = iMob*rate+sdrive+equi
             dResdw = ufl.derivative(Res, w, ddw)
-            return [ Res, dResdw]
+            return [ Res, None]
             
         u, s = ufl.split(w)
         um1, sm1 = ufl.split(wm1)

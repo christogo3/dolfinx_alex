@@ -27,7 +27,8 @@ import json
 # CLI INPUT HANDLING
 # ---------------------------
 DEFAULT_FOLDER = os.path.join(os.path.dirname(__file__), "resources", "250923_TTO_var_a_E_var_min_max","mbb_var_a_E_var")
-VALID_CASES = {"vary", "min", "max", "all"}
+# Added 'fromfile' as a recognized textual case
+VALID_CASES = {"vary", "min", "max", "all", "fromfile"}
 
 def parse_args(argv):
     """
@@ -39,7 +40,7 @@ def parse_args(argv):
       python script.py FOLDER START END
       python script.py FOLDER START END CASE
       python script.py FOLDER INDEX CASE
-    CASE in {vary|min|max|all}
+    CASE in {vary|min|max|all|fromfile}
     """
     folder = DEFAULT_FOLDER
     ds_start = None
@@ -207,6 +208,17 @@ for x_value in x_candidates:
     def create_emodulus_interpolator(nodes_df, E_grid):
         return lambda x: interpolate_pixel_data(E_grid, calculate_element_size(nodes_df), x[0], x[1])
 
+    # Helper to read vol JSON produced previously (vol_{x_value}_vary.json)
+    def read_E_average_from_vol_json(x_val):
+        vol_filename = os.path.join(folder_path, f"vol_{x_val}_vary.json")
+        if not os.path.exists(vol_filename):
+            raise FileNotFoundError(f"Expected volume file for case 'fromfile' not found: {vol_filename}")
+        with open(vol_filename, "r") as f:
+            data = json.load(f)
+        if "E_average" not in data:
+            raise KeyError(f"'E_average' not found in {vol_filename}. File contents: {list(data.keys())}")
+        return float(data["E_average"])
+
     # ---------------------------
     # LOAD DATA
     # ---------------------------
@@ -249,9 +261,10 @@ for x_value in x_candidates:
     # ---------------------------
     # CASE LOOP
     # ---------------------------
-    available_cases = ["vary", "min", "max"]
+    available_cases = ["vary", "min", "max", "fromfile"]
     if case_param is None:
-        cases_to_run = ["min", "max", "vary"]    
+        # default: run min, max, vary, and fromfile
+        cases_to_run = ["min", "max", "vary", "fromfile"]
     elif case_param == "all":
         cases_to_run = available_cases
     else:
@@ -273,12 +286,31 @@ for x_value in x_candidates:
         E = dlfx.fem.Function(S)
         nu = dlfx.fem.Constant(domain=domain, c=0.3)
 
+        # ---- Set E depending on case
         if case == "vary":
             E.interpolate(create_emodulus_interpolator(nodes_df, E_grid))
         elif case == "min":
             E.x.array[:] = np.full_like(E.x.array[:], E_min)
         elif case == "max":
             E.x.array[:] = np.full_like(E.x.array[:], E_max)
+        elif case == "fromfile":
+            # read vol_{x}_vary.json and get E_average
+            try:
+                E_average_value = read_E_average_from_vol_json(x_value)
+            except Exception as e:
+                # ensure we report and stop this case cleanly
+                if rank == 0:
+                    print(f"[ERROR] Could not read E_average for x={x_value}: {e}")
+                log_convergence_status(x_value, case, f"ErrorReadingVolJson: {e}")
+                # skip this case and continue with next case
+                continue
+            # assign constant value
+            E.x.array[:] = np.full_like(E.x.array[:], E_average_value)
+            if rank == 0:
+                print(f"[INFO] For dataset {x_value} using E_average={E_average_value} from vol_{x_value}_vary.json")
+        else:
+            # should not happen, but guard
+            raise ValueError(f"Unhandled case: {case}")
 
         lam = le.get_lambda(E, nu)
         mue = le.get_mu(E, nu)
@@ -303,11 +335,11 @@ for x_value in x_candidates:
         dt_global = dlfx.fem.Constant(domain, dt_start)
         t_global = dlfx.fem.Constant(domain, 0.0)
         trestart_global = dlfx.fem.Constant(domain, 0.0)
-        Tend = 100.0 * dt_global.value
+        Tend = 2000.0 * dt_global.value
         gc = dlfx.fem.Constant(domain, 1.0)
-        eta = dlfx.fem.Constant(domain, 0.00001)
-        epsilon = dlfx.fem.Constant(domain, 0.05)
-        Mob = dlfx.fem.Constant(domain, 1000.0)
+        eta = dlfx.fem.Constant(domain, 0.0001)
+        epsilon = dlfx.fem.Constant(domain, 0.1)
+        Mob = dlfx.fem.Constant(domain, 1.0)
         iMob = dlfx.fem.Constant(domain, 1.0 / Mob.value)
 
         # ---- Solution fields
@@ -319,10 +351,16 @@ for x_value in x_candidates:
         dw = ufl.TestFunction(W)
         ddw = ufl.TrialFunction(W)
 
-        phaseFieldProblem = pf.StaticPhaseFieldProblem2D_split(
+        # phaseFieldProblem = pf.StaticPhaseFieldProblem2D_split(
+        #     degradationFunction=pf.degrad_quadratic,
+        #     psisurf=pf.psisurf_from_function,
+        #     split= "volumetric" # volumetric"#"volumetric"
+        # )
+        
+        phaseFieldProblem = pf.StaticPhaseFieldProblem2D(
             degradationFunction=pf.degrad_quadratic,
             psisurf=pf.psisurf_from_function,
-            split= "volumetric"#"volumetric"
+            # split= "volumetric" # volumetric"#"volumetric"
         )
 
         timer = dlfx.common.Timer()
@@ -365,15 +403,13 @@ for x_value in x_candidates:
         ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags)
 
         success_timestep_counter = dlfx.fem.Constant(domain, 0.0)
-        postprocessing_interval = dlfx.fem.Constant(domain, 300.0)
+        postprocessing_interval = dlfx.fem.Constant(domain, 20.0)
 
         def get_bcs(t):
             atol_bc = (x_max_all - x_min_all) * 0.000
             
             width_applied_load = 0.2
             increment_a = 0.5
-            
-            
             
             
             bcs = [
@@ -388,7 +424,7 @@ for x_value in x_candidates:
                 # bc.define_dirichlet_bc_from_value(domain, 0.0, 0,
                 #                                   bc.get_left_boundary_of_box_as_function(domain, comm, atol=atol_bc), W, 0),
                 # bc.define_dirichlet_bc_from_value(domain, 0.0, 0,
-                #                                   bc.get_right_boundary_of_box_as_function(domain, comm, atol=atol_bc), W, 0)
+                #                                    bc.get_right_boundary_of_box_as_function(domain, comm, atol=atol_bc), W, 0),
                 
                 # bc.define_dirichlet_bc_from_value(domain, -t_global.value, 1,
                 #                                   bc.get_top_boundary_of_box_as_function(domain, comm, atol=atol_bc), W, 0),
@@ -408,7 +444,19 @@ for x_value in x_candidates:
        
         dx = ufl.Measure("dx", domain=domain)
         vol = alex.homogenization.get_filled_vol(dx=dx,comm=comm)
+        E_average = pp.get_volume_average_of_field(E,vol,dx=ufl.dx,comm=comm)
         
+        def write_vol_data_to_file():
+            vol_path = os.path.join(folder_path, f"vol_{x_value}_{case}.json")
+            volumes_data = {
+                    "vol": vol,
+                    "E_average": E_average,
+                }
+            with open(vol_path, "w") as f:
+                json.dump(volumes_data, f, indent=4)
+            print(f"Saved volume info to: {vol_path}")
+        
+        write_vol_data_to_file()
         
         def after_timestep_success(t, dt, iters):
             sigma = phaseFieldProblem.sigma_degraded(u, s, lam, mue, eta)
@@ -477,19 +525,15 @@ for x_value in x_candidates:
                 pp.print_graphs_plot(outputfile_graph_path, print_path=folder_path, legend_labels=["u_y_top", "R_y_top", "dW", "W","A", "E_el"])
 
             
-                vol_path = os.path.join(folder_path, f"vol_{x_value}_{case}.json")
-                volumes_data = {
-                    "vol": vol,
-                }
-                with open(vol_path, "w") as f:
-                    json.dump(volumes_data, f, indent=4)
-                print(f"Saved volume info to: {vol_path}")
+                #write_vol_data_to_file()
         
             sigma = phaseFieldProblem.sigma_degraded(u, s, lam, mue, eta)
             pp.write_phasefield_mixed_solution(domain, results_xdmf_path, w, t_global.value, comm)
             E.name = "E"
             pp.write_scalar_fields(domain, comm, [E], ["E"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
             pp.write_tensor_fields(domain, comm, [sigma], ["sig"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
+
+
 
         try:
             sol.solve_with_newton_adaptive_time_stepping(
@@ -518,6 +562,5 @@ for x_value in x_candidates:
             else:
                 log_convergence_status(x_value, case, f"RuntimeError: {str(e)}")
                 raise
-
 
 

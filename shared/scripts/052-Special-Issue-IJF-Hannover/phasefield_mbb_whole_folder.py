@@ -22,11 +22,13 @@ import alex.boundaryconditions as bc
 import alex.solution as sol
 import json
 
+
 # ---------------------------
 # CLI INPUT HANDLING
 # ---------------------------
-DEFAULT_FOLDER = os.path.join(os.path.dirname(__file__), "resources", "310125_var_bcpos_rho_10_120_004")
+DEFAULT_FOLDER = os.path.join(os.path.dirname(__file__), "resources", "250923_TTO_var_a_E_var_min_max","mbb_var_a_E_var")
 VALID_CASES = {"vary", "min", "max", "all"}
+VALID_FIELD_SOURCES = {"point", "cell"}
 
 def parse_args(argv):
     """
@@ -38,19 +40,21 @@ def parse_args(argv):
       python script.py FOLDER START END
       python script.py FOLDER START END CASE
       python script.py FOLDER INDEX CASE
+      python script.py FOLDER [CASE] [point|cell]
     CASE in {vary|min|max|all}
     """
     folder = DEFAULT_FOLDER
     ds_start = None
     ds_end = None
     case = None
+    field_source = "point"  # default is point-based E field
 
     if len(argv) >= 2:
         folder = argv[1]
         if not os.path.isdir(folder):
             raise FileNotFoundError(f"Provided folder path does not exist: {folder}")
 
-    # Collect remaining tokens and try to interpret ints vs case
+    # Collect remaining tokens and try to interpret ints vs case vs field_source
     tokens = argv[2:]
     ints = []
     others = []
@@ -65,18 +69,20 @@ def parse_args(argv):
     elif len(ints) >= 2:
         ds_start, ds_end = ints[0], ints[1]
 
-    if others:
-        # last textual token wins
-        last = others[-1]
-        if last in VALID_CASES:
-            case = last
+    for token in others:
+        if token in VALID_CASES:
+            case = token
+        elif token in VALID_FIELD_SOURCES:
+            field_source = token
         else:
-            raise ValueError(f"Unknown case '{last}'. Valid: {sorted(VALID_CASES)}")
+            raise ValueError(f"Unknown argument '{token}'. Valid cases: {sorted(VALID_CASES)}, valid field sources: {sorted(VALID_FIELD_SOURCES)}")
 
-    return folder, ds_start, ds_end, case
+    return folder, ds_start, ds_end, case, field_source
 
-folder_path, dataset_start, dataset_end, case_param = parse_args(sys.argv)
+folder_path, dataset_start, dataset_end, case_param, field_source = parse_args(sys.argv)
 print(f"[INFO] Using folder: {folder_path}")
+print(f"[INFO] Using field source: {field_source}")
+
 
 # ---------------------------
 # AUTO-DETECT INTEGER SUFFIXES
@@ -108,6 +114,17 @@ size = comm.Get_size()
 print('MPI-STATUS: Process:', rank, 'of', size, 'processes.')
 sys.stdout.flush()
 
+convergence_log_path = os.path.join(folder_path, "convergence_log.txt")
+if rank == 0:
+    # Start fresh for each run
+    with open(convergence_log_path, "w") as f:
+        f.write("x_value,case,status\n")
+        
+def log_convergence_status(x_value, case, status):
+    if rank == 0:
+        with open(convergence_log_path, "a") as f:
+            f.write(f"{x_value},{case},{status}\n")
+
 # ---------------------------
 # MAIN LOOP OVER SELECTED x_candidates
 # ---------------------------
@@ -117,10 +134,10 @@ for x_value in x_candidates:
     # ---------------------------
     # BUILD FILE PATHS
     # ---------------------------
-    node_file = os.path.join(folder_path, "node_coord.csv")
-    point_data_file = os.path.join(folder_path, f"point_data_{x_value}.csv")
+    node_file = os.path.join(folder_path, f"node_coords_{x_value}.csv")
+    point_data_file = os.path.join(folder_path, f"points_data_{x_value}.csv")
     cell_data_file = os.path.join(folder_path, f"cell_data_{x_value}.csv")
-    connectivity_file = os.path.join(folder_path, "connectivity.csv")
+    connectivity_file = os.path.join(folder_path, f"connectivity_{x_value}.csv")
     mesh_file = os.path.join(folder_path, f"dlfx_mesh_{x_value}.xdmf")
 
     # case-agnostic figure (E-distribution); case-specific outputs will be below
@@ -152,13 +169,13 @@ for x_value in x_candidates:
     def arrange_cells_2D(connectivity_df, mesh_dims):
         cell_grid = np.zeros(mesh_dims, dtype=int)
         for index, row in connectivity_df.iterrows():
-            cell_id = row['Cell ID']
+            cell_id = index #row['Cell ID']
             row_idx = index // mesh_dims[1]
             col_idx = index % mesh_dims[1]
             cell_grid[row_idx, col_idx] = cell_id
         return cell_grid
 
-    def map_E_to_grid(cell_id_grid, cell_data_df):
+    def map_E_to_grid_from_cell(cell_id_grid, cell_data_df):
         E_Grid = np.full(cell_id_grid.shape, np.nan)
         E_values = cell_data_df['E-Modul'].values
         for row in range(cell_id_grid.shape[0]):
@@ -168,6 +185,17 @@ for x_value in x_candidates:
                     E_Grid[row, col] = E_values[cell_id]
                 else:
                     E_Grid[row, col] = np.nan
+        return E_Grid
+
+    def map_E_to_grid_from_point(cell_id_grid, connectivity_df, point_data_df):
+        E_Grid = np.full(cell_id_grid.shape, np.nan)
+        point_E = point_data_df.set_index("Point ID")["E-Modul"]
+        for row in range(cell_id_grid.shape[0]):
+            for col in range(cell_id_grid.shape[1]):
+                cell_id = cell_id_grid[row, col]
+                if cell_id < len(connectivity_df):
+                    node_indices = connectivity_df.iloc[cell_id][1:5].values.astype(int)
+                    E_Grid[row, col] = point_E.loc[node_indices].mean()
         return E_Grid
 
     def calculate_element_size(nodes_df):
@@ -202,8 +230,13 @@ for x_value in x_candidates:
 
     mesh_dims = infer_mesh_dimensions_from_nodes(nodes_df)
     cell_id_grid = arrange_cells_2D(connectivity_df, mesh_dims)
-    E_grid = map_E_to_grid(cell_id_grid, cell_data_df)
-    E_max, E_min = np.max(E_grid), 100000.0 #np.min(E_grid)
+
+    if field_source == "point":
+        E_grid = map_E_to_grid_from_point(cell_id_grid, connectivity_df, point_data_df)
+    else:
+        E_grid = map_E_to_grid_from_cell(cell_id_grid, cell_data_df)
+
+    E_max, E_min = 210000, 130000.0 # fixed for now
 
     # Plot E distribution (once per dataset index)
     plt.figure(figsize=(10, 8))
@@ -219,9 +252,6 @@ for x_value in x_candidates:
     with dlfx.io.XDMFFile(comm, mesh_file, 'r') as mesh_inp:
         domain = mesh_inp.read_mesh()
         
-    # with dlfx.io.XDMFFile(comm, os.path.join("/home/scripts/052-Special-Issue-IJF-Hannover/resources/310125_var_bcpos_rho_10_120_004","dlfx_mesh_20.xdmf"), 'r') as mesh_inp:
-    #     domain = mesh_inp.read_mesh()
-
     x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
     if rank == 0:
         pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
@@ -235,7 +265,9 @@ for x_value in x_candidates:
     # CASE LOOP
     # ---------------------------
     available_cases = ["vary", "min", "max"]
-    if case_param is None or case_param == "all":
+    if case_param is None:
+        cases_to_run = ["min", "max", "vary"]    
+    elif case_param == "all":
         cases_to_run = available_cases
     else:
         if case_param not in available_cases:
@@ -267,6 +299,9 @@ for x_value in x_candidates:
         mue = le.get_mu(E, nu)
         dim = domain.topology.dim
         alex.os.mpi_print('spatial dimensions: ' + str(dim), rank)
+
+        # (rest of your script continues unchanged...)
+
 
         # ---- Boundary dofs (top boundary, u_y)
         fdim = domain.topology.dim - 1
@@ -300,7 +335,7 @@ for x_value in x_candidates:
         phaseFieldProblem = pf.StaticPhaseFieldProblem2D_split(
             degradationFunction=pf.degrad_quadratic,
             psisurf=pf.psisurf_from_function,
-            split=True
+            split="volumetric"
         )
 
         timer = dlfx.common.Timer()
@@ -366,7 +401,7 @@ for x_value in x_candidates:
        
         dx = ufl.Measure("dx", domain=domain)
         vol = alex.homogenization.get_filled_vol(dx=dx,comm=comm)
-        
+        E_average = pp.get_volume_average_of_field(E,vol,dx=ufl.dx,comm=comm)
         
         def after_timestep_success(t, dt, iters):
             sigma = phaseFieldProblem.sigma_degraded(u, s, lam, mue, eta)
@@ -416,10 +451,10 @@ for x_value in x_candidates:
             # If global dt has shrunk beyond tolerance -> write what we have and skip this case
             if dt_global.value < 10.0 ** (-14):
                 sigma = phaseFieldProblem.sigma_degraded(u, s, lam, mue, eta)
-                pp.write_phasefield_mixed_solution(domain, results_xdmf_path, w, t, comm)
+                pp.write_phasefield_mixed_solution(domain, results_xdmf_path, w, t+dt_start.value, comm)
                 E.name = "E"
-                pp.write_scalar_fields(domain, comm, [E], ["E"], outputfile_xdmf_path=results_xdmf_path, t=t)
-                pp.write_tensor_fields(domain, comm, [sigma], ["sig"], outputfile_xdmf_path=results_xdmf_path, t=t)
+                pp.write_scalar_fields(domain, comm, [E], ["E"], outputfile_xdmf_path=results_xdmf_path, t=t+dt_start.value)
+                pp.write_tensor_fields(domain, comm, [sigma], ["sig"], outputfile_xdmf_path=results_xdmf_path, t=t+dt_start.value)
                 if rank == 0:
                     print(f"[WARNING] NO CONVERGENCE (dt too small) in case '{case}' for dataset {x_value}. Skipping to next case.")
                 # Signal to outer try/except to continue with next case
@@ -439,16 +474,17 @@ for x_value in x_candidates:
                 vol_path = os.path.join(folder_path, f"vol_{x_value}_{case}.json")
                 volumes_data = {
                     "vol": vol,
+                    "E_average": E_average
                 }
                 with open(vol_path, "w") as f:
                     json.dump(volumes_data, f, indent=4)
                 print(f"Saved volume info to: {vol_path}")
         
             sigma = phaseFieldProblem.sigma_degraded(u, s, lam, mue, eta)
-            pp.write_phasefield_mixed_solution(domain, results_xdmf_path, w, t_global.value, comm)
-            E.name = "E"
-            pp.write_scalar_fields(domain, comm, [E], ["E"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
-            pp.write_tensor_fields(domain, comm, [sigma], ["sig"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
+            # pp.write_phasefield_mixed_solution(domain, results_xdmf_path, w, t_global.value, comm)
+            # E.name = "E"
+            # pp.write_scalar_fields(domain, comm, [E], ["E"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
+            # pp.write_tensor_fields(domain, comm, [sigma], ["sig"], outputfile_xdmf_path=results_xdmf_path, t=t_global.value)
 
         # ---- Run solver, but keep going on convergence failure
         try:
