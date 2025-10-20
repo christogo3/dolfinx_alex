@@ -40,7 +40,7 @@ alex.os.print_mpi_status(rank, size)
 if rank == 0:
     alex.util.print_dolfinx_version()
 
-N=50
+N=10
 domain = dlfx.mesh.create_unit_cube(comm, N, N, N, cell_type=dlfx.mesh.CellType.hexahedron)
     
 dim = domain.topology.dim
@@ -198,7 +198,7 @@ Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
-TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim, dim)))
+TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 def after_timestep_success(t,dt,iters):
     
     delta_u = u - um1  
@@ -213,10 +213,11 @@ def after_timestep_success(t,dt,iters):
     # update u from Δu
     
     sigma = plasticityProblem.sigma(u,la,mu)
-    tensor_field_expression = dlfx.fem.Expression(sigma, 
-                                                         TEN.element.interpolation_points())
+    tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
+
     tensor_field_name = "sigma"
     sigma_interpolated = dlfx.fem.Function(TEN) 
+    '''RuntimeError: Function value size not equal to Expression value size'''
     sigma_interpolated.interpolate(tensor_field_expression)
     sigma_interpolated.name = tensor_field_name
     
@@ -228,7 +229,7 @@ def after_timestep_success(t,dt,iters):
     Work.value = Work.value + dW
     
     
-    E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
+    #E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
     
     # write to newton-log-file
     if rank == 0:
@@ -240,7 +241,7 @@ def after_timestep_success(t,dt,iters):
             u_y = 1.0-(t-1.0)
         else:
             u_y = t
-        pp.write_to_graphs_output_file(outputfile_graph_path,t,  Ry_top,u_y)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
 
 
     # update
