@@ -613,10 +613,26 @@ def update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
     shape = V._ufl_element._shape
     num_rows, num_cols = shape[0], shape[1]
 
+
     # iteratively update components
     for i in range(num_rows):
         for j in range(num_cols):
+
             # map the tensor coordinates to a single integer for use in .sub()
+            k = i * num_cols + j
+            # Get dofmap for the (i, j) component
+            V_sub, map_ij = V.sub(k).collapse()
+
+            e_p_n_expr = e_p_np1_expr[i,j]
+            interpolation = interpolate_quadrature(domain,cells,quadrature_points,e_p_n_expr)
+            l1 = interpolation.size
+            l2 = len(map_ij)
+            if l1 < l2:
+                interpolation_extended = np.append(interpolation, (np.zeros(l2-l1)))
+                # print(f'Maximum in interpolated e_p_n array: {np.max(interpolation_extended)}')
+            e_p_n.x.array[map_ij] = interpolation_extended
+
+            '''# map the tensor coordinates to a single integer for use in .sub()
             k = i * num_cols + j
             # Get dofmap for the (i, j) component
             V_sub, map_ij = V.sub(k).collapse()
@@ -632,16 +648,8 @@ def update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
 
             # Assign updated values
             temp_array = temp_func.x.array[:]
-            e_p_n.x.array[map_ij] = temp_array
+            e_p_n.x.array[map_ij] = temp_array'''
     
-'''Exception has occurred: AssertionError
-interpolate(): incompatible function arguments. The following argument types are supported:
-    1. (self: dolfinx.cpp.fem.Function_float64, f: numpy.ndarray[numpy.float64], cells: numpy.ndarray[numpy.int32]) -> None
-    2. (self: dolfinx.cpp.fem.Function_float64, u: dolfinx.cpp.fem.Function_float64, cells: numpy.ndarray[numpy.int32], nmm_interpolation_data: Tuple[List[int], List[int], List[float], List[int]]) -> None
-    3. (self: dolfinx.cpp.fem.Function_float64, expr: dolfinx::fem::Expression<double, double>, cells: numpy.ndarray[numpy.int32]) -> None
-
-Invoked with: <dolfinx.cpp.fem.Function_float64 object at 0x7f73585afe70>, (Indexed(SpatialCoordinate(Mesh(blocked element (Basix element (P, hexahedron, 1, gll_warped, unset, False), (3,)), 0)), MultiIndex((FixedIndex(0),))), ()), array([     0,      1,      2, ..., 124997, 124998, 124999], dtype=int32), ((), (), (), ())'''
-
     
 class Plasticity_incremental_2D:
     # Constructor method
