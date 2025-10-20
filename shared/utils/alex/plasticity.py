@@ -591,13 +591,14 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu):
     K = le.get_K(lam=lam,mu=mu)
     sig_3D = K * ufl.tr(eps_np1)*ufl.Identity(3) + s_np1
     
-    '''sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
-                            [sig_3D[1,0], sig_3D[1,1]]])'''
+    sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1], sig_3D[0,2]],
+                            [sig_3D[1,0], sig_3D[1,1], sig_3D[0,2]],
+                            [sig_3D[2,0], sig_3D[2,1], sig_3D[2,2]]])
     
-    return sig_3D
+    return sig_2D
 
 
-def update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
+def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
     e_p_n_tmp.x.array[:] = e_p_n.x.array[:]
     
@@ -632,7 +633,43 @@ def update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
                 # print(f'Maximum in interpolated e_p_n array: {np.max(interpolation_extended)}')
             e_p_n.x.array[map_ij] = interpolation_extended
 
-            '''# map the tensor coordinates to a single integer for use in .sub()
+def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,e_p_13_n_tmp,e_p_23_n_tmp,
+                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,e_p_13_n,e_p_23_n,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
+    e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
+    e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
+    e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
+    e_p_33_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_13_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_23_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_n_tmp = ufl.as_tensor([[e_p_11_n_tmp, e_p_12_n_tmp, e_p_13_n_tmp], 
+                               [e_p_12_n_tmp, e_p_22_n_tmp, e_p_23_n_tmp],
+                               [e_p_13_n_tmp, e_p_23_n_tmp, e_p_33_n_tmp]])
+    
+    alpha_tmp.x.array[:] = alpha_n.x.array[:]
+    alpha_expr = update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    alpha_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
+    
+    e_p_np1_expr = update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    
+    e_p_11_expr = e_p_np1_expr[0,0]
+    e_p_11_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
+    
+    e_p_22_expr = e_p_np1_expr[1,1]
+    e_p_22_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
+    
+    e_p_12_expr = e_p_np1_expr[0,1]
+    e_p_12_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+
+    e_p_33_expr = e_p_np1_expr[2,2]
+    e_p_33_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
+
+    e_p_13_expr = e_p_np1_expr[0,2]
+    e_p_13_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_13_expr)
+
+    e_p_23_expr = e_p_np1_expr[1,2]
+    e_p_23_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_23_expr)
+'''# map the tensor coordinates to a single integer for use in .sub()
             k = i * num_cols + j
             # Get dofmap for the (i, j) component
             V_sub, map_ij = V.sub(k).collapse()
