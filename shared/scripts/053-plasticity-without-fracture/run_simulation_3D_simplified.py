@@ -90,14 +90,14 @@ ddu = ufl.TrialFunction(V)
 deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 3
 
-# function space for 3d fields
+'''# function space for 3d fields
 Ve_3d = ufl.TensorElement("Lagrange", domain.ufl_cell(), 1, shape=(3,3)) # displacements
 V_3d = dlfx.fem.FunctionSpace(domain, Ve_3d)
 # Set e_p and e_p_n up in a TensorFunctionSpace
 e_p_n = fem.Function(V_3d, name='e_p')
 e_p_n_tmp = fem.Function(V_3d, name='e_p_tmp')
 e_p_n.x.array[:] = 0.0
-e_p_n_tmp.x.array[:] = 0.0
+e_p_n_tmp.x.array[:] = 0.0'''
 
 '''# Get the sub-space for the (0,0) component and its dofmap
 V_00, map_00 = V.sub([0, 0]).collapse()
@@ -106,13 +106,39 @@ num_dofs_component = V_00.dofmap.index_map.size_local
 zero_array = np.zeros_like(num_dofs_component)'''
 
 H,alpha_n,alpha_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+W0e = basix.ufl.quadrature_element(domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad)
+W0 = fem.functionspace(domain, W0e)
+
+e_p_11_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+e_p_22_n_tmp = fem.Function(W0, name="e_p_22_tmp")
+e_p_12_n_tmp = fem.Function(W0, name="e_p_12_tmp")
+e_p_33_n_tmp = fem.Function(W0, name="e_p_33_tmp")
+e_p_13_n_tmp = fem.Function(W0, name="e_p_13_tmp")
+e_p_23_n_tmp = fem.Function(W0, name="e_p_23_tmp")
+e_p_11_n = fem.Function(W0, name="e_p_11")
+e_p_22_n = fem.Function(W0, name="e_p_22")
+e_p_12_n = fem.Function(W0, name="e_p_12")
+e_p_33_n = fem.Function(W0, name="e_p_33")
+e_p_13_n = fem.Function(W0, name="e_p_13")
+e_p_23_n = fem.Function(W0, name="e_p_23")
 
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
 H.x.array[:] = np.zeros_like(H.x.array[:])
 alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
 alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
-
+e_p_11_n.x.array[:] = np.zeros_like(e_p_11_n.x.array[:])
+e_p_22_n.x.array[:] = np.zeros_like(e_p_22_n.x.array[:])
+e_p_12_n.x.array[:] = np.zeros_like(e_p_12_n.x.array[:])
+e_p_33_n.x.array[:] = np.zeros_like(e_p_33_n.x.array[:])
+e_p_13_n.x.array[:] = np.zeros_like(e_p_13_n.x.array[:])
+e_p_23_n.x.array[:] = np.zeros_like(e_p_23_n.x.array[:])
+e_p_11_n_tmp.x.array[:] = np.zeros_like(e_p_11_n_tmp.x.array[:])
+e_p_22_n_tmp.x.array[:] = np.zeros_like(e_p_22_n_tmp.x.array[:])
+e_p_12_n_tmp.x.array[:] = np.zeros_like(e_p_12_n_tmp.x.array[:])
+e_p_33_n_tmp.x.array[:] = np.zeros_like(e_p_33_n_tmp.x.array[:])
+e_p_13_n_tmp.x.array[:] = np.zeros_like(e_p_13_n_tmp.x.array[:])
+e_p_23_n_tmp.x.array[:] = np.zeros_like(e_p_23_n_tmp.x.array[:])
 
 # setting K1 so it always breaks
 #K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
@@ -124,7 +150,11 @@ tdim = domain.topology.dim
 fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
-plasticityProblem = alex.plasticity.Plasticity_incremental_2D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
+
+e_p_n_3D = ufl.as_tensor([[e_p_11_n, e_p_12_n, e_p_13_n], 
+                          [e_p_12_n, e_p_22_n, e_p_23_n],
+                          [e_p_13_n, e_p_23_n, e_p_33_n]])
+plasticityProblem = alex.plasticity.Plasticity_incremental_2D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
 
 # pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
 #                                                    psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
@@ -181,7 +211,7 @@ def get_bcs(t):
     bc_bottom_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_bottom_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
-    
+
     bcs = [bc_top,bc_bottom_z,bc_bottom_y,bc_bottom_x]
     return bcs
 
@@ -207,18 +237,18 @@ def after_timestep_success(t,dt,iters):
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     
-    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
+    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,e_p_13_n_tmp,e_p_23_n_tmp,
+                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,e_p_13_n,e_p_23_n,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
     
     
     # update u from Δu
     
     sigma = plasticityProblem.sigma(u,la,mu)
-    tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
-
+    tensor_field_expression = dlfx.fem.Expression(sigma, 
+                                                         TEN.element.interpolation_points())
     tensor_field_name = "sigma"
     sigma_interpolated = dlfx.fem.Function(TEN) 
-    '''RuntimeError: Function value size not equal to Expression value size'''
     sigma_interpolated.interpolate(tensor_field_expression)
     sigma_interpolated.name = tensor_field_name
     
@@ -230,7 +260,7 @@ def after_timestep_success(t,dt,iters):
     Work.value = Work.value + dW
     
     
-    #E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
+    E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
     
     # write to newton-log-file
     if rank == 0:
@@ -242,7 +272,7 @@ def after_timestep_success(t,dt,iters):
             u_y = 1.0-(t-1.0)
         else:
             u_y = t
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t,  Ry_top,u_y)
 
 
     # update
@@ -269,7 +299,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "Ry", "u_y"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "R_y", "u_y"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
@@ -291,6 +321,8 @@ sol.solve_with_newton_adaptive_time_stepping(
     trestart=trestart_global,
     #max_iters=20
 )
+
+
 
 
 # copy relevant files
