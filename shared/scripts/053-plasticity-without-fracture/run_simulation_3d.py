@@ -25,10 +25,10 @@ from datetime import datetime
 import alex.plasticity
 
 
-
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
+
 outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 parameter_path = os.path.join(script_path,"parameters.txt")
@@ -40,7 +40,7 @@ alex.os.print_mpi_status(rank, size)
 if rank == 0:
     alex.util.print_dolfinx_version()
 
-N=10
+N=20
 domain = dlfx.mesh.create_unit_cube(comm, N, N, N, cell_type=dlfx.mesh.CellType.hexahedron)
     
 dim = domain.topology.dim
@@ -91,7 +91,7 @@ deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 3
 
 # function space for 3d fields
-Ve_3d = ufl.TensorElement("Lagrange", domain.ufl_cell(), 1, shape=(3,3)) # displacements
+Ve_3d = ufl.TensorElement("DG", domain.ufl_cell(), 0, shape=(3,3)) # displacements
 V_3d = dlfx.fem.FunctionSpace(domain, Ve_3d)
 # Set e_p and e_p_n up in a TensorFunctionSpace
 e_p_n = fem.Function(V_3d, name='e_p')
@@ -105,14 +105,13 @@ V_00, map_00 = V.sub([0, 0]).collapse()
 num_dofs_component = V_00.dofmap.index_map.size_local
 zero_array = np.zeros_like(num_dofs_component)'''
 
-H,alpha_n,alpha_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,alpha_n,alpha_tmp,_,_,_,_,_,_,_,_ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
 H.x.array[:] = np.zeros_like(H.x.array[:])
 alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
 alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
-
 
 # setting K1 so it always breaks
 #K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
@@ -124,7 +123,7 @@ tdim = domain.topology.dim
 fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
-plasticityProblem = alex.plasticity.Plasticity_incremental_2D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
+plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
 
 # pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
 #                                                    psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
@@ -147,7 +146,7 @@ def before_each_time_step(t,dt):
 
 
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
-    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la, mu=mu) 
+    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
     return [Res, dResdw]
 
 
@@ -207,18 +206,17 @@ def after_timestep_success(t,dt,iters):
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     
-    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_n,e_p_n_tmp,
+    alex.plasticity.update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
     
     
     # update u from Δu
     
-    sigma = plasticityProblem.sigma(u,la,mu)
+    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
     tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
 
     tensor_field_name = "sigma"
     sigma_interpolated = dlfx.fem.Function(TEN) 
-    '''RuntimeError: Function value size not equal to Expression value size'''
     sigma_interpolated.interpolate(tensor_field_expression)
     sigma_interpolated.name = tensor_field_name
     
@@ -269,7 +267,7 @@ def after_last_timestep():
         runtime = timer.elapsed()
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
-        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "Ry", "u_y"])
+        pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "R_y", "u_y"])
         
 
 sol.solve_with_newton_adaptive_time_stepping(
