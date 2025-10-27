@@ -154,7 +154,8 @@ domain.topology.create_connectivity(fdim, tdim)
 e_p_n_3D = ufl.as_tensor([[e_p_11_n, e_p_12_n, e_p_13_n], 
                           [e_p_12_n, e_p_22_n, e_p_23_n],
                           [e_p_13_n, e_p_23_n, e_p_33_n]])
-plasticityProblem = alex.plasticity.Plasticity_incremental_2D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
+plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
+#plasticityProblem = alex.linearelastic.StaticLinearElasticProblem()
 
 # pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
 #                                                    psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
@@ -177,7 +178,9 @@ def before_each_time_step(t,dt):
 
 
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
-    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la, mu=mu) 
+    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
+    #[Res, dResdw] = plasticityProblem.prep_newton(u,du,ddu,la,mu) 
+
     return [Res, dResdw]
 
 
@@ -237,16 +240,16 @@ def after_timestep_success(t,dt,iters):
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     
-    alex.plasticity.update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,e_p_13_n_tmp,e_p_23_n_tmp,
-                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,e_p_13_n,e_p_23_n,
-                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
+    alex.plasticity.update_e_p_n_and_alpha_arrays_3d(u,e_p_11_n_tmp=e_p_11_n_tmp,e_p_22_n_tmp=e_p_22_n_tmp,e_p_12_n_tmp=e_p_12_n_tmp,e_p_33_n_tmp=e_p_33_n_tmp,e_p_13_n_tmp=e_p_13_n_tmp,e_p_23_n_tmp=e_p_23_n_tmp,
+                           e_p_11_n=e_p_11_n,e_p_22_n=e_p_22_n,e_p_12_n=e_p_12_n,e_p_33_n=e_p_33_n,e_p_13_n=e_p_13_n,e_p_23_n=e_p_23_n,
+                           alpha_tmp=alpha_tmp,alpha_n=alpha_n,domain=domain,cells=cells,quadrature_points=quadrature_points,sig_y=sig_y,hard=hard,mu=mu)
     
     
     # update u from Δu
-    
-    sigma = plasticityProblem.sigma(u,la,mu)
-    tensor_field_expression = dlfx.fem.Expression(sigma, 
-                                                         TEN.element.interpolation_points())
+    #epsilon = alex.linearelastic.eps_as_tensor(u)
+    #sigma = alex.linearelastic.sigma_as_tensor_from_epsilon(epsilon,la,mu)
+    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
+    tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
     tensor_field_name = "sigma"
     sigma_interpolated = dlfx.fem.Function(TEN) 
     sigma_interpolated.interpolate(tensor_field_expression)
@@ -260,7 +263,7 @@ def after_timestep_success(t,dt,iters):
     Work.value = Work.value + dW
     
     
-    E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
+    #E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
     
     # write to newton-log-file
     if rank == 0:
@@ -272,7 +275,7 @@ def after_timestep_success(t,dt,iters):
             u_y = 1.0-(t-1.0)
         else:
             u_y = t
-        pp.write_to_graphs_output_file(outputfile_graph_path,t,  Ry_top,u_y)
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
 
 
     # update
@@ -321,8 +324,6 @@ sol.solve_with_newton_adaptive_time_stepping(
     trestart=trestart_global,
     #max_iters=20
 )
-
-
 
 
 # copy relevant files

@@ -139,9 +139,17 @@ def define_internal_state_variables_basix_b(gdim, domain, deg_quad, quad_scheme)
     H = fem.Function(W0, name="H")
     
     #W = fem.functionspace(domain, We)
+    e_p_11_n = fem.Function(W0, name="e_p_11")
+    e_p_22_n = fem.Function(W0, name="e_p_22")
+    e_p_12_n = fem.Function(W0, name="e_p_12")
+    e_p_33_n = fem.Function(W0, name="e_p_33")
 
+    e_p_11_n_tmp = fem.Function(W0, name="e_p_11_tmp")
+    e_p_22_n_tmp = fem.Function(W0, name="e_p_22_tmp")
+    e_p_12_n_tmp = fem.Function(W0, name="e_p_12_tmp")
+    e_p_33_n_tmp = fem.Function(W0, name="e_p_33_tmp")
     
-    return H,alpha,alpha_tmp
+    return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_33_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp, e_p_33_n_tmp
 
 def define_internal_state_variables_basix_c(gdim, domain, deg_quad, quad_scheme):  
     W0e = basix.ufl.quadrature_element(
@@ -544,12 +552,14 @@ def f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu):
         return f_tr
 
 def assemble_3D_representation_of_plane_strain_eps(u):
-    eps_np1_2D = ufl.sym(ufl.grad(u))
-    eps_np1_3D_plane_strain = ufl.as_tensor([[eps_np1_2D[0,0], eps_np1_2D[0,1], 0.0],
-                                                    [ eps_np1_2D[1,0], eps_np1_2D[1,1], 0.0],
-                                                    [ 0.0,             0.0,             0.0]])
-                                            
-    return eps_np1_3D_plane_strain
+    if u.ufl_shape == (2,):
+        eps_np1_2D = ufl.sym(ufl.grad(u))
+        eps_np1_3D_plane_strain = ufl.as_tensor([[eps_np1_2D[0,0], eps_np1_2D[0,1], 0.0],
+                                                [ eps_np1_2D[1,0], eps_np1_2D[1,1], 0.0],
+                                                [ 0.0,             0.0,             0.0]])                                   
+        return eps_np1_3D_plane_strain
+    
+    else: return ufl.sym(ufl.grad(u))
         
     
 def update_e_p(u,e_p_n,alpha_n,sig_y,hard,mu):
@@ -572,7 +582,8 @@ def update_alpha(u,e_p_n,alpha_n,sig_y,hard,mu):
     return alpha_np1
 
 
-def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu):  
+def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,mode='2d'):  
+    
     eps_np1 = assemble_3D_representation_of_plane_strain_eps(u)
     e_np1 = ufl.dev(eps_np1)
         
@@ -590,12 +601,13 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu):
     s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2.0*mu*dgamma*N_np1)
     K = le.get_K(lam=lam,mu=mu)
     sig_3D = K * ufl.tr(eps_np1)*ufl.Identity(3) + s_np1
+
+    sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1]],
+                            [sig_3D[1,0], sig_3D[1,1]]])
     
-    sig_2D = ufl.as_tensor([[sig_3D[0,0], sig_3D[0,1], sig_3D[0,2]],
-                            [sig_3D[1,0], sig_3D[1,1], sig_3D[0,2]],
-                            [sig_3D[2,0], sig_3D[2,1], sig_3D[2,2]]])
-    
-    return sig_2D
+    if mode == '2d': return sig_2D
+    else: return sig_3D
+
 
 
 def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
@@ -626,22 +638,47 @@ def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
 
             e_p_n_expr = e_p_np1_expr[i,j]
             interpolation = interpolate_quadrature(domain,cells,quadrature_points,e_p_n_expr)
-            l1 = interpolation.size
-            l2 = len(map_ij)
-            if l1 < l2:
-                interpolation_extended = np.append(interpolation, (np.zeros(l2-l1)))
-                # print(f'Maximum in interpolated e_p_n array: {np.max(interpolation_extended)}')
-            e_p_n.x.array[map_ij] = interpolation_extended
+                
+            e_p_n.x.array[map_ij] = interpolation
 
-def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,e_p_13_n_tmp,e_p_23_n_tmp,
+def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
+                           e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
+    e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
+    e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
+    e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
+    e_p_33_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_n_tmp = ufl.as_tensor([[e_p_11_n_tmp, e_p_12_n_tmp, 0], 
+                               [e_p_12_n_tmp, e_p_22_n_tmp, 0],
+                               [0,         0,    e_p_33_n_tmp]])
+    
+    alpha_tmp.x.array[:] = alpha_n.x.array[:]
+    alpha_expr = update_alpha(u,e_p_n=e_p_n_tmp,alpha_n=alpha_n,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    alpha_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
+    
+    e_p_np1_expr = update_e_p(u,e_p_n=e_p_n_tmp,alpha_n=alpha_tmp,sig_y=sig_y.value,hard=hard.value,mu=mu)
+    
+    e_p_11_expr = e_p_np1_expr[0,0]
+    e_p_11_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_11_expr)
+    
+    e_p_22_expr = e_p_np1_expr[1,1]
+    e_p_22_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_22_expr)
+    
+    e_p_12_expr = e_p_np1_expr[0,1]
+    e_p_12_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_12_expr)
+
+    e_p_33_expr = e_p_np1_expr[2,2]
+    e_p_33_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_33_expr)
+
+def update_e_p_n_and_alpha_arrays_3d_component_wise(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,e_p_13_n_tmp,e_p_23_n_tmp,
                            e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,e_p_13_n,e_p_23_n,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
     e_p_11_n_tmp.x.array[:] = e_p_11_n.x.array[:]
     e_p_22_n_tmp.x.array[:] = e_p_22_n.x.array[:]
     e_p_12_n_tmp.x.array[:] = e_p_12_n.x.array[:]
     e_p_33_n_tmp.x.array[:] = e_p_33_n.x.array[:]
-    e_p_13_n_tmp.x.array[:] = e_p_33_n.x.array[:]
-    e_p_23_n_tmp.x.array[:] = e_p_33_n.x.array[:]
+    e_p_13_n_tmp.x.array[:] = e_p_13_n.x.array[:]
+    e_p_23_n_tmp.x.array[:] = e_p_23_n.x.array[:]
     e_p_n_tmp = ufl.as_tensor([[e_p_11_n_tmp, e_p_12_n_tmp, e_p_13_n_tmp], 
                                [e_p_12_n_tmp, e_p_22_n_tmp, e_p_23_n_tmp],
                                [e_p_13_n_tmp, e_p_23_n_tmp, e_p_33_n_tmp]])
@@ -669,24 +706,7 @@ def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_3
 
     e_p_23_expr = e_p_np1_expr[1,2]
     e_p_23_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_23_expr)
-'''# map the tensor coordinates to a single integer for use in .sub()
-            k = i * num_cols + j
-            # Get dofmap for the (i, j) component
-            V_sub, map_ij = V.sub(k).collapse()
-            # Temporary function for subspace values
-            temp_func = fem.Function(V_sub)
-            
-            #Create temp expression and wrap it as dolfinx expression
-            temp_ufl_expr = ufl.tensors.as_scalar(e_p_np1_expr[i, j])
-            temp_dolfinx_expr = fem.Expression(temp_ufl_expr, domain.geometry.x, V_sub.element.interpolation_points()) # quadrature points = gauss Punkte statt interpolation points an den Rändern
-            
-            # Interpolate function
-            temp_func.interpolate(temp_dolfinx_expr)
 
-            # Assign updated values
-            temp_array = temp_func.x.array[:]
-            e_p_n.x.array[map_ij] = temp_array'''
-    
     
 class Plasticity_incremental_2D:
     # Constructor method
@@ -709,22 +729,22 @@ class Plasticity_incremental_2D:
         self.H = H
         
         
-    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function ):
-        def residuum(u: any, du: any,  um1:any):
+    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, mode='2d'):
+        def residuum(u: any, du: any,  um1:any, mode=mode):
             
             delta_u = u - um1
-            t1 = self.sigma(u,lam,mu)
+            t1 = self.sigma(u,lam,mu,mode)
             t2 = 0.5*(ufl.grad(du) + ufl.grad(du).T)
 
             equi =  (ufl.inner(t1, t2))*self.dx # ufl.derivative(pot, u, du)
-            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)
+            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu,mode=mode)
             
             Res = equi
             return [ Res, None]        
         return residuum(u,du,um1)
     
-    def sigma(self, u,lam,mu):
-        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
+    def sigma(self, u,lam,mu,mode='2d'):
+        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu,mode=mode)
         # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
     
     def eps(self,u):
@@ -736,11 +756,11 @@ class Plasticity_incremental_2D:
     def eqeps(self,u):
         return ufl.sqrt(2.0/3.0 * ufl.inner(self.eps(u),self.eps(u))) 
     
-    def update_H(self, u, delta_u,lam,mu):
+    def update_H(self, u, delta_u,lam,mu,mode='2d'):
         u_n = u-delta_u
         delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
-        W_np1 = ufl.inner(self.sigma(u=u,lam=lam,mu=mu), delta_eps )
-        W_n = ufl.inner(self.sigma(u=u_n,lam=lam,mu=mu), delta_eps )
+        W_np1 = ufl.inner(self.sigma(u=u,lam=lam,mu=mu,mode=mode), delta_eps )
+        W_n = ufl.inner(self.sigma(u=u_n,lam=lam,mu=mu,mode=mode), delta_eps )
         H_np1 = ( self.H + 0.5 * (W_n+W_np1))
         return H_np1
     
@@ -751,4 +771,65 @@ class Plasticity_incremental_2D:
         Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
         return comm.allreduce(Pi,MPI.SUM)
 
+class Plasticity_incremental_3D:
+    # Constructor method
+    def __init__(self, 
+                       sig_y: any,
+                       hard: any,
+                       alpha_n: any,
+                       e_p_n: any,
+                       H: any,
+                       dx: any = ufl.dx,
+                 ):
+
+
+        # Set all parameters here! Material etc
+        self.dx = dx
+        self.sig_y = sig_y
+        self.hard = hard
+        self.e_p_n = e_p_n
+        self.alpha_n = alpha_n
+        self.H = H
+        
+        
+    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function, mode='3d'):
+        def residuum(u: any, du: any,  um1:any, mode=mode):
+            
+            delta_u = u - um1
+            t1 = self.sigma(u,lam,mu,mode)
+            t2 = 0.5*(ufl.grad(du) + ufl.grad(du).T)
+
+            equi =  (ufl.inner(t1, t2))*self.dx # ufl.derivative(pot, u, du)
+            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu,mode=mode)
+            
+            Res = equi
+            return [ Res, None]        
+        return residuum(u,du,um1)
     
+    def sigma(self, u,lam,mu,mode):
+        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu,mode=mode)
+        # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
+    
+    def eps(self,u):
+        return ufl.sym(ufl.grad(u)) #0.5*(ufl.grad(u) + ufl.grad(u).T)
+    
+    def deveps(self,u):
+        return ufl.dev(self.eps(u))
+    
+    def eqeps(self,u):
+        return ufl.sqrt(2.0/3.0 * ufl.inner(self.eps(u),self.eps(u))) 
+    
+    def update_H(self, u, delta_u,lam,mu,mode='3d'):
+        u_n = u-delta_u
+        delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
+        W_np1 = ufl.inner(self.sigma(u=u,lam=lam,mu=mu,mode=mode), delta_eps )
+        W_n = ufl.inner(self.sigma(u=u_n,lam=lam,mu=mu,mode=mode), delta_eps )
+        H_np1 = ( self.H + 0.5 * (W_n+W_np1))
+        return H_np1
+    
+    def psiel(self,u,lam,mu):
+        return  self.H
+    
+    def get_E_el_global(self,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+        Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
+        return comm.allreduce(Pi,MPI.SUM)
