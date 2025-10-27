@@ -749,3 +749,6 @@ def read_parameters_file(file_path):
     return data_dict
 
 
+def get_volume_average_of_field ( field,  vol,  dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+    fieldDv = dlfx.fem.assemble_scalar(dlfx.fem.form( 1.0 / vol * field * dx))
+    return comm.allreduce(fieldDv,MPI.SUM)
