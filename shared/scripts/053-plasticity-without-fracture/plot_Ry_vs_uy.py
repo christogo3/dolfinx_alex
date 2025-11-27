@@ -31,7 +31,7 @@ def plot_single_file(file, x_label, y_label, legend, output_path):
 # ==== USER SETTINGS ====
 script_path = os.path.dirname(__file__)
 
-file_path = os.path.join(script_path, 'run_simulation_graphs.txt')
+file_path = '/home/scripts/053-plasticity-without-fracture/3D implementation/run_simulation_3d_graphs.txt'
 output_file = os.path.join(script_path, 'Ry_vs_uy.png')
 
 x_axis_label = 'Displacement (mm)'
@@ -40,4 +40,3 @@ legend_label = 'predictor corrector'
 
 # ==== RUN THE PLOT ====
 plot_single_file(file_path, x_axis_label, y_axis_label, legend_label, output_file)
-

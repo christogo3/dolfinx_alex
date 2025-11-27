@@ -626,20 +626,23 @@ def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
     shape = V._ufl_element._shape
     num_rows, num_cols = shape[0], shape[1]
 
+    total_components = num_rows * num_cols
 
-    # iteratively update components
+    expr = dlfx.fem.Expression(e_p_np1_expr, quadrature_points)
+    e_p_n.x.array[:] = expr.eval(domain, cells).flatten()
+
+    '''# iteratively update components
     for i in range(num_rows):
         for j in range(num_cols):
 
-            # map the tensor coordinates to a single integer for use in .sub()
+            # Calculate the flat component index
             k = i * num_cols + j
-            # Get dofmap for the (i, j) component
-            V_sub, map_ij = V.sub(k).collapse()
 
-            e_p_n_expr = e_p_np1_expr[i,j]
+            e_p_n_expr = e_p_np1_expr[i, j]
+
             interpolation = interpolate_quadrature(domain,cells,quadrature_points,e_p_n_expr)
                 
-            e_p_n.x.array[map_ij] = interpolation
+            e_p_n.x.array[k::total_components] = interpolation'''
 
 def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
                            e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,

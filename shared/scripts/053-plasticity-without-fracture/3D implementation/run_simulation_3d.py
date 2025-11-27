@@ -1,30 +1,19 @@
-import argparse
 import dolfinx as dlfx
 import os
-from mpi4py import MPI
 import numpy as np
-from array import array
 import ufl
 import dolfinx.fem as fem
 
-import alex.heterogeneous as het
 import alex.os
-import alex.phasefield as pf
 import alex.boundaryconditions as bc
 import alex.postprocessing as pp
 import alex.solution as sol
-import alex.linearelastic
-import math
 
-from petsc4py import PETSc as petsc
-import sys
-import basix
-
-import shutil
-from datetime import datetime
 import alex.plasticity
 
+Ry_scaling = 1
 
+data_path = '/home/resources/AluSchaum_8x_dolfinx.xdmf'
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
@@ -40,24 +29,70 @@ alex.os.print_mpi_status(rank, size)
 if rank == 0:
     alex.util.print_dolfinx_version()
 
-N=20
-domain = dlfx.mesh.create_unit_cube(comm, N, N, N, cell_type=dlfx.mesh.CellType.hexahedron)
+
+# import the geometry
+domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
+#domain = dlfx.mesh.create_unit_cube(comm,15,15,15,dlfx.mesh.CellType.hexahedron) #hexahedron or tetrahedron
+
+def mesh_box_select(x_range,y_range,z_range,domain,dim):
+    """Select a smaller subset of a mesh to reduce simulation times
+    WARNING: This will result in jagged boundaries, an appropriate tolerance should be implemented for boundary conditions
+
+    Args:
+        x_range, y_range, z_range (tuple of int): Tuple of upper and lower bound on respective axis
+        domain: Full domain on which a subset is to be selected
+        dim: Topological dimension of the mesh entities to consider.
+        
+    Returns: 
+        Subdomain within selected box
+
+    """
+
+    # define a smaller bounding box to simulate
+    x_min, x_max = x_range
+    y_min, y_max = y_range
+    z_min, z_max = z_range
+    def bounding_box_marker(x):
+        is_in_x = np.logical_and(x[0] >= x_min, x[0] <= x_max)
+        is_in_y = np.logical_and(x[1] >= y_min, x[1] <= y_max)
+        is_in_z = np.logical_and(x[2] >= z_min, x[2] <= z_max)
+        return np.logical_and(is_in_x, np.logical_and(is_in_y, is_in_z))
     
+    cells_in_subset = dlfx.mesh.locate_entities(domain, dim, bounding_box_marker)
+
+    marker_value = 1
+    values = np.full(len(cells_in_subset), marker_value, dtype=np.int32)
+
+    # Create the MeshTags object
+    cell_indices = np.arange(domain.topology.index_map(dim).size_local, dtype=np.int32)
+
+    # Create a boolean array where True indicates cells in the bounding box
+    marked_cells = np.zeros_like(cell_indices, dtype=bool)
+    marked_cells[cells_in_subset] = True
+
+    # Create MeshTags
+    cell_tags = dlfx.mesh.meshtags(domain, dim, cells_in_subset, values)
+
+    # Generate a submesh based on the bounding box, and select it as the domain
+    sub_domain, entity_map, vertex_map, geom_map = dlfx.mesh.create_submesh(domain, dim, cell_tags.find(marker_value))
+
+    return sub_domain
+
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
-    
+
 x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
 if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
 
 
-# Material definition ##################################################
-micro_material_marker = 1
-effective_material_marker = 0
-
+x_range = (x_min_all,x_max_all/2)
+y_range = (y_min_all,y_max_all/2)
+z_range = (z_min_all,z_max_all/2)
+mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)
 
 # Simulation parameters ####
-dt_start = 0.01
+dt_start = 0.01 
 dt_max_in_critical_area = dt_start
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
@@ -66,13 +101,12 @@ Tend = 3.0
 dt_global.value = dt_max_in_critical_area
 dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
-
-
 la = dlfx.fem.Constant(domain, 1.0)
 mu = dlfx.fem.Constant(domain, 1.0)
 
 sig_y = dlfx.fem.Constant(domain, 1.0)
 hard = dlfx.fem.Constant(domain, 0.6)
+
 
 # Function space and FE functions ########################################################
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
@@ -91,7 +125,8 @@ deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 3
 
 # function space for 3d fields
-Ve_3d = ufl.TensorElement("DG", domain.ufl_cell(), 0, shape=(3,3)) # displacements
+#Ve_3d = ufl.VectorElement("Quadrature", domain.ufl_cell(), degree=2, dim=9, quad_scheme="default")
+Ve_3d = ufl.TensorElement("Quadrature", domain.ufl_cell(), degree=deg_quad, shape=(3,3), quad_scheme="default") # Falsche definition, sollte von Quadratur Elementen abhängen
 V_3d = dlfx.fem.FunctionSpace(domain, Ve_3d)
 # Set e_p and e_p_n up in a TensorFunctionSpace
 e_p_n = fem.Function(V_3d, name='e_p')
@@ -151,7 +186,7 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
 
 
 
-atol=(x_max_all-x_min_all)*0.000 # for selection of boundary
+atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
 
 
 def all(x):
@@ -168,18 +203,19 @@ def top_displacement():
 
 bc_top_expression = dlfx.fem.Expression(top_displacement(),V.element.interpolation_points())
 
-boundary_top_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol*0.0)
-facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_top_bc)
-dofs_at_boundary = dlfx.fem.locate_dofs_topological(V, fdim, facets_at_boundary) 
+boundary_top_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol)
+facets_top_bc = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_top_bc)
+dofs_top_bc = dlfx.fem.locate_dofs_topological(V, fdim, facets_top_bc) 
 
 def get_bcs(t):
     
     u_D.interpolate(bc_top_expression)
-    bc_top : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(u_D,dofs_at_boundary)
+    bc_top : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(u_D,dofs_top_bc)
     
     bc_bottom_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_bottom_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    
     
     bcs = [bc_top,bc_bottom_z,bc_bottom_y,bc_bottom_x]
     return bcs
@@ -187,11 +223,11 @@ def get_bcs(t):
 
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
-external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol*0.0),external_surface_tag)
+external_surface_tags = pp.tag_part_of_boundary(domain,bc.get_boundary_of_box_as_function(domain, comm,atol=atol),external_surface_tag)
 ds = ufl.Measure('ds', domain=domain, subdomain_data=external_surface_tags,metadata={"quadrature_degree": deg_quad, "quadrature_scheme": "default"})
 
 top_surface_tag = 9
-top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol*0.0),top_surface_tag)
+top_surface_tags = pp.tag_part_of_boundary(domain,bc.get_top_boundary_of_box_as_function(domain, comm,atol=atol),top_surface_tag)
 ds_top_tagged = ufl.Measure('ds', domain=domain, subdomain_data=top_surface_tags,metadata={"quadrature_degree": deg_quad, "quadrature_scheme": "default"})
 
 Work = dlfx.fem.Constant(domain,0.0)
@@ -210,15 +246,29 @@ def after_timestep_success(t,dt,iters):
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
     
     
-    # update u from Δu
     
-    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
-    tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
 
-    tensor_field_name = "sigma"
+    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
+    '''tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
+
     sigma_interpolated = dlfx.fem.Function(TEN) 
     sigma_interpolated.interpolate(tensor_field_expression)
-    sigma_interpolated.name = tensor_field_name
+    sigma_interpolated.name = "sigma"'''
+
+    # Integral(sigma_interpolated * v) = Integral(sigma * v)
+    u_ten = ufl.TrialFunction(TEN)
+    v_ten = ufl.TestFunction(TEN)
+    
+    a_proj = ufl.inner(u_ten, v_ten) * ufl.dx
+
+    L_proj = ufl.inner(sigma, v_ten) * ufl.dx(metadata={"quadrature_degree": deg_quad})
+
+    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
+                                           petsc_options={"ksp_type": "preonly", 
+                                                          "pc_type": "jacobi"})
+
+    sigma_interpolated = problem.solve()
+    sigma_interpolated.name = "sigma"
     
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
     Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
@@ -240,7 +290,9 @@ def after_timestep_success(t,dt,iters):
             u_y = 1.0-(t-1.0)
         else:
             u_y = t
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
+        # ----------------------------------------------------------------------------------------------------------------------------------------
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y)     # Arbitrary scaling factor introduced!!!!
+        # ----------------------------------------------------------------------------------------------------------------------------------------
 
 
     # update
@@ -257,6 +309,7 @@ def after_timestep_success(t,dt,iters):
 
 def after_timestep_restart(t,dt,iters):
     u.x.array[:] = urestart.x.array[:]
+
 
 def after_last_timestep():
     # stopwatch stop
@@ -291,7 +344,7 @@ sol.solve_with_newton_adaptive_time_stepping(
 )
 
 
-# copy relevant files
+'''# copy relevant files
 
 # Step 1: Create a unique timestamped directory
 def create_timestamped_directory(base_dir="."):
@@ -306,5 +359,5 @@ def copy_files_to_directory(files, target_directory):
         if os.path.exists(file):
             shutil.copy(file, target_directory)
         else:
-            print(f"Warning: File '{file}' does not exist and will not be copied.")
+            print(f"Warning: File '{file}' does not exist and will not be copied.")'''
 

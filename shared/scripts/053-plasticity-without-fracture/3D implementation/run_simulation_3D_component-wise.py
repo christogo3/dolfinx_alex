@@ -105,7 +105,7 @@ V_00, map_00 = V.sub([0, 0]).collapse()
 num_dofs_component = V_00.dofmap.index_map.size_local
 zero_array = np.zeros_like(num_dofs_component)'''
 
-H,alpha_n,alpha_tmp = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,alpha_n,alpha_tmp,_,_,_,_,_,_,_,_  = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 W0e = basix.ufl.quadrature_element(domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad)
 W0 = fem.functionspace(domain, W0e)
 
