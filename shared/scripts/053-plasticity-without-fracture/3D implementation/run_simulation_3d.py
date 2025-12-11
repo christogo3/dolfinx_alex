@@ -3,6 +3,7 @@ import os
 import numpy as np
 import ufl
 import dolfinx.fem as fem
+import basix
 
 import alex.os
 import alex.boundaryconditions as bc
@@ -30,9 +31,12 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
+N = 10
 # import the geometry
-domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
-#domain = dlfx.mesh.create_unit_cube(comm,15,15,15,dlfx.mesh.CellType.hexahedron) #hexahedron or tetrahedron
+# domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
+domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
+deg_quad = 2  # quadrature degree for internal state variable representation
+
 
 def mesh_box_select(x_range,y_range,z_range,domain,dim):
     """Select a smaller subset of a mesh to reduce simulation times
@@ -89,7 +93,7 @@ if rank == 0:
 x_range = (x_min_all,x_max_all/2)
 y_range = (y_min_all,y_max_all/2)
 z_range = (z_min_all,z_max_all/2)
-mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)
+#mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)
 
 # Simulation parameters ####
 dt_start = 0.01 
@@ -121,7 +125,6 @@ um1.x.array[:] = np.zeros_like(um1.x.array[:])
 du = ufl.TestFunction(V)
 ddu = ufl.TrialFunction(V)
 
-deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 3
 
 # function space for 3d fields
@@ -160,8 +163,6 @@ domain.topology.create_connectivity(fdim, tdim)
 
 plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
 
-# pf.StaticPhaseFieldProblem2D_incremental_plasticity(degradationFunction=pf.degrad_cubic,
-#                                                    psisurf=pf.psisurf_from_function,dx=dx, sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n_3D,H=H)
 timer = dlfx.common.Timer()
 def before_first_time_step():
     timer.start()
@@ -193,12 +194,13 @@ def all(x):
         return np.full_like(x[0],True)
     
 
-
+'''
 u_D = dlfx.fem.Function(V) # for dirichlet BCs
 def top_displacement():    
     u_y = ufl.conditional(ufl.le(t_global,ufl.as_ufl(1.0)),t_global,ufl.as_ufl(1.0-(t_global-1.0)))
     u_x = ufl.as_ufl(0.0)
     u_z = ufl.as_ufl(0.0)
+
     return ufl.as_vector([u_x, u_y, u_z]) # 3 components in 3D
 
 bc_top_expression = dlfx.fem.Expression(top_displacement(),V.element.interpolation_points())
@@ -206,18 +208,21 @@ bc_top_expression = dlfx.fem.Expression(top_displacement(),V.element.interpolati
 boundary_top_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol)
 facets_top_bc = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_top_bc)
 dofs_top_bc = dlfx.fem.locate_dofs_topological(V, fdim, facets_top_bc) 
+'''
 
 def get_bcs(t):
     
-    u_D.interpolate(bc_top_expression)
-    bc_top : dlfx.fem.DirichletBC = dlfx.fem.dirichletbc(u_D,dofs_top_bc)
-    
-    bc_bottom_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    if t<= 1: 
+        u_y_val = t
+    else: 
+        u_y_val = 1 - (t-1)
+
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
-    bc_bottom_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_bottom_corner_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_corner_of_box_as_function(domain,comm),V,-1)
+    bc_bottom_corner_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_corner_of_box_as_function(domain,comm),V,-1)
     
-    
-    bcs = [bc_top,bc_bottom_z,bc_bottom_y,bc_bottom_x]
+    bcs = [bc_top_y,bc_bottom_y,bc_bottom_corner_x,bc_bottom_corner_z]
     return bcs
 
 
@@ -234,7 +239,27 @@ Work = dlfx.fem.Constant(domain,0.0)
 
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
+
 TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
+S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
+S0 = dlfx.fem.functionspace(domain, S0e)
+
+def sigma_problem(TEN,dx,sigma,deg_quad):
+    # Integral(sigma_interpolated * v) = Integral(sigma * v)
+    u_ten = ufl.TrialFunction(TEN)
+    v_ten = ufl.TestFunction(TEN)
+    
+    a_proj = ufl.inner(u_ten, v_ten) * dx
+
+    L_proj = ufl.inner(sigma, v_ten) * dx(metadata={"quadrature_degree": deg_quad})
+
+    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
+                                           petsc_options={"ksp_type": "preonly", 
+                                                          "pc_type": "jacobi"})
+    
+    return problem
+
+
 def after_timestep_success(t,dt,iters):
     
     delta_u = u - um1  
@@ -244,28 +269,10 @@ def after_timestep_success(t,dt,iters):
     
     alex.plasticity.update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
-    
-    
-    
 
     sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
-    '''tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
 
-    sigma_interpolated = dlfx.fem.Function(TEN) 
-    sigma_interpolated.interpolate(tensor_field_expression)
-    sigma_interpolated.name = "sigma"'''
-
-    # Integral(sigma_interpolated * v) = Integral(sigma * v)
-    u_ten = ufl.TrialFunction(TEN)
-    v_ten = ufl.TestFunction(TEN)
-    
-    a_proj = ufl.inner(u_ten, v_ten) * ufl.dx
-
-    L_proj = ufl.inner(sigma, v_ten) * ufl.dx(metadata={"quadrature_degree": deg_quad})
-
-    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
-                                           petsc_options={"ksp_type": "preonly", 
-                                                          "pc_type": "jacobi"})
+    problem = sigma_problem(TEN,ufl.dx,sigma,deg_quad)
 
     sigma_interpolated = problem.solve()
     sigma_interpolated.name = "sigma"
@@ -277,8 +284,6 @@ def after_timestep_success(t,dt,iters):
     dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
     
-    
-    #E_el = plasticityProblem.get_E_el_global(u,la,mu,dx=ufl.dx,comm=comm)
     
     # write to newton-log-file
     if rank == 0:
@@ -300,11 +305,12 @@ def after_timestep_success(t,dt,iters):
     urestart.x.array[:] = u.x.array[:]
     # break out of loop if no postprocessing required
     success_timestep_counter.value = success_timestep_counter.value + 1.0
-    # break out of loop if no postprocessing required
     if not int(success_timestep_counter.value) % int(postprocessing_interval.value) == 0: 
         return 
     
     pp.write_vector_fields(domain,comm,[u],["u"],outputfile_xdmf_path,t)
+    #pp.write_field(domain,outputfile_xdmf_path,alpha_n,t,comm,S=S0)
+    #pp.write_tensor_fields(domain,comm,[e_p_n_interpolated],["e_p_n"],outputfile_xdmf_path,t)
     pp.write_tensor_fields(domain,comm,[sigma_interpolated],["sigma"],outputfile_xdmf_path,t)
 
 def after_timestep_restart(t,dt,iters):
@@ -342,22 +348,3 @@ sol.solve_with_newton_adaptive_time_stepping(
     trestart=trestart_global,
     #max_iters=20
 )
-
-
-'''# copy relevant files
-
-# Step 1: Create a unique timestamped directory
-def create_timestamped_directory(base_dir="."):
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    directory_name = os.path.join(base_dir, f"simulation_{timestamp}")
-    os.makedirs(directory_name, exist_ok=True)
-    return directory_name
-
-# Step 2: Copy files to the timestamped directory
-def copy_files_to_directory(files, target_directory):
-    for file in files:
-        if os.path.exists(file):
-            shutil.copy(file, target_directory)
-        else:
-            print(f"Warning: File '{file}' does not exist and will not be copied.")'''
-

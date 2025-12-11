@@ -29,7 +29,7 @@ import alex.plasticity
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
+outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path+'/graphs',script_name_without_extension)
 outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 parameter_path = os.path.join(script_path,"parameters.txt")
 
@@ -42,7 +42,9 @@ if rank == 0:
 
 N=10
 domain = dlfx.mesh.create_unit_cube(comm, N, N, N, cell_type=dlfx.mesh.CellType.hexahedron)
-    
+deg_quad = 2  # quadrature degree for internal state variable representation
+
+
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
     
@@ -67,7 +69,6 @@ dt_global.value = dt_max_in_critical_area
 dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
 
-
 la = dlfx.fem.Constant(domain, 1.0)
 mu = dlfx.fem.Constant(domain, 1.0)
 
@@ -87,7 +88,6 @@ um1.x.array[:] = np.zeros_like(um1.x.array[:])
 du = ufl.TestFunction(V)
 ddu = ufl.TrialFunction(V)
 
-deg_quad = 1  # quadrature degree for internal state variable representation
 gdim = 3
 
 '''# function space for 3d fields
@@ -193,7 +193,7 @@ def all(x):
     
 
 
-u_D = dlfx.fem.Function(V) # for dirichlet BCs
+'''u_D = dlfx.fem.Function(V) # for dirichlet BCs
 def top_displacement():    
     u_y = ufl.conditional(ufl.le(t_global,ufl.as_ufl(1.0)),t_global,ufl.as_ufl(1.0-(t_global-1.0)))
     u_x = ufl.as_ufl(0.0)
@@ -216,8 +216,22 @@ def get_bcs(t):
     bc_bottom_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
 
     bcs = [bc_top,bc_bottom_z,bc_bottom_y,bc_bottom_x]
-    return bcs
+    return bcs'''
 
+def get_bcs(t):
+    
+    if t<= 1: 
+        u_y_val = t
+    else: 
+        u_y_val = 1 - (t-1)
+
+    bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
+    bc_bottom_corner_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_corner_of_box_as_function(domain,comm),V,-1)
+    bc_bottom_corner_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_corner_of_box_as_function(domain,comm),V,-1)
+    
+    bcs = [bc_top_y,bc_bottom_y,bc_bottom_corner_x,bc_bottom_corner_z]
+    return bcs
 
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
@@ -233,6 +247,24 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
+S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
+S0 = dlfx.fem.functionspace(domain, S0e)
+
+def sigma_problem(TEN,dx,sigma,deg_quad):
+    # Integral(sigma_interpolated * v) = Integral(sigma * v)
+    u_ten = ufl.TrialFunction(TEN)
+    v_ten = ufl.TestFunction(TEN)
+    
+    a_proj = ufl.inner(u_ten, v_ten) * dx
+
+    L_proj = ufl.inner(sigma, v_ten) * dx(metadata={"quadrature_degree": deg_quad})
+
+    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
+                                           petsc_options={"ksp_type": "preonly", 
+                                                          "pc_type": "jacobi"})
+    
+    return problem
+
 def after_timestep_success(t,dt,iters):
     
     delta_u = u - um1  
@@ -240,7 +272,7 @@ def after_timestep_success(t,dt,iters):
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
     
-    alex.plasticity.update_e_p_n_and_alpha_arrays_3d(u,e_p_11_n_tmp=e_p_11_n_tmp,e_p_22_n_tmp=e_p_22_n_tmp,e_p_12_n_tmp=e_p_12_n_tmp,e_p_33_n_tmp=e_p_33_n_tmp,e_p_13_n_tmp=e_p_13_n_tmp,e_p_23_n_tmp=e_p_23_n_tmp,
+    alex.plasticity.update_e_p_n_and_alpha_arrays_3d_component_wise(u,e_p_11_n_tmp=e_p_11_n_tmp,e_p_22_n_tmp=e_p_22_n_tmp,e_p_12_n_tmp=e_p_12_n_tmp,e_p_33_n_tmp=e_p_33_n_tmp,e_p_13_n_tmp=e_p_13_n_tmp,e_p_23_n_tmp=e_p_23_n_tmp,
                            e_p_11_n=e_p_11_n,e_p_22_n=e_p_22_n,e_p_12_n=e_p_12_n,e_p_33_n=e_p_33_n,e_p_13_n=e_p_13_n,e_p_23_n=e_p_23_n,
                            alpha_tmp=alpha_tmp,alpha_n=alpha_n,domain=domain,cells=cells,quadrature_points=quadrature_points,sig_y=sig_y,hard=hard,mu=mu)
     
@@ -248,12 +280,18 @@ def after_timestep_success(t,dt,iters):
     # update u from Δu
     #epsilon = alex.linearelastic.eps_as_tensor(u)
     #sigma = alex.linearelastic.sigma_as_tensor_from_epsilon(epsilon,la,mu)
-    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
+    '''sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
     tensor_field_expression = dlfx.fem.Expression(sigma, TEN.element.interpolation_points())
     tensor_field_name = "sigma"
     sigma_interpolated = dlfx.fem.Function(TEN) 
     sigma_interpolated.interpolate(tensor_field_expression)
-    sigma_interpolated.name = tensor_field_name
+    sigma_interpolated.name = tensor_field_name'''
+    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
+
+    problem = sigma_problem(TEN,ufl.dx,sigma,deg_quad)
+
+    sigma_interpolated = problem.solve()
+    sigma_interpolated.name = "sigma"
     
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
     Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
