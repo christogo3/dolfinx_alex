@@ -32,8 +32,8 @@ if rank == 0:
 
 
 N = 10
-# import the geometry
-# domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
+# import or create geometry
+#domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
 deg_quad = 2  # quadrature degree for internal state variable representation
 
@@ -137,12 +137,6 @@ e_p_n_tmp = fem.Function(V_3d, name='e_p_tmp')
 e_p_n.x.array[:] = 0.0
 e_p_n_tmp.x.array[:] = 0.0
 
-'''# Get the sub-space for the (0,0) component and its dofmap
-V_00, map_00 = V.sub([0, 0]).collapse()
-# Create the numpy array you want to assign
-num_dofs_component = V_00.dofmap.index_map.size_local
-zero_array = np.zeros_like(num_dofs_component)'''
-
 H,alpha_n,alpha_tmp,_,_,_,_,_,_,_,_ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
 
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
@@ -150,10 +144,6 @@ quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_in
 H.x.array[:] = np.zeros_like(H.x.array[:])
 alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
 alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
-
-# setting K1 so it always breaks
-#K1 = dlfx.fem.Constant(domain, 1.0 * math.sqrt(1.0 * 2.5))
-
 
 
 ## define boundary conditions crack
@@ -193,22 +183,6 @@ atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
 def all(x):
         return np.full_like(x[0],True)
     
-
-'''
-u_D = dlfx.fem.Function(V) # for dirichlet BCs
-def top_displacement():    
-    u_y = ufl.conditional(ufl.le(t_global,ufl.as_ufl(1.0)),t_global,ufl.as_ufl(1.0-(t_global-1.0)))
-    u_x = ufl.as_ufl(0.0)
-    u_z = ufl.as_ufl(0.0)
-
-    return ufl.as_vector([u_x, u_y, u_z]) # 3 components in 3D
-
-bc_top_expression = dlfx.fem.Expression(top_displacement(),V.element.interpolation_points())
-
-boundary_top_bc = bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol)
-facets_top_bc = dlfx.mesh.locate_entities_boundary(domain, fdim, boundary_top_bc)
-dofs_top_bc = dlfx.fem.locate_dofs_topological(V, fdim, facets_top_bc) 
-'''
 
 def get_bcs(t):
     

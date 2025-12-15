@@ -3,9 +3,21 @@ import matplotlib.pyplot as plt
 import os.path
 
 script_path = os.path.dirname(__file__)
+
 # Input files
-path1 = '/home/scripts/053-plasticity-without-fracture/3D implementation/run_simulation_3d_graphs.txt'
-path2 = '/home/scripts/053-plasticity-without-fracture/3D implementation/run_simulation_3D_component-wise_graphs.txt'
+
+path1 = '/home/scripts/053-plasticity-without-fracture/3D implementation/graphs/graphs_mesh_q1.txt'
+path2 = '/home/scripts/053-plasticity-without-fracture/3D implementation/graphs/graphs_mesh_q2.txt'
+label_list = ['hex q=1', 'hex q=2', 'tet q=1', 'tet q=2']
+name_list = ['graphs_hex_q1.txt',
+             'graphs_hex_q2.txt',
+             'graphs_tet_q1.txt',
+             'graphs_tet_q1.txt']
+name_componentwise = ['graphs_component_hex_q1.txt',
+                      'graphs_component_hex_q2.txt',
+                      'graphs_component_tet_q1.txt',
+                      'graphs_component_tet_q2.txt']
+
 save_path = script_path
 # Formatting: Time u_y R_y
 
@@ -42,7 +54,7 @@ def multi_read_data(name_list):
 
 def plot_error(path1, path2, title, filename):
     """
-    Plot the error of path2 with respect to path1
+    Plot the absolute error of the reaction force in path2 with respect to path1
     """
 
     u_y_1, R_y_1, t = read_data(path1)
@@ -64,7 +76,7 @@ def plot_error(path1, path2, title, filename):
 
 def error_multiplot(path_list, label_list, title, filename, plot_force=False):
     """
-    Plot the error of all datasets within a path list with respect to the first entry.
+    Plot the absolute error of all datasets within a path list with respect to the first entry.
     """
     data_list = multi_read_data(path_list)
     ref = data_list[0]
@@ -141,17 +153,6 @@ def stress_strain_multiplot(path_list, label_list, title, filename, print_refere
     plt.savefig(save_path + f'/stress_strain_multiplot_{filename}')
 
 
-label_list = ['hex q=1', 'hex q=2', 'tet q=1', 'tet q=2']
-name_list = ['graphs_hex_q1.txt',
-             'graphs_hex_q2.txt',
-             'graphs_tet_q1.txt',
-             'graphs_tet_q1.txt']
-name_componentwise = ['graphs_component_hex_q1.txt',
-                      'graphs_component_hex_q2.txt',
-                      'graphs_component_tet_q1.txt',
-                      'graphs_component_tet_q2.txt']
-
-
-stress_strain_multiplot(name_list, label_list, 'Stress-Strain Relation', 'ref', print_reference=True)
-#plot_error(name_list[3], name_componentwise[3],title='R_y error for hexaeder elements with different implementations at q=1', filename='tensorial_componentwise')
+#stress_strain_multiplot(name_list, label_list, 'Stress-Strain Relation', 'ref', print_reference=True)
+plot_error(path1, path2,title='R_y error mesh with tetraeder elements at q=1 and q=2', filename='mesh_q1_q2')
 #error_multiplot(name_list,label_list,title='Reaction force error realtive to hex q=1',filename='1', plot_force=True)
