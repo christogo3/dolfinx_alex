@@ -608,6 +608,72 @@ def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,mode='2d'):
     if mode == '2d': return sig_2D
     else: return sig_3D
 
+def deviator_tensor(x):
+    eye = np.eye(x.size)
+    y = x-(1/3)*np.trace(x)*eye
+    return y
+
+def ufl_norm(tensor):
+    return ufl.sqrt(ufl.inner(tensor,tensor))
+
+def piola_kirchhoff_2_plasticity(u,hist,alpha_n,sig_y,hard,lam,mu):
+    
+    
+    # identity tensor
+    I_ten = ufl.Identity(3)
+
+    F = I_ten + ufl.grad(u)
+
+    # material parameters / history variables
+    F_old = hist[0]
+    b_e_old = hist[1]
+
+    ka_ = lam + (2 / 3) * mu
+    f_ = F * ufl.inv(F_old) ## 9.3.16 relative deformation gradient 
+    
+
+    # 2. elastic predictor
+    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
+    b_e_tr = f_stroke * b_e_old * f_stroke.T
+    s_tr = mu * ufl.dev(b_e_tr)
+    F_inv = ufl.inv(F)
+
+    # 3. check for plastic loading
+    f_tr = ufl_norm(s_tr) - np.sqrt(2 / 3) * (hard * alpha_n + sig_y)
+    
+
+    '''if f_tr <= 0: #elastischer Schritt
+        s_np1 = s_tr
+        n_tr = s_np1 / (ufl_norm(s_np1) + 1*(10**(-8)))
+
+    else: '''
+    #plastischer Schritt
+    # 4. return mapping algorithm
+
+    I_e = (1 / 3) * ufl.tr(b_e_tr)
+    mu_stroke = I_e * mu
+    # ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr  / ufl_norm(s_tr))
+    delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (hard / (3 * mu_stroke)))
+    #n_tr = s_tr / ufl_norm(s_tr) ## 9.2.16 associative-flow rule 
+    n_tr = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr / ufl_norm(s_tr))
+    s_np1 = s_tr - 2 * mu_stroke * delta_gamma * n_tr ## 9.3.28 reordered requirement with delta_gamma>0 
+    ## s_n converged stresses
+    ## total/elastic left Cauchy–Green Tensor b/b_e 
+    b_e_np1 = s_np1 / mu + I_e * I_ten ## 9.3.33 elastic constitutive equation and 9.2.8
+
+    # 5. elastic mean stress
+    J_ = ufl.det(F)
+    p_ = (ka_ / 2) * (J_ ** 2 - 1) / J_
+    tau_ten = J_ * p_ * I_ten + s_np1 ## uncoupled deviatoric stress-strain relationship 9.2.6
+    S_ten = F_inv*tau_ten*F_inv.T
+
+    # hist variables
+    hist_new = hist.copy()
+    hist_new[0] = F
+    hist_new[1] = b_e_np1
+
+    return S_ten, hist_new
+
 
 
 def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
@@ -779,8 +845,8 @@ class Plasticity_incremental_3D:
         def residuum(u: any, du: any,  um1:any, mode=mode):
             
             delta_u = u - um1
-            t1 = self.sigma(u,lam,mu,mode)
-            t2 = 0.5*(ufl.grad(du) + ufl.grad(du).T)
+            t1 = self.sigma(u,lam,mu,mode) # S statt sigma ausgeben
+            t2 = 0.5*(ufl.grad(du) + ufl.grad(du).T) # Variation von Green-Lagrange Verzerrungstensor!
 
             equi =  (ufl.inner(t1, t2))*self.dx # ufl.derivative(pot, u, du)
             H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu,mode=mode)
@@ -790,7 +856,7 @@ class Plasticity_incremental_3D:
         return residuum(u,du,um1)
     
     def sigma(self, u,lam,mu,mode):
-        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu,mode=mode)
+        return  sig_plasticity(u,e_p_n=self.e_p_n,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu,mode=mode) # neue implementierung aufrufen
         # return 1.0 * le.sigma_as_tensor3D(u=u,lam=lam,mu=mu)
     
     def eps(self,u):
@@ -807,6 +873,73 @@ class Plasticity_incremental_3D:
         delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
         W_np1 = ufl.inner(self.sigma(u=u,lam=lam,mu=mu,mode=mode), delta_eps )
         W_n = ufl.inner(self.sigma(u=u_n,lam=lam,mu=mu,mode=mode), delta_eps )
+        H_np1 = ( self.H + 0.5 * (W_n+W_np1))
+        return H_np1
+    
+    def psiel(self,u,lam,mu):
+        return  self.H
+    
+    def get_E_el_global(self,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
+        Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
+        return comm.allreduce(Pi,MPI.SUM)
+    
+class Plasticity_large_deformation_3D:
+    # Constructor method
+    def __init__(self, 
+                       sig_y: any,
+                       hard: any,
+                       alpha_n: any,
+                       e_p_n: any,
+                       H: any,
+                       dx: any = ufl.dx,
+                 ):
+
+
+        # Set all parameters here! Material etc
+        self.dx = dx
+        self.sig_y = sig_y
+        self.hard = hard
+        self.e_p_n = e_p_n
+        self.alpha_n = alpha_n
+        self.H = H
+        self.hist = [ufl.Identity(3),1]
+        
+        
+    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
+        def residuum(u: any, du: any,  um1:any):
+            I_ten = ufl.Identity(3)
+            F = I_ten + ufl.grad(u)
+
+            delta_u = u - um1
+            t1 = self.S_pk(u,lam,mu) # 2nd Piola Kirchhoff
+            t2 = 0.5 * (ufl.grad(du).T * F + F.T * ufl.grad(du))# Variation von Green-Lagrange Verzerrungstensor!
+
+            equi =  ufl.inner(t1, t2)*self.dx
+            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)
+            
+            Res = equi
+            return [ Res, None]
+        return residuum(u,du,um1)
+    
+    def S_pk(self, u,lam,mu):
+        S_pk, hist_new = piola_kirchhoff_2_plasticity(u,hist=self.hist,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
+        self.hist = hist_new
+        return S_pk
+    
+    def eps(self,u):
+        return ufl.sym(ufl.grad(u)) #0.5*(ufl.grad(u) + ufl.grad(u).T)
+    
+    def deveps(self,u):
+        return ufl.dev(self.eps(u))
+    
+    def eqeps(self,u):
+        return ufl.sqrt(2.0/3.0 * ufl.inner(self.eps(u),self.eps(u))) 
+    
+    def update_H(self, u, delta_u,lam,mu):
+        u_n = u-delta_u
+        delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
+        W_np1 = ufl.inner(self.S_pk(u=u,lam=lam,mu=mu), delta_eps )
+        W_n = ufl.inner(self.S_pk(u=u_n,lam=lam,mu=mu), delta_eps )
         H_np1 = ( self.H + 0.5 * (W_n+W_np1))
         return H_np1
     

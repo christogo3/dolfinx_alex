@@ -151,7 +151,7 @@ tdim = domain.topology.dim
 fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
-plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
+plasticityProblem = alex.plasticity.Plasticity_large_deformation_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -170,11 +170,9 @@ def before_each_time_step(t,dt):
         sol.print_time_and_dt(t,dt)
 
 
-
 def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
     return [Res, dResdw]
-
 
 
 atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
@@ -218,7 +216,7 @@ TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
 S0 = dlfx.fem.functionspace(domain, S0e)
 
-def sigma_problem(TEN,dx,sigma,deg_quad):
+def linear_problem(TEN,dx,sigma,deg_quad):
     # Integral(sigma_interpolated * v) = Integral(sigma * v)
     u_ten = ufl.TrialFunction(TEN)
     v_ten = ufl.TestFunction(TEN)
@@ -240,17 +238,18 @@ def after_timestep_success(t,dt,iters):
     H_expr = plasticityProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
-    
-    alex.plasticity.update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
-                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
+    # Determine 2nd Piola Kirchhoff tensor BEFORE updating alpha 
+    S_pk = plasticityProblem.S_pk(u,la,mu)
 
-    sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
-
-    problem = sigma_problem(TEN,ufl.dx,sigma,deg_quad)
+    problem = linear_problem(TEN,ufl.dx,S_pk,deg_quad)
 
     sigma_interpolated = problem.solve()
     sigma_interpolated.name = "sigma"
     
+    alex.plasticity.update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
+
+
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
     Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
@@ -269,9 +268,7 @@ def after_timestep_success(t,dt,iters):
             u_y = 1.0-(t-1.0)
         else:
             u_y = t
-        # ----------------------------------------------------------------------------------------------------------------------------------------
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y)     # Arbitrary scaling factor introduced!!!!
-        # ----------------------------------------------------------------------------------------------------------------------------------------
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y) # Arbitrary scaling factor Ry_scaling
 
 
     # update
