@@ -88,9 +88,7 @@ def mat_large_strain_plast_3D(F, mat_par, hist):
     ka_ = la_ + (2 / 3) * mu_
     f_ = F @ np.linalg.inv(F_old) ## 9.3.16 relative deformation gradient 
 
-
     # 2. elastic predictor
-
     f_stroke = np.linalg.det(f_) ** (-1 / 3) * f_
     #f_det = np.linalg.det(f_)  # for test_large_strain_plast
     b_e_tr = f_stroke @ b_e_old @ f_stroke.T
@@ -99,74 +97,26 @@ def mat_large_strain_plast_3D(F, mat_par, hist):
 
 
     # 3. check for plastic loading
-
     f_tr = np.linalg.norm(s_tr) - np.sqrt(2 / 3) * (K * alpha_old + sigma_y)
 
     if f_tr <= 0: #elastischer Schritt
         s_np1 = s_tr
-        #alpha = alpha_old
         b_e_np1 = b_e_tr
-        '''# consistent elastoplastic moduli for the radial return algorithm
-        # spatial elasticity tensor C for hyperelastic model
-        # C = (JU´)´J 1'x'1 - 2JU´I+C_stroke  ==> U´= ka/2(J^2-1)/J ; JU´ = ka/2(J^2-1) ; (JU´)´ = ka_ * J
-        # C_stroke = 2mu_stroke(I-1/31'x'1)-2/3(|s|(n'x'1 + 1'x'n)'''
-        #mu_stroke = mu_ * (1/3) * np.linalg.trace(b_e_np1)
         n_tr = s_np1 / (np.linalg.norm(s_np1) + 1*(10**(-8)))
-        '''C_stroke = 2 * mu_stroke * (II_ten - (1 / 3) * np.tensordot(I_ten, I_ten, 0)) - (2 / 3) * np.linalg.norm(s_np1) * (np.tensordot(n_tr, I_ten, 0) + np.tensordot(I_ten, n_tr, 0))
-        C_ep_ten_sp = ka_ * np.linalg.det(F) * np.tensordot(I_ten, I_ten, 0) - 2 * (ka_ / 2) * (np.linalg.det(F) ** 2 - 1) * II_ten + C_stroke
-        C_ep_ten = np.einsum("Dd, Cc, Bb, Aa, abcd -> ABCD", F_inv, F_inv, F_inv, F_inv, C_ep_ten_sp)'''
         ## Right Cauchy Green Tensor C?
-        #print(c_ep_ten[0,0,0,0])
+
     else: #plastischer Schritt
-        
-
-        # 4. return mapping algorithm
-        ## Gegeben: phi_n, b_n^e, alpha_n, F_n
-
         I_e = (1 / 3) * np.linalg.trace(b_e_tr)
         mu_stroke = I_e * mu_
-
         delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (K / (3 * mu_stroke)))
+
         n_tr = s_tr / np.linalg.norm(s_tr) ## 9.2.16 associative-flow rule 
-        ## --------------------------------------------------- 
         s_np1 = s_tr - 2 * mu_stroke * delta_gamma * n_tr ## 9.3.28 reordered requirement with delta_gamma>0 
         ## s_ten = s_n+1,  s_n converged stresses
-        ## ---------------------------------------------------
-        #alpha = alpha_old + np.sqrt(2 / 3) * delta_gamma
-
         # update intermediate configuration
         ## total/elastic left Cauchy–Green Tensor b/b_e 
         b_e_np1 = s_np1 / mu_ + I_e * I_ten ## 9.3.33 elastic constitutive equation and 9.2.8
 
-        # consistent elastoplastic moduli for the radial return algorithm
-        #mu_stroke_c = mu_ * (1/3) * np.linalg.trace(b_e_tr)
-        #s_ten_c = mu_ * deviator_tensor(b_e_tr)
-        #n_c = s_ten_c / np.linalg.norm(s_ten_c)
-        '''# spatial elasticity tensor C for hyperelastic model
-        # C = (JU´)´J 1'x'1 - 2JU´I+C_stroke  ==> U´= ka/2(J^2-1)/J ; JU´ = ka/2(J^2-1) ; (JU´)´ = ka_ * J
-        # C_stroke = 2mu_stroke(I-1/31'x'1)-2/3(|s|(n'x'1 + 1'x'n)'''
-
-        '''C_stroke = 2 * mu_stroke_c * (II_ten - (1/3) * np.tensordot(I_ten, I_ten,0)) - (2/3) * np.linalg.norm(s_ten_c) * (np.tensordot(n_c,I_ten, 0) + np.tensordot(I_ten,n_c, 0))
-        C_ten = ka_ * np.linalg.det(F) * np.tensordot(I_ten, I_ten,0) - 2 * (ka_/2)*(np.linalg.det(F)**2 - 1) * II_ten + C_stroke'''
-
-        '''# scaling factors
-        # beta_0,beta_1,beta_2,beta_3,beta_4
-        # k´ = K for linear hardening
-        # beta_0 = 1 + k´/(3*mu_stroke)'''
-
-        #beta_0 = 1 + K / (3 * mu_stroke_c)
-        #beta_1 = (2 * mu_stroke_c * delta_gamma) / np.linalg.norm(s_tr)
-        #beta_2 = (1 - 1/beta_0) * (2/3) * np.linalg.norm(s_tr) / mu_stroke_c * delta_gamma
-        #beta_3 = 1/beta_0 - beta_1 + beta_2
-        #beta_4 = (1/beta_0 - beta_1) * np.linalg.norm(s_ten_c) / mu_stroke_c
-        #print(beta_0, beta_1, beta_2, beta_3, beta_4)
-
-        # consistent (algorithmic) moduli
-        #z = np.tensordot(n_c, deviator_tensor(n_c @ n_c), 0)
-        #z_sym = 1/2 * (z + z.T)
-        '''C_ep_ten_sp = C_ten - beta_1 * C_stroke - 2 * mu_stroke * beta_3 * np.tensordot(n_c, n_c,0) - 2 * mu_stroke_c * beta_4 * z_sym
-        C_ep_ten = np.einsum("Dd, Cc, Bb, Aa, abcd -> ABCD", F_inv, F_inv, F_inv, F_inv, C_ep_ten_sp)'''
-        #print(C_stroke[0,0,0,0], C_ten[0,0,0,0])
 
     # 5. elastic mean stress
     J_ = np.linalg.det(F)
@@ -175,14 +125,9 @@ def mat_large_strain_plast_3D(F, mat_par, hist):
     S_ten = F_inv@tau_ten@F_inv.T
 
     # update history variables
-
     hist_new = hist.copy()
     hist_new[0] = F
     hist_new[2] = b_e_np1
-    #hist_new[1] = alpha
 
-    #return tau_ten, hist_new, c_ep_ten
-    # following return for test_large_strain_plast
-    ## E_p = 
     return S_ten, hist_new
 

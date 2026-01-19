@@ -617,49 +617,68 @@ def ufl_norm(tensor):
     return ufl.sqrt(ufl.inner(tensor,tensor))
 
 def piola_kirchhoff_2_plasticity(u,hist,alpha_n,sig_y,hard,lam,mu):
-    
-    
-    # identity tensor
+    # Determine deformation gradient
     I_ten = ufl.Identity(3)
-
     F = I_ten + ufl.grad(u)
 
     # material parameters / history variables
     F_old = hist[0]
     b_e_old = hist[1]
 
+    ## 9.3.16 relative deformation gradient
+    '''
+    ka_ = la_ + (2 / 3) * mu_
+    f_ = F @ np.linalg.inv(F_old)
+    '''
     ka_ = lam + (2 / 3) * mu
     f_ = F * ufl.inv(F_old) ## 9.3.16 relative deformation gradient 
     
 
     # 2. elastic predictor
+    '''
+    f_stroke = np.linalg.det(f_) ** (-1 / 3) * f_
+    b_e_tr = f_stroke @ b_e_old @ f_stroke.T
+    s_tr = mu_ * deviator_tensor(b_e_tr)
+    F_inv = np.linalg.inv(F)
+    '''
     f_stroke = ufl.det(f_) ** (-1 / 3) * f_
     b_e_tr = f_stroke * b_e_old * f_stroke.T
     s_tr = mu * ufl.dev(b_e_tr)
     F_inv = ufl.inv(F)
 
     # 3. check for plastic loading
+    '''
+    f_tr = np.linalg.norm(s_tr) - np.sqrt(2 / 3) * (K * alpha_old + sigma_y)
+    '''
     f_tr = ufl_norm(s_tr) - np.sqrt(2 / 3) * (hard * alpha_n + sig_y)
     
-
-    '''if f_tr <= 0: #elastischer Schritt
-        s_np1 = s_tr
-        n_tr = s_np1 / (ufl_norm(s_np1) + 1*(10**(-8)))
-
-    else: '''
-    #plastischer Schritt
     # 4. return mapping algorithm
+    '''
+    if f_tr <= 0: #elastischer Schritt
+        s_np1 = s_tr
+        b_e_np1 = b_e_tr
+        n_tr = s_np1 / (np.linalg.norm(s_np1) + 1*(10**(-8)))
 
+    else: #plastischer Schritt
+        I_e = (1 / 3) * np.linalg.trace(b_e_tr)
+        mu_stroke = I_e * mu_
+        delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (K / (3 * mu_stroke)))
+        n_tr = s_tr / np.linalg.norm(s_tr) ## 9.2.16 associative-flow rule 
+        s_np1 = s_tr - 2 * mu_stroke * delta_gamma * n_tr ## 9.3.28 reordered requirement with delta_gamma>0 
+
+        # update intermediate configuration
+        ## total/elastic left Cauchy–Green Tensor b/b_e 
+        b_e_np1 = s_np1 / mu_ + I_e * I_ten ## 9.3.33 elastic constitutive equation and 9.2.8
+    '''
     I_e = (1 / 3) * ufl.tr(b_e_tr)
     mu_stroke = I_e * mu
-    # ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr  / ufl_norm(s_tr))
     delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (hard / (3 * mu_stroke)))
-    #n_tr = s_tr / ufl_norm(s_tr) ## 9.2.16 associative-flow rule 
-    n_tr = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr / ufl_norm(s_tr))
-    s_np1 = s_tr - 2 * mu_stroke * delta_gamma * n_tr ## 9.3.28 reordered requirement with delta_gamma>0 
-    ## s_n converged stresses
-    ## total/elastic left Cauchy–Green Tensor b/b_e 
-    b_e_np1 = s_np1 / mu + I_e * I_ten ## 9.3.33 elastic constitutive equation and 9.2.8
+
+    n_tr = ufl.conditional(ufl.le(f_tr,0.0),s_tr / (ufl_norm(s_tr) + 1*(10**(-8))), s_tr / ufl_norm(s_tr))
+    s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2 * mu_stroke * delta_gamma * n_tr)
+    # s_n converged stresses
+    b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_old,s_np1 / mu + I_e * I_ten) ## 9.3.33 elastic constitutive equation and 9.2.8
+    ## elastic left Cauchy–Green Tensor b_e 
 
     # 5. elastic mean stress
     J_ = ufl.det(F)
@@ -756,7 +775,7 @@ def update_e_p_n_and_alpha_arrays_3d_component_wise(u,e_p_11_n_tmp,e_p_22_n_tmp,
     e_p_23_expr = e_p_np1_expr[1,2]
     e_p_23_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,e_p_23_expr)
 
-    
+
 class Plasticity_incremental_2D:
     # Constructor method
     def __init__(self, 
@@ -882,7 +901,7 @@ class Plasticity_incremental_3D:
     def get_E_el_global(self,u,lam,mu, dx: ufl.Measure, comm: MPI.Intercomm) -> float:
         Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
         return comm.allreduce(Pi,MPI.SUM)
-    
+
 class Plasticity_large_deformation_3D:
     # Constructor method
     def __init__(self, 
@@ -902,7 +921,7 @@ class Plasticity_large_deformation_3D:
         self.e_p_n = e_p_n
         self.alpha_n = alpha_n
         self.H = H
-        self.hist = [ufl.Identity(3),1]
+        self.hist = [ufl.Identity(3),ufl.Identity(3)]
         
         
     def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
@@ -912,7 +931,7 @@ class Plasticity_large_deformation_3D:
 
             delta_u = u - um1
             t1 = self.S_pk(u,lam,mu) # 2nd Piola Kirchhoff
-            t2 = 0.5 * (ufl.grad(du).T * F + F.T * ufl.grad(du))# Variation von Green-Lagrange Verzerrungstensor!
+            t2 = 0.5 * (ufl.grad(du).T * F + F.T * ufl.grad(du))# Variation von Green-Lagrange Verzerrungstensor
 
             equi =  ufl.inner(t1, t2)*self.dx
             H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)

@@ -31,11 +31,11 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
-N = 10
+N = 3
 # import or create geometry
 #domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
-deg_quad = 2  # quadrature degree for internal state variable representation
+deg_quad = 1  # quadrature degree for internal state variable representation
 
 
 def mesh_box_select(x_range,y_range,z_range,domain,dim):
