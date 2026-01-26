@@ -2,7 +2,7 @@ import dolfinx as dlfx
 import os
 import numpy as np
 import ufl
-import dolfinx.fem as fem
+#import dolfinx.fem as fem
 import basix
 
 import alex.os
@@ -31,7 +31,7 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
-N = 3
+N = 5
 # import or create geometry
 #domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
@@ -85,15 +85,15 @@ def mesh_box_select(x_range,y_range,z_range,domain,dim):
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
 
-x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
+# select submesh
+'''x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = pp.compute_bounding_box(comm, domain)
 if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
-
 
 x_range = (x_min_all,x_max_all/2)
 y_range = (y_min_all,y_max_all/2)
 z_range = (z_min_all,z_max_all/2)
-#mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)
+mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)'''
 
 # Simulation parameters ####
 dt_start = 0.01 
@@ -127,23 +127,10 @@ ddu = ufl.TrialFunction(V)
 
 gdim = 3
 
-# function space for 3d fields
-#Ve_3d = ufl.VectorElement("Quadrature", domain.ufl_cell(), degree=2, dim=9, quad_scheme="default")
-Ve_3d = ufl.TensorElement("Quadrature", domain.ufl_cell(), degree=deg_quad, shape=(3,3), quad_scheme="default") # Falsche definition, sollte von Quadratur Elementen abhängen
-V_3d = dlfx.fem.FunctionSpace(domain, Ve_3d)
-# Set e_p and e_p_n up in a TensorFunctionSpace
-e_p_n = fem.Function(V_3d, name='e_p')
-e_p_n_tmp = fem.Function(V_3d, name='e_p_tmp')
-e_p_n.x.array[:] = 0.0
-e_p_n_tmp.x.array[:] = 0.0
-
-H,alpha_n,alpha_tmp,_,_,_,_,_,_,_,_ = alex.plasticity.define_internal_state_variables_basix_b(gdim, domain, deg_quad,quad_scheme="default")
+H,alpha_n,alpha_tmp,b_e_n,b_e_n_tmp,F_n = alex.plasticity.define_internal_state_variables_basix_d(gdim, domain, deg_quad,quad_scheme="default")
 
 dx = alex.plasticity.define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(domain, deg_quad, "default")
 quadrature_points, cells = alex.plasticity.get_quadraturepoints_and_cells_for_inter_polation_at_gauss_points(domain, deg_quad)
-H.x.array[:] = np.zeros_like(H.x.array[:])
-alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
-alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
 
 
 ## define boundary conditions crack
@@ -151,7 +138,7 @@ tdim = domain.topology.dim
 fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
-plasticityProblem = alex.plasticity.Plasticity_large_deformation_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
+plasticityProblem = alex.plasticity.Large_deformation_3D(sig_y=sig_y.value,hard=hard.value,F_n=F_n,alpha_n=alpha_n,alpha_tmp=alpha_tmp,b_e_n=b_e_n,H=H)
 
 timer = dlfx.common.Timer()
 def before_first_time_step():
@@ -174,14 +161,9 @@ def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
     [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
     return [Res, dResdw]
 
-
-atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
-
-
-def all(x):
-        return np.full_like(x[0],True)
+# determine and apply boundary conditions
+atol=0 # (x_max_all-x_min_all)*0.05 # for selection of boundary
     
-
 def get_bcs(t):
     
     if t<= 1: 
@@ -196,7 +178,6 @@ def get_bcs(t):
     
     bcs = [bc_top_y,bc_bottom_y,bc_bottom_corner_x,bc_bottom_corner_z]
     return bcs
-
 
 n = ufl.FacetNormal(domain)
 external_surface_tag = 5
@@ -213,24 +194,8 @@ success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 
 TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
-S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
-S0 = dlfx.fem.functionspace(domain, S0e)
-
-def linear_problem(TEN,dx,sigma,deg_quad):
-    # Integral(sigma_interpolated * v) = Integral(sigma * v)
-    u_ten = ufl.TrialFunction(TEN)
-    v_ten = ufl.TestFunction(TEN)
-    
-    a_proj = ufl.inner(u_ten, v_ten) * dx
-
-    L_proj = ufl.inner(sigma, v_ten) * dx(metadata={"quadrature_degree": deg_quad})
-
-    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
-                                           petsc_options={"ksp_type": "preonly", 
-                                                          "pc_type": "jacobi"})
-    
-    return problem
-
+#S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
+#S0 = dlfx.fem.functionspace(domain, S0e)
 
 def after_timestep_success(t,dt,iters):
     
@@ -238,23 +203,21 @@ def after_timestep_success(t,dt,iters):
     H_expr = plasticityProblem.update_H(u,delta_u=delta_u,lam=la,mu=mu)
     H.x.array[:] = alex.plasticity.interpolate_quadrature(domain, cells, quadrature_points,H_expr)
     
-    # Determine 2nd Piola Kirchhoff tensor BEFORE updating alpha 
-    S_pk = plasticityProblem.S_pk(u,la,mu)
-
-    problem = linear_problem(TEN,ufl.dx,S_pk,deg_quad)
-
-    sigma_interpolated = problem.solve()
-    sigma_interpolated.name = "sigma"
-    
-    alex.plasticity.update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
+    alex.plasticity.update_history_variables(u,b_e_n,b_e_n_tmp,F_n,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu)
 
+    S = plasticityProblem.S(u,la,mu)
+
+    problem = alex.plasticity.linear_problem(TEN,dx,S,deg_quad)
+
+    S_interpolated = problem.solve()
+    S_interpolated.name = "sigma"
 
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
-    Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    Rx_top, Ry_top, Rz_top = pp.reaction_force(S_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
 
-    dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
+    dW = pp.work_increment_external_forces(S_interpolated,u,um1,n,ds,comm=comm)
     Work.value = Work.value + dW
     
     
@@ -282,11 +245,10 @@ def after_timestep_success(t,dt,iters):
     pp.write_vector_fields(domain,comm,[u],["u"],outputfile_xdmf_path,t)
     #pp.write_field(domain,outputfile_xdmf_path,alpha_n,t,comm,S=S0)
     #pp.write_tensor_fields(domain,comm,[e_p_n_interpolated],["e_p_n"],outputfile_xdmf_path,t)
-    pp.write_tensor_fields(domain,comm,[sigma_interpolated],["sigma"],outputfile_xdmf_path,t)
+    pp.write_tensor_fields(domain,comm,[S_interpolated],["S"],outputfile_xdmf_path,t)
 
 def after_timestep_restart(t,dt,iters):
     u.x.array[:] = urestart.x.array[:]
-
 
 def after_last_timestep():
     # stopwatch stop
@@ -298,7 +260,7 @@ def after_last_timestep():
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
         pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "R_y", "u_y"])
-        
+
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,

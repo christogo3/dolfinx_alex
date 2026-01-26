@@ -416,7 +416,15 @@ def print_total_dofs(w, comm, rank):
 
 def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     if dResdw is not None:
-        problem = NonlinearProblem(Res, w, bcs, dResdw)
+        '''print(f"Type of F: {type(Res)}") 
+        # Should be <class 'ufl.form.Form'> (NOT list)
+
+        print(f"Type of J: {type(dResdw)}") 
+        # Should be <class 'ufl.form.Form'>
+
+        print(f"Type of bcs: {type(bcs)}") 
+        # Should be <class 'list'>'''
+        problem = NonlinearProblem(F=Res, u=w, bcs=bcs, J=dResdw)
     else:
         #problem = NonlinearProblem(Res, w, bcs)
         problem = NonlinearProblem(Res, w, bcs)
@@ -424,6 +432,10 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     solver = NewtonSolver(comm, problem)
     solver.report = True
     solver.max_it = max_iters
+
+    # Sets the solver to output the residual norm at each iteration
+    #solver.error_on_nonconvergence = False # Prevents code from crashing immediately so you can inspect results
+    #dlfx.log.set_log_level(dlfx.log.LogLevel.INFO)   # Ensure the FEniCSx logger is active
 
     # ksp = solver.krylov_solver
     # opts = PETSc.Options()
@@ -440,8 +452,7 @@ def get_solver(w, comm, max_iters, Res, dResdw, bcs):
     
     return solver
 
-    
-    
+
 class CustomLinearProblem(fem.petsc.LinearProblem):
         def assemble_rhs(self, u=None):
             """Assemble right-hand side and lift Dirichlet bcs.

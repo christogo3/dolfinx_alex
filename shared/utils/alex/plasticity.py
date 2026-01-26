@@ -179,6 +179,36 @@ def define_internal_state_variables_basix_c(gdim, domain, deg_quad, quad_scheme)
     
     return H,alpha,alpha_tmp, e_p_11_n, e_p_22_n, e_p_12_n, e_p_11_n_tmp, e_p_22_n_tmp, e_p_12_n_tmp
 
+def define_internal_state_variables_basix_d(gdim, domain, deg_quad, quad_scheme):  
+    W0e = basix.ufl.quadrature_element(domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad)
+
+    # TensorFunctionSpace
+    Ve_3d = ufl.TensorElement("Quadrature", domain.ufl_cell(), degree=deg_quad, shape=(3,3), quad_scheme=quad_scheme)
+    V_3d = dlfx.fem.FunctionSpace(domain, Ve_3d)
+    
+    # setup history variables for large plasticity
+    W0 = fem.functionspace(domain, W0e)
+    alpha = fem.Function(W0, name="alpha")
+    alpha_tmp = fem.Function(W0, name="alpha_tmp")
+    H = fem.Function(W0, name="H")
+    
+    b_e_n = fem.Function(V_3d,name='b_e_n')
+    b_e_n_tmp = fem.Function(V_3d,name='b_e_n_tmp')
+    F_n = fem.Function(V_3d,name='F_n')
+
+
+    num_points = len(F_n.x.array) // 9
+    I_33 = np.eye(3).flatten()
+    # Initialize arrays
+    H.x.array[:] = np.zeros_like(H.x.array[:])
+    alpha.x.array[:] = np.zeros_like(alpha.x.array[:])
+    alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
+    b_e_n.x.array[:] = np.tile(I_33, num_points)
+    b_e_n_tmp.x.array[:] = np.tile(I_33, num_points)
+    F_n.x.array[:] = np.tile(I_33, num_points)
+    
+    return H,alpha,alpha_tmp, b_e_n, b_e_n_tmp, F_n
+
     
 def define_internal_state_variables(gdim, domain, deg_quad, quad_scheme):  
     # W0e = basix.ufl.quadrature_element(
@@ -214,9 +244,6 @@ def define_custom_integration_measure_that_matches_quadrature_degree_and_scheme(
     
     return dx
     
-    
-
-
     
     
 def constitutive_update_alt(Δε, e_p_n, alpha_n,sig0,H,lam,mu):
@@ -538,18 +565,29 @@ class Ramberg_Osgood:
         return sig
     
     
-    
-    
 def f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu):
         eps_np1_3D_plane_strain = assemble_3D_representation_of_plane_strain_eps(u)
-        
-        
         #e_np1 = ufl.dev(ufl.sym(ufl.grad(u)))
         e_np1 = ufl.dev(eps_np1_3D_plane_strain)
         s_tr = 2.0*mu*(e_np1-e_p_n)
         norm_s_tr = ufl.sqrt(ufl.inner(s_tr,s_tr))
         f_tr = norm_s_tr -np.sqrt(2.0/3.0) * (sig_y+hard*alpha_n)
         return f_tr
+
+def f_tr_plast(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu):
+    I_ten = ufl.Identity(3)
+    F_np1 = I_ten + ufl.grad(u)
+
+    f_ = F_np1 * ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
+    
+    # 2. elastic predictor
+    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
+    b_e_tr = f_stroke * b_e_n * f_stroke.T
+    s_tr = mu * ufl.dev(b_e_tr)
+
+    # 3. check for plastic loading
+    f_tr = ufl_norm(s_tr) - np.sqrt(2 / 3) * (hard * alpha_tmp + sig_y)
+    return f_tr
 
 def assemble_3D_representation_of_plane_strain_eps(u):
     if u.ufl_shape == (2,):
@@ -560,7 +598,9 @@ def assemble_3D_representation_of_plane_strain_eps(u):
         return eps_np1_3D_plane_strain
     
     else: return ufl.sym(ufl.grad(u))
-        
+
+def ufl_norm(tensor):
+    return ufl.sqrt(ufl.inner(tensor,tensor)) 
     
 def update_e_p(u,e_p_n,alpha_n,sig_y,hard,mu):
     e_np1 = ufl.dev(assemble_3D_representation_of_plane_strain_eps(u))
@@ -574,12 +614,64 @@ def update_e_p(u,e_p_n,alpha_n,sig_y,hard,mu):
     eps_p_np1 = ufl.conditional(ufl.le(f_tr,0.0),e_p_n,e_p_n+dgamma*N_np1)
     return eps_p_np1
 
+def linear_problem(TEN,dx,variable,deg_quad):
+    # Integral(sigma_interpolated * v) = Integral(sigma * v)
+    u_ten = ufl.TrialFunction(TEN)
+    v_ten = ufl.TestFunction(TEN)
+    
+    a_proj = ufl.inner(u_ten, v_ten) * dx
+
+    L_proj = ufl.inner(variable, v_ten) * dx(metadata={"quadrature_degree": deg_quad})
+
+    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
+                                           petsc_options={"ksp_type": "preonly", 
+                                                          "pc_type": "jacobi"})
+    
+    return problem
 
 def update_alpha(u,e_p_n,alpha_n,sig_y,hard,mu):
     f_tr = f_tr_func(u,e_p_n,alpha_n,sig_y,hard,mu)
     dgamma = f_tr / (2.0*(mu+hard/3))
     alpha_np1 = ufl.conditional(ufl.le(f_tr,0.0),alpha_n,alpha_n+np.sqrt(2/3)*dgamma)
     return alpha_np1
+
+def update_alpha2(u,b_e_n,F_n,alpha_n,sig_y,hard,mu):
+    I_ten = ufl.Identity(3)
+    F_np1 = I_ten + ufl.grad(u)
+
+    f_ = F_np1 * ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
+    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
+    b_e_tr = f_stroke * b_e_n * f_stroke.T
+
+    f_tr = f_tr_plast(u,b_e_n,F_n,alpha_n,sig_y,hard,mu)
+    
+    I_e = (1 / 3) * ufl.tr(b_e_tr)
+    mu_stroke = I_e * mu
+    dgamma = (f_tr / (2 * mu_stroke)) / (1 + (hard / (3 * mu_stroke)))
+    alpha_np1 = ufl.conditional(ufl.le(f_tr,0.0),alpha_n,alpha_n+np.sqrt(2/3)*dgamma)
+    return alpha_np1
+
+def update_b_e(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu):
+    I_ten = ufl.Identity(3)
+    F_np1 = I_ten + ufl.grad(u)
+
+    f_tr = f_tr_plast(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu)
+    f_ = F_np1 * ufl.inv(F_n)
+    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
+    b_e_tr = f_stroke * b_e_n * f_stroke.T
+    s_tr = mu * ufl.dev(b_e_tr)
+
+    norm_s_tr = ufl.conditional(ufl.lt(ufl_norm(s_tr), 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, ufl_norm(s_tr))
+    n_tr = s_tr / norm_s_tr
+
+    I_e = (1 / 3) * ufl.tr(b_e_tr)
+    mu_stroke = I_e * mu
+    delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (hard / (3 * mu_stroke)))
+
+    s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2 * mu_stroke * delta_gamma * n_tr)
+
+    b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_n,s_np1 / mu + I_e * I_ten)
+    return b_e_np1
 
 
 def sig_plasticity(u,e_p_n,alpha_n,sig_y,hard,lam,mu,mode='2d'):  
@@ -613,44 +705,36 @@ def deviator_tensor(x):
     y = x-(1/3)*np.trace(x)*eye
     return y
 
-def ufl_norm(tensor):
-    return ufl.sqrt(ufl.inner(tensor,tensor))
-
-def piola_kirchhoff_2_plasticity(u,hist,alpha_n,sig_y,hard,lam,mu):
+def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     # Determine deformation gradient
     I_ten = ufl.Identity(3)
-    F = I_ten + ufl.grad(u)
+    F_np1 = I_ten + ufl.grad(u)
 
-    # material parameters / history variables
-    F_old = hist[0]
-    b_e_old = hist[1]
-
-    ## 9.3.16 relative deformation gradient
     '''
     ka_ = la_ + (2 / 3) * mu_
-    f_ = F @ np.linalg.inv(F_old)
+    f_ = F_np1 @ np.linalg.inv(F_n)
     '''
     ka_ = lam + (2 / 3) * mu
-    f_ = F * ufl.inv(F_old) ## 9.3.16 relative deformation gradient 
+    f_ = F_np1 * ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
     
 
     # 2. elastic predictor
     '''
     f_stroke = np.linalg.det(f_) ** (-1 / 3) * f_
-    b_e_tr = f_stroke @ b_e_old @ f_stroke.T
+    b_e_tr = f_stroke @ b_e_n @ f_stroke.T
     s_tr = mu_ * deviator_tensor(b_e_tr)
-    F_inv = np.linalg.inv(F)
+    F_inv = np.linalg.inv(F_np1)
     '''
     f_stroke = ufl.det(f_) ** (-1 / 3) * f_
-    b_e_tr = f_stroke * b_e_old * f_stroke.T
+    b_e_tr = f_stroke * b_e_n * f_stroke.T
     s_tr = mu * ufl.dev(b_e_tr)
-    F_inv = ufl.inv(F)
+    F_inv = ufl.inv(F_np1)
 
     # 3. check for plastic loading
     '''
     f_tr = np.linalg.norm(s_tr) - np.sqrt(2 / 3) * (K * alpha_old + sigma_y)
     '''
-    f_tr = ufl_norm(s_tr) - np.sqrt(2 / 3) * (hard * alpha_n + sig_y)
+    f_tr = f_tr_plast(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu)
     
     # 4. return mapping algorithm
     '''
@@ -674,25 +758,38 @@ def piola_kirchhoff_2_plasticity(u,hist,alpha_n,sig_y,hard,lam,mu):
     mu_stroke = I_e * mu
     delta_gamma = (f_tr / (2 * mu_stroke)) / (1 + (hard / (3 * mu_stroke)))
 
-    n_tr = ufl.conditional(ufl.le(f_tr,0.0),s_tr / (ufl_norm(s_tr) + 1*(10**(-8))), s_tr / ufl_norm(s_tr))
+    norm_s_tr = ufl.conditional(ufl.lt(ufl_norm(s_tr), 1000.0*np.finfo(np.float64).resolution), 1000.0*np.finfo(np.float64).resolution, ufl_norm(s_tr))
+
+    n_tr = s_tr / norm_s_tr
     s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2 * mu_stroke * delta_gamma * n_tr)
     # s_n converged stresses
-    b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_old,s_np1 / mu + I_e * I_ten) ## 9.3.33 elastic constitutive equation and 9.2.8
+    #b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_n,s_np1 / mu + I_e * I_ten) ## 9.3.33 elastic constitutive equation and 9.2.8
+    # update in history updates machen!
     ## elastic left Cauchy–Green Tensor b_e 
 
     # 5. elastic mean stress
-    J_ = ufl.det(F)
+    J_ = ufl.det(F_np1)
     p_ = (ka_ / 2) * (J_ ** 2 - 1) / J_
     tau_ten = J_ * p_ * I_ten + s_np1 ## uncoupled deviatoric stress-strain relationship 9.2.6
     S_ten = F_inv*tau_ten*F_inv.T
 
-    # hist variables
-    hist_new = hist.copy()
-    hist_new[0] = F
-    hist_new[1] = b_e_np1
+    return S_ten
 
-    return S_ten, hist_new
+def update_history_variables(u,b_e_n,b_e_n_tmp,F_n,
+                           alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
+    
+    alpha_tmp.x.array[:] = alpha_n.x.array[:]
+    alpha_expr = update_alpha2(u,b_e_n,F_n,alpha_n,sig_y,hard,mu)
+    alpha_n.x.array[:] = interpolate_quadrature(domain, cells, quadrature_points,alpha_expr)
 
+    b_e_expr = update_b_e(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu)
+    expr = dlfx.fem.Expression(b_e_expr, quadrature_points)
+    b_e_n_tmp.x.array[:] = b_e_n.x.array[:]
+    b_e_n.x.array[:] = expr.eval(domain, cells).flatten()
+
+    I_ten = ufl.Identity(3)
+    F_expr = dlfx.fem.Expression(I_ten + ufl.grad(u), quadrature_points)
+    F_n.x.array[:] = F_expr.eval(domain, cells).flatten()
 
 
 def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
@@ -902,13 +999,15 @@ class Plasticity_incremental_3D:
         Pi = dlfx.fem.assemble_scalar(dlfx.fem.form(self.psiel(u,lam,mu) * dx))
         return comm.allreduce(Pi,MPI.SUM)
 
-class Plasticity_large_deformation_3D:
+class Large_deformation_3D:
     # Constructor method
     def __init__(self, 
                        sig_y: any,
                        hard: any,
                        alpha_n: any,
-                       e_p_n: any,
+                       alpha_tmp: any,
+                       F_n: any,
+                       b_e_n: any,
                        H: any,
                        dx: any = ufl.dx,
                  ):
@@ -918,32 +1017,32 @@ class Plasticity_large_deformation_3D:
         self.dx = dx
         self.sig_y = sig_y
         self.hard = hard
-        self.e_p_n = e_p_n
+        self.b_e_n = b_e_n
         self.alpha_n = alpha_n
+        self.alpha_tmp = alpha_tmp
+        self.F_n = F_n
         self.H = H
-        self.hist = [ufl.Identity(3),ufl.Identity(3)]
         
         
     def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
-        def residuum(u: any, du: any,  um1:any):
+        def residuum(u: any, du: any, ddu:any, um1:any):
             I_ten = ufl.Identity(3)
-            F = I_ten + ufl.grad(u)
+            F_np1 = I_ten + ufl.grad(u)
 
-            delta_u = u - um1
-            t1 = self.S_pk(u,lam,mu) # 2nd Piola Kirchhoff
-            t2 = 0.5 * (ufl.grad(du).T * F + F.T * ufl.grad(du))# Variation von Green-Lagrange Verzerrungstensor
+            #delta_u = u - um1
+            S = self.S(u,lam,mu) # 2nd Piola Kirchhoff
+            E_var = 0.5 * (ufl.grad(du).T * F_np1 + F_np1.T * ufl.grad(du)) # Variation von Green-Lagrange Verzerrungstensor
+            Res =  ufl.inner(S, E_var)*self.dx
+            #H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)
 
-            equi =  ufl.inner(t1, t2)*self.dx
-            H_np1 = self.update_H(u,delta_u=delta_u,lam=lam,mu=mu)
-            
-            Res = equi
-            return [ Res, None]
-        return residuum(u,du,um1)
+            J = ufl.derivative(Res, u, ddu) # more accurate Jacobian
+
+            return [Res, J]
+        return residuum(u,du,ddu,um1)
     
-    def S_pk(self, u,lam,mu):
-        S_pk, hist_new = piola_kirchhoff_2_plasticity(u,hist=self.hist,alpha_n=self.alpha_n,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
-        self.hist = hist_new
-        return S_pk
+    def S(self,u,lam,mu):
+        S = piola_kirchhoff_2_plasticity(u,b_e_n=self.b_e_n,F_n=self.F_n,alpha_tmp=self.alpha_tmp,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)
+        return S
     
     def eps(self,u):
         return ufl.sym(ufl.grad(u)) #0.5*(ufl.grad(u) + ufl.grad(u).T)
@@ -957,8 +1056,8 @@ class Plasticity_large_deformation_3D:
     def update_H(self, u, delta_u,lam,mu):
         u_n = u-delta_u
         delta_eps = 0.5*(ufl.grad(delta_u) + ufl.grad(delta_u).T)
-        W_np1 = ufl.inner(self.S_pk(u=u,lam=lam,mu=mu), delta_eps )
-        W_n = ufl.inner(self.S_pk(u=u_n,lam=lam,mu=mu), delta_eps )
+        W_np1 = ufl.inner(self.S(u=u,lam=lam,mu=mu), delta_eps )
+        W_n = ufl.inner(self.S(u=u_n,lam=lam,mu=mu), delta_eps )
         H_np1 = ( self.H + 0.5 * (W_n+W_np1))
         return H_np1
     
