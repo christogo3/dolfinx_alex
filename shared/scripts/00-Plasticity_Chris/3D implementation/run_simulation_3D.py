@@ -31,11 +31,11 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
-N = 5
+N = 10
 # import or create geometry
 #domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
-deg_quad = 2  # quadrature degree for internal state variable representation
+deg_quad = 1  # quadrature degree for internal state variable representation
 
 
 def mesh_box_select(x_range,y_range,z_range,domain,dim):
@@ -187,9 +187,9 @@ def all(x):
 def get_bcs(t):
     
     if t<= 1: 
-        u_y_val = t
+        u_y_val = t/10
     else: 
-        u_y_val = 1 - (t-1)
+        u_y_val = t/10 #1 - (t-1)
 
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
@@ -218,22 +218,6 @@ TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
 S0 = dlfx.fem.functionspace(domain, S0e)
 
-def sigma_problem(TEN,dx,sigma,deg_quad):
-    # Integral(sigma_interpolated * v) = Integral(sigma * v)
-    u_ten = ufl.TrialFunction(TEN)
-    v_ten = ufl.TestFunction(TEN)
-    
-    a_proj = ufl.inner(u_ten, v_ten) * dx
-
-    L_proj = ufl.inner(sigma, v_ten) * dx(metadata={"quadrature_degree": deg_quad})
-
-    problem = dlfx.fem.petsc.LinearProblem(a_proj, L_proj, 
-                                           petsc_options={"ksp_type": "preonly", 
-                                                          "pc_type": "jacobi"})
-    
-    return problem
-
-
 def after_timestep_success(t,dt,iters):
     
     delta_u = u - um1  
@@ -246,13 +230,13 @@ def after_timestep_success(t,dt,iters):
 
     sigma = plasticityProblem.sigma(u,la,mu,mode='3d')
 
-    problem = sigma_problem(TEN,ufl.dx,sigma,deg_quad)
+    problem = alex.plasticity.linear_problem(TEN,dx,sigma,deg_quad)
 
     sigma_interpolated = problem.solve()
     sigma_interpolated.name = "sigma"
     
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
-    Rx_top, Ry_top, Rz_top = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    _, Ry_top, _ = pp.reaction_force(sigma_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
 
     dW = pp.work_increment_external_forces(sigma_interpolated,u,um1,n,ds,comm=comm)
@@ -266,9 +250,9 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         if (t>1):
-            u_y = 1.0-(t-1.0)
+            u_y = t/10 #1.0-(t-1.0)
         else:
-            u_y = t
+            u_y = t/10
         # ----------------------------------------------------------------------------------------------------------------------------------------
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y)     # Arbitrary scaling factor introduced!!!!
         # ----------------------------------------------------------------------------------------------------------------------------------------
@@ -301,7 +285,7 @@ def after_last_timestep():
         sol.print_runtime(runtime)
         sol.write_runtime_to_newton_logfile(logfile_path,runtime)
         pp.print_graphs_plot(outputfile_graph_path,script_path,legend_labels=[ "R_y", "u_y"])
-        
+
 
 sol.solve_with_newton_adaptive_time_stepping(
     domain,

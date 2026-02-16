@@ -578,11 +578,11 @@ def f_tr_plast(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu):
     I_ten = ufl.Identity(3)
     F_np1 = I_ten + ufl.grad(u)
 
-    f_ = F_np1 * ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
+    f_np1 = F_np1 #* ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
     
     # 2. elastic predictor
-    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
-    b_e_tr = f_stroke * b_e_n * f_stroke.T
+    f_stroke = ufl.det(f_np1) ** (-1 / 3) * f_np1
+    b_e_tr = ufl.dot(f_stroke, ufl.dot(b_e_n, f_stroke.T))
     s_tr = mu * ufl.dev(b_e_tr)
 
     # 3. check for plastic loading
@@ -670,7 +670,7 @@ def update_b_e(u,b_e_n,F_n,alpha_tmp,sig_y,hard,mu):
 
     s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2 * mu_stroke * delta_gamma * n_tr)
 
-    b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_n,s_np1 / mu + I_e * I_ten)
+    b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_n,(s_np1 / mu) + I_e * I_ten)
     return b_e_np1
 
 
@@ -714,8 +714,8 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     ka_ = la_ + (2 / 3) * mu_
     f_ = F_np1 @ np.linalg.inv(F_n)
     '''
-    ka_ = lam + (2 / 3) * mu
-    f_ = F_np1 * ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
+    kappa = lam + (2 / 3) * mu
+    f_np1 = F_np1 #* ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
     
 
     # 2. elastic predictor
@@ -725,8 +725,8 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     s_tr = mu_ * deviator_tensor(b_e_tr)
     F_inv = np.linalg.inv(F_np1)
     '''
-    f_stroke = ufl.det(f_) ** (-1 / 3) * f_
-    b_e_tr = f_stroke * b_e_n * f_stroke.T
+    f_stroke = ufl.det(f_np1) ** (-1 / 3) * f_np1
+    b_e_tr = ufl.dot(f_stroke, ufl.dot(b_e_n, f_stroke.T))
     s_tr = mu * ufl.dev(b_e_tr)
     F_inv = ufl.inv(F_np1)
 
@@ -768,12 +768,15 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     ## elastic left Cauchy–Green Tensor b_e 
 
     # 5. elastic mean stress
-    J_ = ufl.det(F_np1)
-    p_ = (ka_ / 2) * (J_ ** 2 - 1) / J_
-    tau_ten = J_ * p_ * I_ten + s_np1 ## uncoupled deviatoric stress-strain relationship 9.2.6
-    S_ten = F_inv*tau_ten*F_inv.T
+    J_np1 = ufl.det(F_np1)
+    p_np1 = (kappa / 2) * (J_np1 ** 2 - 1) / J_np1 ## 9.2.6
+    tau_np1 = J_np1 * p_np1 * I_ten + s_np1 ## uncoupled deviatoric stress-strain relationship 9.2.6
+    S_np1 = ufl.dot(F_inv,  ufl.dot(tau_np1, F_inv.T)) # tau is symmetric so it doesnt need to be transposed, J is already part of tau
+    
+    #E = 1/2 * (F_np1.T*F_np1 - I_ten)
+    #S_tmp = lam*I_ten*ufl.tr(E)+2*mu*E
 
-    return S_ten
+    return S_np1
 
 def update_history_variables(u,b_e_n,b_e_n_tmp,F_n,
                            alpha_tmp,alpha_n,domain,cells,quadrature_points,sig_y,hard,mu):
@@ -804,7 +807,6 @@ def update_e_p_n_and_alpha_arrays_tensorial(u,e_p_n,e_p_n_tmp,
 
     expr = dlfx.fem.Expression(e_p_np1_expr, quadrature_points)
     e_p_n.x.array[:] = expr.eval(domain, cells).flatten()
-
 
 def update_e_p_n_and_alpha_arrays(u,e_p_11_n_tmp,e_p_22_n_tmp,e_p_12_n_tmp,e_p_33_n_tmp,
                            e_p_11_n,e_p_22_n,e_p_12_n,e_p_33_n,

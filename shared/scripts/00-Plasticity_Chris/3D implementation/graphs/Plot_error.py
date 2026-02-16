@@ -6,8 +6,8 @@ script_path = os.path.dirname(__file__)
 
 # Input files
 
-path1 = '/home/scripts/053-plasticity-without-fracture/3D implementation/graphs/graphs_mesh_q1.txt'
-path2 = '/home/scripts/053-plasticity-without-fracture/3D implementation/graphs/graphs_mesh_q2.txt'
+path1 = '/home/scripts/00-Plasticity_Chris/3D implementation/run_simulation_3D_graphs.txt'
+path2 = '/home/scripts/00-Plasticity_Chris/3D implementation/run_simulation_large_deformation_graphs.txt'
 label_list = ['hex q=1', 'hex q=2', 'tet q=1', 'tet q=2']
 name_list = ['graphs_hex_q1.txt',
              'graphs_hex_q2.txt',
@@ -20,6 +20,7 @@ name_componentwise = ['graphs_component_hex_q1.txt',
 
 save_path = script_path
 # Formatting: Time u_y R_y
+
 
 def read_data(filename):
     """
@@ -153,6 +154,6 @@ def stress_strain_multiplot(path_list, label_list, title, filename, print_refere
     plt.savefig(save_path + f'/stress_strain_multiplot_{filename}')
 
 
-#stress_strain_multiplot(name_list, label_list, 'Stress-Strain Relation', 'ref', print_reference=True)
-plot_error(path1, path2,title='R_y error mesh with tetraeder elements at q=1 and q=2', filename='mesh_q1_q2')
+stress_strain_multiplot([path1,path2], ["normal","large deformation"], 'Stress-Strain Relation', 'ref', print_reference=True)
+plot_error(path1, path2,title='R_y error for small and large deformations', filename='large_defo_comparison')
 #error_multiplot(name_list,label_list,title='Reaction force error realtive to hex q=1',filename='1', plot_force=True)

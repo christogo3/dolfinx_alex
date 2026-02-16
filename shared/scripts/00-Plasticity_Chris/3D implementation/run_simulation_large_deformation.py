@@ -3,7 +3,7 @@ import os
 import numpy as np
 import ufl
 #import dolfinx.fem as fem
-import basix
+#import basix
 
 import alex.os
 import alex.boundaryconditions as bc
@@ -12,7 +12,6 @@ import alex.solution as sol
 
 import alex.plasticity
 
-Ry_scaling = 1
 
 data_path = '/home/resources/AluSchaum_8x_dolfinx.xdmf'
 script_path = os.path.dirname(__file__)
@@ -31,7 +30,7 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
-N = 5
+N = 10
 # import or create geometry
 #domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
@@ -167,9 +166,9 @@ atol=0 # (x_max_all-x_min_all)*0.05 # for selection of boundary
 def get_bcs(t):
     
     if t<= 1: 
-        u_y_val = t
+        u_y_val = t/10
     else: 
-        u_y_val = 1 - (t-1)
+        u_y_val = t/10 #1 - (t-1)
 
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
@@ -209,12 +208,12 @@ def after_timestep_success(t,dt,iters):
     S = plasticityProblem.S(u,la,mu)
 
     problem = alex.plasticity.linear_problem(TEN,dx,S,deg_quad)
-
     S_interpolated = problem.solve()
     S_interpolated.name = "sigma"
 
+    P = F_n*S_interpolated # First piola kirchhoff strain tensor
     #pp.write_tensor_fields(domain,comm,[sigma],["sigma"],outputfile_xdmf_path,t)
-    Rx_top, Ry_top, Rz_top = pp.reaction_force(S_interpolated,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
+    _,Ry_top,_ = pp.reaction_force(P,n=n,ds=ds_top_tagged(top_surface_tag),comm=comm)
     
 
     dW = pp.work_increment_external_forces(S_interpolated,u,um1,n,ds,comm=comm)
@@ -228,10 +227,10 @@ def after_timestep_success(t,dt,iters):
     
     if rank == 0:
         if (t>1):
-            u_y = 1.0-(t-1.0)
+            u_y = t/10 #1.0-(t-1.0)
         else:
-            u_y = t
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y) # Arbitrary scaling factor Ry_scaling
+            u_y = t/10
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
 
 
     # update
