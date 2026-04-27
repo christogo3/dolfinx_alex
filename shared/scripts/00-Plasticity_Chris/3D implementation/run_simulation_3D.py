@@ -14,7 +14,7 @@ import alex.plasticity
 
 Ry_scaling = 1
 
-data_path = '/home/resources/AluSchaum_8x_dolfinx.xdmf'
+data_path = '/home/resources/Nanomesh.xdmf'
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
 logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
@@ -33,8 +33,8 @@ if rank == 0:
 
 N = 10
 # import or create geometry
-#domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
-domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
+domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
+#domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
 deg_quad = 1  # quadrature degree for internal state variable representation
 
 
@@ -101,7 +101,7 @@ dt_max_in_critical_area = dt_start
 dt_global = dlfx.fem.Constant(domain, dt_start)
 t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
-Tend = 3.0
+Tend = 2.5 #3.0
 dt_global.value = dt_max_in_critical_area
 dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
@@ -187,9 +187,9 @@ def all(x):
 def get_bcs(t):
     
     if t<= 1: 
-        u_y_val = t/10
+        u_y_val = t/2
     else: 
-        u_y_val = t/10 #1 - (t-1)
+        u_y_val = (1 - (t-1))/2
 
     bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
     bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
@@ -249,10 +249,10 @@ def after_timestep_success(t,dt,iters):
     
     
     if rank == 0:
-        if (t>1):
-            u_y = t/10 #1.0-(t-1.0)
-        else:
-            u_y = t/10
+        if t<= 1: 
+            u_y = t/2
+        else: 
+            u_y = (1 - (t-1))/2
         # ----------------------------------------------------------------------------------------------------------------------------------------
         pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y)     # Arbitrary scaling factor introduced!!!!
         # ----------------------------------------------------------------------------------------------------------------------------------------

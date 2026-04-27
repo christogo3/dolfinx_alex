@@ -7,16 +7,16 @@ script_path = os.path.dirname(__file__)
 # Input files
 
 path1 = '/home/scripts/00-Plasticity_Chris/3D implementation/run_simulation_3D_graphs.txt'
-path2 = '/home/scripts/00-Plasticity_Chris/3D implementation/run_simulation_large_deformation_graphs.txt'
+path2 = '/home/scripts/00-Plasticity_Chris/Large deformations/run_simulation_large_deformation_graphs.txt'
 label_list = ['hex q=1', 'hex q=2', 'tet q=1', 'tet q=2']
-name_list = ['graphs_hex_q1.txt',
+'''name_list = ['graphs_hex_q1.txt',
              'graphs_hex_q2.txt',
              'graphs_tet_q1.txt',
              'graphs_tet_q1.txt']
 name_componentwise = ['graphs_component_hex_q1.txt',
                       'graphs_component_hex_q2.txt',
                       'graphs_component_tet_q1.txt',
-                      'graphs_component_tet_q2.txt']
+                      'graphs_component_tet_q2.txt']'''
 
 save_path = script_path
 # Formatting: Time u_y R_y
@@ -53,9 +53,10 @@ def multi_read_data(name_list):
         R_y_list.append(data[:,1])
     return R_y_list # Return first column as x, second as y
 
-def plot_error(path1, path2, title, filename):
+def plot_error(path1, path2, title, filename, correction=1):
     """
     Plot the absolute error of the reaction force in path2 with respect to path1
+    Correction is applied to data in path 2
     """
 
     u_y_1, R_y_1, t = read_data(path1)
@@ -64,7 +65,7 @@ def plot_error(path1, path2, title, filename):
     Error_List = []
     for i, _ in enumerate(R_y_1):
 
-        Error = abs(R_y_1[i]-R_y_2[i])
+        Error = abs(R_y_1[i]-R_y_2[i]*correction)
         Error_List.append(Error)
     
     plt.figure(filename)
@@ -110,7 +111,7 @@ def error_multiplot(path_list, label_list, title, filename, plot_force=False):
     plt.legend()
     plt.savefig(save_path + f'/error_multiplot_{filename}')
 
-def stress_strain_multiplot(path_list, label_list, title, filename, print_reference=False):
+def stress_strain_multiplot(path_list, label_list, title, filename, print_reference=False, scaling=False):
     """
     Plot the Force-Displacement (or Stress-Strain) diagram of all datasets from a list for comparison.
     """
@@ -118,7 +119,9 @@ def stress_strain_multiplot(path_list, label_list, title, filename, print_refere
     plt.figure(filename)
     
     for i, _ in enumerate(path_list):
-        u_y, R_y, t = read_data(path_list[i])
+        u_y, R_y, _ = read_data(path_list[i])
+        if scaling == True:
+            R_y = R_y/np.max(R_y)
 
         plt.plot(u_y,R_y, label=label_list[i]) # alpha=0.7
 
@@ -154,6 +157,8 @@ def stress_strain_multiplot(path_list, label_list, title, filename, print_refere
     plt.savefig(save_path + f'/stress_strain_multiplot_{filename}')
 
 
-stress_strain_multiplot([path1,path2], ["normal","large deformation"], 'Stress-Strain Relation', 'ref', print_reference=True)
-plot_error(path1, path2,title='R_y error for small and large deformations', filename='large_defo_comparison')
-#error_multiplot(name_list,label_list,title='Reaction force error realtive to hex q=1',filename='1', plot_force=True)
+
+
+stress_strain_multiplot([path1, path2], ["small deformation","large deformation"], 'Stress-Strain Relation Nanomesh', 'nanomesh', print_reference=True)
+#plot_error(path1, path2,title='R_y error for small and large deformations', filename='large_defo_comparison',correction=(1.5026e-02)/(8.4034e-01))
+#error_multiplot([path2, path1],["large deformation","small deformation"],title='Reaction force for nanomesh foam',filename='large_defo_comparison', plot_force=True)

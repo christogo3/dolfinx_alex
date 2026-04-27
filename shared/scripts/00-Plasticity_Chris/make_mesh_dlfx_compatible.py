@@ -19,8 +19,8 @@ comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
 
 mesh_files = []
-input_file = '/home/resources/AluSchaum_8x_dolfinx.xdmf' #/home/resources/AluSchaum_4x_dolfinx.xdmf
-output_file = '/home/scripts/053-plasticity-without-fracture/meshes/AluSchaum_8x_dolfinx.xdmf'
+input_file = '/home/resources/nanomesh.vtk' #/home/resources/AluSchaum_4x_dolfinx.xdmf
+output_file = '/home/resources/Nanomesh.xdmf'
 
 
 # --- Process mesh files ---
@@ -33,9 +33,10 @@ if rank == 0:
     points = copy.deepcopy(points_tmp)
     points[:, 0] = points_tmp[:, 0]
     points[:, 1] = points_tmp[:, 1]
+    points = points.astype(np.float64)
 
     # Filter active tetrahedral cells
-    tetra_cells = meshio_data.cells_dict.get("tetra")
+    tetra_cells = meshio_data.cells_dict.get("tetra").astype(np.int32)
 else:
     points = None
     active_cells = None
