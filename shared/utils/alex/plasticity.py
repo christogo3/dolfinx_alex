@@ -120,7 +120,6 @@ def define_internal_state_variables_basix(gdim, domain, deg_quad, quad_scheme):
     
     return beta
 
-
 def define_internal_state_variables_basix_b(gdim, domain, deg_quad, quad_scheme):  
     W0e = basix.ufl.quadrature_element(
     domain.basix_cell(), value_shape=(), scheme="default", degree=deg_quad
@@ -196,9 +195,9 @@ def define_internal_state_variables_basix_d(gdim, domain, deg_quad, quad_scheme)
     b_e_n_tmp = fem.Function(V_3d,name='b_e_n_tmp')
     F_n = fem.Function(V_3d,name='F_n')
 
-
     num_points = len(F_n.x.array) // 9
     I_33 = np.eye(3).flatten()
+    
     # Initialize arrays
     H.x.array[:] = np.zeros_like(H.x.array[:])
     alpha.x.array[:] = np.zeros_like(alpha.x.array[:])
@@ -1026,8 +1025,8 @@ class Large_deformation_3D:
         self.H = H
         
         
-    def prep_newton(self, u: any, um1: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
-        def residuum(u: any, du: any, ddu:any, um1:any):
+    def prep_newton(self, u: any, du: ufl.TestFunction, ddu: ufl.TrialFunction, lam: dlfx.fem.Function, mu: dlfx.fem.Function):
+        def residuum(u: any, du: any, ddu:any):
             I_ten = ufl.Identity(3)
             F_np1 = I_ten + ufl.grad(u)
 
@@ -1040,7 +1039,7 @@ class Large_deformation_3D:
             J = ufl.derivative(Res, u, ddu) # more accurate Jacobian
 
             return [Res, J]
-        return residuum(u,du,ddu,um1)
+        return residuum(u,du,ddu)
     
     def S(self,u,lam,mu):
         S = piola_kirchhoff_2_plasticity(u,b_e_n=self.b_e_n,F_n=self.F_n,alpha_tmp=self.alpha_tmp,sig_y=self.sig_y,hard=self.hard,lam=lam,mu=mu)

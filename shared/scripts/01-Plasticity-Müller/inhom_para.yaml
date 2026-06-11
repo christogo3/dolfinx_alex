@@ -1,0 +1,21 @@
+geometry:
+  cx: 0.0
+  cy: 0.0
+  r: 0.2
+  h_size: 0.1
+fem:
+  eps0_1: 0.02
+  eps0_2: 0.00
+  element_degree: 1
+  load_steps_1: 1
+  load_steps_2: 1
+material_matrix:
+  Emod: 10000.0
+  nu: 0.3
+  sigY: 100.0
+  Hmod: 1000.0
+material_inclusion:
+  Emod: 10000.0 # 50000.0
+  nu: 0.3
+  sigY: 10000.0 # 100000.0 
+  Hmod: 1000.0 # 50000.0
