@@ -447,6 +447,7 @@ simulation_*
 *.npy
 *.zip
 */resources/*
+*.json
 
 *.err.*
 *.out.*

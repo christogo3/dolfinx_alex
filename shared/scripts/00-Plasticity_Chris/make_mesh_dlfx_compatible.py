@@ -2,10 +2,10 @@ import dolfinx as dlfx
 from mpi4py import MPI
 import meshio
 import numpy as np
-import os
+#import os
 import ufl 
 import copy
-import argparse
+#import argparse
 
 # ========== USER CONFIGURATION ==========
 output_subfolder_name = "meshes"

@@ -72,7 +72,19 @@ def define_dirichlet_bc_from_value(domain: dlfx.mesh.Mesh,
                                                          coordinate_idx,
                                                          where_function: Callable,
                                                          functionSpace: dlfx.fem.FunctionSpace,
-                                                         subspace_idx: int) -> dlfx.fem.DirichletBC:
+                                                         subspace_idx = -1) -> dlfx.fem.DirichletBC:
+    '''
+    Set dirichlet boundary conditions
+    Parameters:
+        domain(dlfx.mesh.Mesh): Mesh on which boundary conditions are defined
+        desired_value_at_boundary(float): Value of the prescribed deformation
+        coordinate_idx(int): Direction in which the BC applies - x-axis 0, y-axis 1, z-axis 2
+        where_function(Any): Marker function to select specific points
+        functionSpace(dlfx.fem.FunctionSpace): Space within which the mesh lies
+        subspace_idx(int): Criterium for phase field mixed function space
+
+
+    '''
     fdim = domain.topology.dim-1
     facets_at_boundary = dlfx.mesh.locate_entities_boundary(domain, fdim, where_function)
     if subspace_idx < 0: # not a phase field mixed function space
@@ -80,6 +92,7 @@ def define_dirichlet_bc_from_value(domain: dlfx.mesh.Mesh,
     else:
         space = functionSpace.sub(subspace_idx).sub(coordinate_idx)
     dofs_at_boundary = dlfx.fem.locate_dofs_topological(space, fdim, facets_at_boundary)
+    #dofs_at_boundary = dlfx.fem.locate_dofs_geometrical(space, where_function)
     bc = dlfx.fem.dirichletbc(desired_value_at_boundary,dofs_at_boundary,space)
     return bc
 
@@ -234,7 +247,7 @@ def dont_get_boundary_of_box_as_function(
 
 
 def get_frontback_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, _, _, z_min_all, z_max_all = get_dimensions(domain, comm)
     def boundary(x):
         # Only 3D
         zmin = close_func(x[2],z_min_all,atol=atol)
@@ -244,7 +257,7 @@ def get_frontback_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.
     return boundary
 
 def get_front_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, _, _, _, z_max_all = get_dimensions(domain, comm)
     def boundary(x):
         zmax = close_func(x[2],z_max_all,atol=atol)
         boundaries = [zmax]
@@ -252,7 +265,7 @@ def get_front_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Inte
     return boundary
 
 def get_back_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, _, _, z_min_all, _ = get_dimensions(domain, comm)
     def boundary(x):
         zmin = close_func(x[2],z_min_all,atol=atol)
         boundaries = [zmin]
@@ -260,7 +273,7 @@ def get_back_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Inter
     return boundary
 
 def get_top_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, _, y_max_all, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         ymax = close_func(x[1],y_max_all,atol=atol)
         boundaries = [ymax]
@@ -268,7 +281,7 @@ def get_top_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Interc
     return boundary
 
 def get_x_range_at_top_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, x_range_width, x_range_center, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, _, y_max_all, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         ymax = close_func(x[1],y_max_all,atol=atol)
         x_range = close_func(x[0],x_range_center,atol=x_range_width/2.0)
@@ -276,7 +289,7 @@ def get_x_range_at_top_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Inte
     return boundary
 
 def get_x_range_at_bottom_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, x_range_width, x_range_center, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, y_min_all, _, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         ymin = close_func(x[1],y_min_all,atol=atol)
         x_range = close_func(x[0],x_range_center,atol=x_range_width/2.0)
@@ -284,7 +297,7 @@ def get_x_range_at_bottom_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.I
     return boundary
 
 def get_left_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    x_min_all, _, _, _, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         xmin = close_func(x[0],x_min_all,atol=atol)
         boundaries = [xmin]
@@ -292,7 +305,7 @@ def get_left_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Inter
     return boundary
 
 def get_right_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, x_max_all, _, _, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         xmax = close_func(x[0],x_max_all,atol=atol)
         boundaries = [xmax]
@@ -300,7 +313,7 @@ def get_right_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Inte
     return boundary
 
 def get_bottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, y_min_all, _, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         ymin = close_func(x[1],y_min_all,atol=atol)
         boundaries = [ymin]
@@ -308,7 +321,7 @@ def get_bottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Int
     return boundary
 
 def get_topbottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    _, _, y_min_all, y_max_all, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         ymin = close_func(x[1],y_min_all,atol=atol)
         ymax = close_func(x[1],y_max_all,atol=atol)
@@ -317,7 +330,7 @@ def get_topbottom_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.
     return boundary
 
 def get_leftright_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    x_min_all, x_max_all, _, _, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         xmin = close_func(x[0],x_min_all,atol=atol)
         xmax = close_func(x[0],x_max_all,atol=atol)
@@ -326,7 +339,7 @@ def get_leftright_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.
     return boundary
 
 def get_leftrighttop_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None, epsilon: float = 0.0) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    x_min_all, x_max_all, y_min_all, y_max_all, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         xmin = close_func(x[0],x_min_all,atol=atol)
         xmax = close_func(x[0],x_max_all,atol=atol)
@@ -339,7 +352,7 @@ def get_leftrighttop_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: M
 
 
 def get_2D_boundary_of_box_as_function(domain: dlfx.mesh.Mesh, comm: MPI.Intercomm, atol: float=None, epsilon: float = 0.0) -> Callable:
-    x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all = get_dimensions(domain, comm)
+    x_min_all, x_max_all, y_min_all, y_max_all, _, _ = get_dimensions(domain, comm)
     def boundary(x):
         xmin = close_func(x[0],x_min_all,atol=atol)
         xmax = close_func(x[0],x_max_all,atol=atol)

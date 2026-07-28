@@ -705,7 +705,7 @@ def deviator_tensor(x):
     return y
 
 def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
-    # Determine deformation gradient
+    # 1. deformation gradient
     I_ten = ufl.Identity(3)
     F_np1 = I_ten + ufl.grad(u)
 
@@ -716,7 +716,6 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     kappa = lam + (2 / 3) * mu
     f_np1 = F_np1 #* ufl.inv(F_n) ## 9.3.16 relative deformation gradient 
     
-
     # 2. elastic predictor
     '''
     f_stroke = np.linalg.det(f_) ** (-1 / 3) * f_
@@ -762,8 +761,6 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     n_tr = s_tr / norm_s_tr
     s_np1 = ufl.conditional(ufl.le(f_tr,0.0),s_tr,s_tr - 2 * mu_stroke * delta_gamma * n_tr)
     # s_n converged stresses
-    #b_e_np1 = ufl.conditional(ufl.le(f_tr,0.0),b_e_n,s_np1 / mu + I_e * I_ten) ## 9.3.33 elastic constitutive equation and 9.2.8
-    # update in history updates machen!
     ## elastic left Cauchy–Green Tensor b_e 
 
     # 5. elastic mean stress
@@ -772,9 +769,6 @@ def piola_kirchhoff_2_plasticity(u,b_e_n,F_n,alpha_tmp,sig_y,hard,lam,mu):
     tau_np1 = J_np1 * p_np1 * I_ten + s_np1 ## uncoupled deviatoric stress-strain relationship 9.2.6
     S_np1 = ufl.dot(F_inv,  ufl.dot(tau_np1, F_inv.T)) # tau is symmetric so it doesnt need to be transposed, J is already part of tau
     
-    #E = 1/2 * (F_np1.T*F_np1 - I_ten)
-    #S_tmp = lam*I_ten*ufl.tr(E)+2*mu*E
-
     return S_np1
 
 def update_history_variables(u,b_e_n,b_e_n_tmp,F_n,

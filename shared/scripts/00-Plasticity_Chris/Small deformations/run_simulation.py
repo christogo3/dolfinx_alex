@@ -12,16 +12,16 @@ import alex.solution as sol
 
 import alex.plasticity
 
-Ry_scaling = 1
+# ------------------------------ Set Paths & MPI Environment ------------------------------
 
-data_path = '/home/resources/Nanomesh.xdmf'
+data_path = ''#'/home/resources/Nanomesh.xdmf'
+
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-
-outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
-outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
-parameter_path = os.path.join(script_path,"parameters.txt")
+logfile_path = os.path.join(script_path,"results_data.txt") #alex.os.logfile_full_path(script_path,script_name_without_extension)
+outputfile_graph_path = os.path.join(script_path,"results_data.txt") #alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
+outputfile_xdmf_path = os.path.join(script_path,"results.xdmf") #alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+#parameter_path = os.path.join(script_path,"parameters.txt")
 
 # set MPI environment
 comm, rank, size = alex.os.set_mpi()
@@ -31,27 +31,32 @@ if rank == 0:
     alex.util.print_dolfinx_version()
 
 
-N = 10
-# import or create geometry
-domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
-#domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
+# ------------------------------ Import or generate geometry ------------------------------
+
+if data_path == '':
+    N = 10
+    domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
+else:
+    domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
+
 deg_quad = 1  # quadrature degree for internal state variable representation
 
-
-def mesh_box_select(x_range,y_range,z_range,domain,dim):
-    """Select a smaller subset of a mesh to reduce simulation times
+# OPTIONAL: select submesh
+def mesh_box_select(x_range,y_range,z_range,domain):
+    """Select a smaller subset of a 3D mesh to reduce simulation times \\
     WARNING: This will result in jagged boundaries, an appropriate tolerance should be implemented for boundary conditions
 
     Args:
         x_range, y_range, z_range (tuple of int): Tuple of upper and lower bound on respective axis
-        domain: Full domain on which a subset is to be selected
-        dim: Topological dimension of the mesh entities to consider.
+        domain: Full mesh on which a subset is to be selected
         
     Returns: 
-        Subdomain within selected box
+        sub_domain: Subdmesh within selected box
 
     """
 
+    dim = 3
+    
     # define a smaller bounding box to simulate
     x_min, x_max = x_range
     y_min, y_max = y_range
@@ -78,10 +83,9 @@ def mesh_box_select(x_range,y_range,z_range,domain,dim):
     cell_tags = dlfx.mesh.meshtags(domain, dim, cells_in_subset, values)
 
     # Generate a submesh based on the bounding box, and select it as the domain
-    sub_domain, entity_map, vertex_map, geom_map = dlfx.mesh.create_submesh(domain, dim, cell_tags.find(marker_value))
+    sub_domain, _, _, _ = dlfx.mesh.create_submesh(domain, dim, cell_tags.find(marker_value))
 
     return sub_domain
-
 dim = domain.topology.dim
 alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
 
@@ -90,32 +94,40 @@ if rank == 0:
     pp.print_bounding_box(rank, x_min_all, x_max_all, y_min_all, y_max_all, z_min_all, z_max_all)
 
 
+'''
+# Implementation example:
 x_range = (x_min_all,x_max_all/2)
 y_range = (y_min_all,y_max_all/2)
 z_range = (z_min_all,z_max_all/2)
-#mesh = mesh_box_select(x_range,y_range,z_range,domain,dim)
+mesh = mesh_box_select(x_range,y_range,z_range,domain)'''
 
-# Simulation parameters ####
-dt_start = 0.01 
-dt_max_in_critical_area = dt_start
-dt_global = dlfx.fem.Constant(domain, dt_start)
+
+# ------------------------------ Set simulation parameters ------------------------------
+
+# Timestep parameters
+dt_start = 0.1 # Timestep size
 t_global = dlfx.fem.Constant(domain,0.0)
 trestart_global = dlfx.fem.Constant(domain,0.0)
-Tend = 2.5 #3.0
+Tend = 3 # Time at end of simulation
+
+# Derived timestep parameters
+dt_global = dlfx.fem.Constant(domain, dt_start)
+dt_max_in_critical_area = dt_start
 dt_global.value = dt_max_in_critical_area
 dt_max = dlfx.fem.Constant(domain,dt_max_in_critical_area)
 
-la = dlfx.fem.Constant(domain, 1.0)
-mu = dlfx.fem.Constant(domain, 1.0)
+# Material parameters
+la = dlfx.fem.Constant(domain, 1.0) # Lamé constant
+mu = dlfx.fem.Constant(domain, 1.0) # Lamé constant
+sig_y = dlfx.fem.Constant(domain, 1.0) # critical stress
+hard = dlfx.fem.Constant(domain, 0.6) # linear hardening factor
 
-sig_y = dlfx.fem.Constant(domain, 1.0)
-hard = dlfx.fem.Constant(domain, 0.6)
 
+# ------------------------------ Define variables ------------------------------
 
 # Function space and FE functions ########################################################
 Ve = ufl.VectorElement("Lagrange", domain.ufl_cell(), 1) # displacements
 V = dlfx.fem.FunctionSpace(domain, Ve)
-
 
 # define solution, restart, trial and test space
 u =  dlfx.fem.Function(V)
@@ -145,44 +157,14 @@ H.x.array[:] = np.zeros_like(H.x.array[:])
 alpha_n.x.array[:] = np.zeros_like(alpha_n.x.array[:])
 alpha_tmp.x.array[:] = np.zeros_like(alpha_tmp.x.array[:])
 
-
-## define boundary conditions crack
 tdim = domain.topology.dim
 fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
-plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
-
-timer = dlfx.common.Timer()
-def before_first_time_step():
-    timer.start()
-    urestart.x.array[:] = um1.x.array[:]
-    # prepare newton-log-file
-    if rank == 0:
-        sol.prepare_newton_logfile(logfile_path)
-        pp.prepare_graphs_output_file(outputfile_graph_path)
-    # prepare xdmf output 
-    pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
-
-def before_each_time_step(t,dt):
-    # report solution status
-    if rank == 0:
-        sol.print_time_and_dt(t,dt)
-
-
-
-def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
-    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
-    return [Res, dResdw]
-
-
+    
+# ------------------------------ Define boundary conditions ------------------------------
 
 atol=(x_max_all-x_min_all)*0.05 # for selection of boundary
-
-
-def all(x):
-        return np.full_like(x[0],True)
-    
 
 def get_bcs(t):
     
@@ -214,9 +196,34 @@ Work = dlfx.fem.Constant(domain,0.0)
 success_timestep_counter = dlfx.fem.Constant(domain,0.0)
 postprocessing_interval = dlfx.fem.Constant(domain,20.0)
 
+
+# ------------------------------ Setup function hooks for simulation ------------------------------
+
 TEN = dlfx.fem.functionspace(domain, ("DP", 0, (dim, dim)))
 S0e = basix.ufl.element("DP", domain.basix_cell(), 0, shape=())
 S0 = dlfx.fem.functionspace(domain, S0e)
+
+plasticityProblem = alex.plasticity.Plasticity_incremental_3D(sig_y=sig_y.value, hard=hard.value,alpha_n=alpha_n,e_p_n=e_p_n,H=H)
+
+timer = dlfx.common.Timer()
+def before_first_time_step():
+    timer.start()
+    urestart.x.array[:] = um1.x.array[:]
+    # prepare newton-log-file
+    if rank == 0:
+        sol.prepare_newton_logfile(logfile_path)
+        pp.prepare_graphs_output_file(outputfile_graph_path)
+    # prepare xdmf output 
+    pp.write_meshoutputfile(domain, outputfile_xdmf_path, comm)
+
+def before_each_time_step(t,dt):
+    # report solution status
+    if rank == 0:
+        sol.print_time_and_dt(t,dt)
+
+def get_residuum_and_gateaux(delta_t: dlfx.fem.Constant):
+    [Res, dResdw] = plasticityProblem.prep_newton(u=u,um1=um1,du=du,ddu=ddu,lam=la,mu=mu) 
+    return [Res, dResdw]
 
 def after_timestep_success(t,dt,iters):
     
@@ -253,9 +260,7 @@ def after_timestep_success(t,dt,iters):
             u_y = t/2
         else: 
             u_y = (1 - (t-1))/2
-        # ----------------------------------------------------------------------------------------------------------------------------------------
-        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top*Ry_scaling,u_y)     # Arbitrary scaling factor introduced!!!!
-        # ----------------------------------------------------------------------------------------------------------------------------------------
+        pp.write_to_graphs_output_file(outputfile_graph_path,t, Ry_top,u_y)
 
 
     # update

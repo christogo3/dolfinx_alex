@@ -17,9 +17,9 @@ data_path = '/home/resources/Nanomesh.xdmf'
 
 script_path = os.path.dirname(__file__)
 script_name_without_extension = os.path.splitext(os.path.basename(__file__))[0]
-logfile_path = alex.os.logfile_full_path(script_path,script_name_without_extension)
-outputfile_graph_path = alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
-outputfile_xdmf_path = alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
+logfile_path = os.path.join(script_path,"results_data.txt") #alex.os.logfile_full_path(script_path,script_name_without_extension)
+outputfile_graph_path = os.path.join(script_path,"results_data.txt") #alex.os.outputfile_graph_full_path(script_path,script_name_without_extension)
+outputfile_xdmf_path = os.path.join(script_path,"results.xdmf") #alex.os.outputfile_xdmf_full_path(script_path,script_name_without_extension)
 #parameter_path = os.path.join(script_path,"parameters.txt")
 
 # set MPI environment
@@ -35,6 +35,7 @@ if rank == 0:
 if data_path == '':
     N = 10
     domain = dlfx.mesh.create_unit_cube(comm,N,N,N,dlfx.mesh.CellType.tetrahedron) #hexahedron or tetrahedron
+    
 else:
     domain = dlfx.io.XDMFFile(comm, data_path, 'r').read_mesh()
 
@@ -91,8 +92,8 @@ alex.os.mpi_print('spatial dimensions: '+str(dim), rank)
 # Determine size of domain
 _, _, y_min_all, y_max_all, _, _ = pp.compute_bounding_box(comm, domain)
 
+# Implementation example
 '''
-# Implementation example:
 x_range = (x_min_all,x_max_all/2)
 y_range = (y_min_all,y_max_all/2)
 z_range = (z_min_all,z_max_all/2)
@@ -150,21 +151,25 @@ fdim = tdim - 1
 domain.topology.create_connectivity(fdim, tdim)
 
 # determine and apply boundary conditions
-atol=0 # (x_max_all-x_min_all)*0.05 # tolerance for selection of boundary
+atol = 0#(y_max_all-y_min_all)*0.05 # tolerance for selection of boundary
 def get_bcs(t):
-    magnitude = (y_max_all - y_min_all)/7
+    max_strain = 0.07
+    magnitude = (y_max_all - y_min_all)*max_strain
 
     if t<= 1: 
         u_y_val = t*magnitude
     else: 
         u_y_val = (1 - (t-1))*magnitude
 
-    bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
-    bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V,-1)
-    bc_bottom_corner_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_corner_of_box_as_function(domain,comm),V,-1)
-    bc_bottom_corner_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_corner_of_box_as_function(domain,comm),V,-1)
+    bc_bottom_y = bc.define_dirichlet_bc_from_value(domain,0.0,1,bc.get_bottom_boundary_of_box_as_function(domain,comm,atol=atol),V)
+    bc_top_y = bc.define_dirichlet_bc_from_value(domain,u_y_val,1,bc.get_top_boundary_of_box_as_function(domain,comm,atol=atol),V)
+    bc_face_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_left_boundary_of_box_as_function(domain,comm,atol=atol),V)
+    bc_face_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_back_boundary_of_box_as_function(domain,comm,atol=atol),V)
+
+    #bc_bottom_corner_x = bc.define_dirichlet_bc_from_value(domain,0.0,0,bc.get_corner_of_box_as_function(domain,comm),V)
+    #bc_bottom_corner_z = bc.define_dirichlet_bc_from_value(domain,0.0,2,bc.get_corner_of_box_as_function(domain,comm),V)
     
-    bcs = [bc_top_y,bc_bottom_y,bc_bottom_corner_x,bc_bottom_corner_z]
+    bcs = [bc_top_y,bc_bottom_y,bc_face_x,bc_face_z]
     return bcs
 
 # Find top surface of the mesh 
