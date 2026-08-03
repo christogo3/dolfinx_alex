@@ -85,7 +85,7 @@ def hull_plot(results,elev=None,azim=None,fontsize=14,mode='strain'):
     plt.tight_layout()
     plt.savefig(os.path.join(script_path, '3D_' + savename + '_surface.png'),dpi=300)
 
-def projected_plots(results,align_with_3d_view=False):
+def projected_plots(results,align_with_3d_view=False,plot_reference=False):
 
     # 2D Projections
     # Create a figure with two subplots for the classical projections
@@ -118,6 +118,25 @@ def projected_plots(results,align_with_3d_view=False):
     # Fill the yield surface
     ax1.fill(pi_points[hull_pi.vertices, 0], pi_points[hull_pi.vertices, 1], 'red', alpha=0.15, label='Yield Domain')
 
+    # Von-Mises reference solution
+    if plot_reference == True:
+        E = 70000
+        sig_y = 140
+        eps_y = sig_y/E
+        
+        # Pi-plane
+        theta = np.linspace(0, 2 * np.pi, 500)
+        R_pi = np.sqrt(2 / 3) * eps_y
+        s_x = R_pi * np.cos(theta)
+        s_y = R_pi * np.sin(theta)
+        ax1.plot(s_x, s_y, 'k-', label='Fitted Von-Mises')
+
+        # Biaxial projection
+        r = eps_y / np.sqrt(1 - np.sin(theta) * np.cos(theta))
+        s1 = r * np.cos(theta)
+        s2 = r * np.sin(theta)
+        ax2.plot(s1, s2, 'k-', label='Fitted Von-Mises ')
+
     # Add the hydrostatic center point
     ax1.plot(0, 0, 'k+', markersize=10, label='Hydrostatic Axis')
 
@@ -126,19 +145,21 @@ def projected_plots(results,align_with_3d_view=False):
     ax1.set_ylabel("v (Shear)",fontsize=12)
     ax1.grid(True, linestyle='--', alpha=0.6)
     ax1.set_aspect('equal', 'box')
-    ax1.legend()
+    ax1.legend(loc='upper right')
 
     # -------------------------------------------------------------
     # PROJECTION 2: Biaxial Projection (eps_1 vs. eps_2)
     # -------------------------------------------------------------
     # We extract the first two principal strains
+    flip_x = -1
     biaxial_points = results[:, [0, 1]]
+    biaxial_points[:,0] *= flip_x
 
     # Compute the 2D Convex Hull for the biaxial projection
     hull_bi = ConvexHull(biaxial_points)
 
     # Plot all data points
-    ax2.scatter(results[:, 0], results[:, 1], color='gray', alpha=0.5)
+    ax2.scatter(flip_x*results[:, 0], results[:, 1], color='gray', alpha=0.5)
 
     # Plot the convex hull boundary
     for simplex in hull_bi.simplices:
@@ -162,6 +183,11 @@ def projected_plots(results,align_with_3d_view=False):
 #elevation = np.degrees(np.arcsin(1 / np.sqrt(3)))  # ~35.264 degrees
 #azimuth = 45.0
 
+# Strain-space plots
 results = read_jsons(json_files,mode='strain')
-#hull_plot(results,mode='strain')
-projected_plots(results)
+hull_plot(results,mode='strain')
+projected_plots(results,plot_reference=True)
+
+# Stress-space plot
+results = read_jsons(json_files,mode='stress')
+hull_plot(results,mode='stress')
