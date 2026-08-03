@@ -5,28 +5,38 @@ import glob
 import json
 from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+#from mpl_toolkits.mplot3d import Axes3D
 
 script_path = os.path.dirname(__file__)
-search_path = os.path.join(script_path,'yield_run_std_tensor_jsons', '*.json')
+search_path = os.path.join(script_path,'JSONS/n192', '*.json')
 
 json_files = glob.glob(search_path)
 
-results = np.zeros((len(json_files),3))
-i = 0
+def read_jsons(directory,mode):
+    results = np.zeros((len(directory),3))
+    i = 0
 
-for file_path in json_files:
-    
-    with open(file_path, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-
-        final_state = data.get('final_yield_state', None)
-        if final_state != None:
-            eps_eigenvalues = final_state.get('eps_mac_eigenvalues_current', None)
+    for json_path in directory:
         
-        if eps_eigenvalues != None:
-            results[i,:] = eps_eigenvalues
-        i = i+1
+        with open(json_path, 'r', encoding='utf-8') as file:
+            data = json.load(file)
+
+            final_state = data.get('final_yield_state', None)
+            if final_state != None:
+                if mode == 'strain':
+                    final_vector = final_state.get('eps_mac_eigenvalues_current', None)
+                elif mode == 'stress':
+                    tensor = final_state.get('sigma_avg_reduced_volume', None)
+                    eig_array = np.linalg.eigvals(tensor)
+                    final_vector = eig_array.tolist()
+                else: final_vector = None
+            
+            if final_vector != None:
+                results[i,:] = final_vector
+            
+            i = i+1
+
+    return results
         
 
 def scatter_plot(results):
@@ -42,7 +52,7 @@ def scatter_plot(results):
     plt.title("Failure Surface")
     plt.savefig(os.path.join(script_path, 'scatter.png'))
 
-def hull_plot(results,elev=None,azim=None):
+def hull_plot(results,elev=None,azim=None,fontsize=14,mode='strain'):
     # Convex Hull plot
     hull = ConvexHull(results)
 
@@ -58,15 +68,22 @@ def hull_plot(results,elev=None,azim=None):
                     edgecolor='black', # Keeps the wireframe definition
                     linewidth=0.2)
 
-    ax.set_xlabel("$\epsilon_1$")
-    ax.set_ylabel("$\epsilon_2$")
-    ax.set_zlabel("$\epsilon_3$")
+    if mode == 'strain':
+        ax.set_xlabel("$\epsilon_1$",fontsize=fontsize)
+        ax.set_ylabel("$\epsilon_2$",fontsize=fontsize)
+        ax.set_zlabel("$\epsilon_3$",fontsize=fontsize)
+        savename = 'strain'
+    elif mode == 'stress':
+        ax.set_xlabel("$\sigma_1$",fontsize=fontsize)
+        ax.set_ylabel("$\sigma_2$",fontsize=fontsize)
+        ax.set_zlabel("$\sigma_3$",fontsize=fontsize)
+        savename = 'stress'
 
     if elev and azim != None:
         ax.view_init(elev,azim)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(script_path, '3D_surface.png'),dpi=300)
+    plt.savefig(os.path.join(script_path, '3D_' + savename + '_surface.png'),dpi=300)
 
 def projected_plots(results,align_with_3d_view=False):
 
@@ -105,8 +122,8 @@ def projected_plots(results,align_with_3d_view=False):
     ax1.plot(0, 0, 'k+', markersize=10, label='Hydrostatic Axis')
 
     ax1.set_title("$\pi$-Plane (Deviatoric) Projection")
-    ax1.set_xlabel("u (Shear)")
-    ax1.set_ylabel("v (Shear)")
+    ax1.set_xlabel("u (Shear)",fontsize=12)
+    ax1.set_ylabel("v (Shear)",fontsize=12)
     ax1.grid(True, linestyle='--', alpha=0.6)
     ax1.set_aspect('equal', 'box')
     ax1.legend()
@@ -131,8 +148,8 @@ def projected_plots(results,align_with_3d_view=False):
     ax2.fill(biaxial_points[hull_bi.vertices, 0], biaxial_points[hull_bi.vertices, 1], 'blue', alpha=0.15)
 
     ax2.set_title("Biaxial Projection ($\epsilon_1$ vs. $\epsilon_2$)")
-    ax2.set_xlabel("$\epsilon_1$")
-    ax2.set_ylabel("$\epsilon_2$")
+    ax2.set_xlabel("$\epsilon_1$",fontsize=12)
+    ax2.set_ylabel("$\epsilon_2$",fontsize=12)
     ax2.grid(True, linestyle='--', alpha=0.6)
     ax2.set_aspect('equal', 'box')
 
@@ -142,6 +159,9 @@ def projected_plots(results,align_with_3d_view=False):
     plt.savefig(os.path.join(script_path, '2D_projections.png'), dpi=300)
     plt.show()
 
-elevation = np.degrees(np.arcsin(1 / np.sqrt(3)))  # ~35.264 degrees
-azimuth = 45.0
-hull_plot(results,elevation)
+#elevation = np.degrees(np.arcsin(1 / np.sqrt(3)))  # ~35.264 degrees
+#azimuth = 45.0
+
+results = read_jsons(json_files,mode='strain')
+#hull_plot(results,mode='strain')
+projected_plots(results)
